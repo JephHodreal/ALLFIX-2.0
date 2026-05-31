@@ -1009,7 +1009,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                           <button
                             type="button"
                             onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors"
+                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
@@ -1017,7 +1017,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                           <button
                             type="button"
                             onClick={() => setQuantity(q => q + 1)}
-                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors"
+                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -1063,18 +1063,18 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                 <>
                   <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
                     {cart.map((item) => (
-                      <div key={item.id} className="p-4 bg-white dark:bg-slate-850 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative group">
+                      <div key={item.id} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative group">
                         <div className="flex justify-between items-start gap-4">
                           <div>
                             <p className="font-extrabold text-sm text-slate-950 dark:text-white">{item.workType}</p>
-                            <p className="text-xs text-slate-400 font-medium mb-2">{item.serviceName} • {item.subServiceName}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-300 font-medium mb-2">{item.serviceName} • {item.subServiceName}</p>
                             {item.description && (
-                              <p className="text-xs text-slate-600 dark:text-slate-350 bg-slate-50 dark:bg-slate-805 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80">
+                              <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80">
                                 "{item.description}"
                               </p>
                             )}
-                            <p className="text-xs text-slate-500 font-bold bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block">{item.vendorName}</p>
-                            <div className="flex gap-2 text-[10px] text-slate-400 mt-2 font-semibold">
+                            <p className="text-xs text-slate-500 dark:text-slate-300 font-bold bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block">{item.vendorName}</p>
+                            <div className="flex gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-semibold">
                               <span>📅 {item.scheduledDate}</span>
                               <span>•</span>
                               <span>⏰ {item.scheduledTime}</span>
@@ -1082,7 +1082,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                           </div>
                           <div className="text-right">
                             <p className="font-black text-sm text-brand-green">₱{item.total}</p>
-                            <p className="text-[10px] text-slate-400 font-bold">Qty: {item.quantity}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Qty: {item.quantity}</p>
                           </div>
                         </div>
 
@@ -1263,17 +1263,17 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
       <Card className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl space-y-6">
         <div className="space-y-4">
           {cart.map((item) => (
-            <div key={item.id} className="p-5 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative group">
+            <div key={item.id} className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative group">
               <div>
                 <p className="font-extrabold text-base text-slate-950 dark:text-white">{item.workType}</p>
-                <p className="text-xs text-slate-400 font-semibold mb-2">{item.serviceName} • {item.subServiceName}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300 font-semibold mb-2">{item.serviceName} • {item.subServiceName}</p>
                 {item.description && (
-                  <p className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80 max-w-md">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80 max-w-md">
                     "{item.description}"
                   </p>
                 )}
-                <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{item.vendorName}</span>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded">{item.vendorName}</span>
                   <span>📅 {item.scheduledDate}</span>
                   <span>⏰ {item.scheduledTime}</span>
                 </div>
@@ -1281,7 +1281,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
               <div className="flex items-center justify-between sm:justify-end gap-6">
                 <div className="text-right">
                   <p className="font-black text-base text-brand-green">₱{item.total}</p>
-                  <p className="text-[11px] text-slate-400 font-bold">Qty: {item.quantity} (₱{item.price} each)</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-300 font-bold">Qty: {item.quantity} (₱{item.price} each)</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1548,7 +1548,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                 onClick={() => setSummaryExpanded(!summaryExpanded)}
                 className="lg:hidden flex justify-between items-center bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer shadow-sm"
               >
-                <span className="text-xs font-black text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   📋 Show Booking Summary ({cart.length})
                 </span>
                 <div className="flex items-center gap-2">
@@ -1563,17 +1563,17 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
               {/* Item List (Collapsible on Mobile, always visible on Desktop) */}
               <div className={`${summaryExpanded ? 'block' : 'hidden lg:block'} mt-3 lg:mt-0 space-y-3 max-h-[160px] lg:max-h-[320px] overflow-y-auto pr-1`}>
                 {cart.map((item, idx) => (
-                  <div key={idx} className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl flex justify-between gap-3 shadow-sm">
+                  <div key={idx} className="p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800/80 rounded-xl flex justify-between gap-3 shadow-sm">
                     <div className="min-w-0 flex-grow">
                       <p className="font-black text-xs md:text-sm text-slate-950 dark:text-white truncate">{item.workType}</p>
-                      <p className="text-[11px] md:text-xs text-slate-455 dark:text-slate-500 font-semibold truncate mt-0.5">{item.subServiceName}</p>
+                      <p className="text-[11px] md:text-xs text-slate-455 dark:text-slate-400 font-semibold truncate mt-0.5">{item.subServiceName}</p>
                       {item.description && (
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic truncate mt-0.5">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-300 italic truncate mt-0.5">
                           "{item.description}"
                         </p>
                       )}
-                      <p className="text-[11px] md:text-xs text-slate-400 font-medium truncate mt-0.5">Provider: {item.vendorName}</p>
-                      <div className="flex gap-2 text-[10px] text-slate-400 mt-1.5 font-semibold">
+                      <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">Provider: {item.vendorName}</p>
+                      <div className="flex gap-2 text-[10px] text-slate-500 dark:text-slate-450 mt-1.5 font-semibold">
                         <span>📅 {item.scheduledDate}</span>
                         <span>•</span>
                         <span>⏰ {item.scheduledTime}</span>
@@ -1581,7 +1581,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                     </div>
                     <div className="text-right flex-shrink-0 flex flex-col justify-between">
                       <p className="font-black text-xs md:text-sm text-brand-green">₱{item.total}</p>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Qty: {item.quantity}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">Qty: {item.quantity}</p>
                     </div>
                   </div>
                 ))}

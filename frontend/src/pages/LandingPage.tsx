@@ -540,7 +540,7 @@ const LandingPage = () => {
             <Box sx={{ textAlign: 'center', mb: 2.5 }}>
               <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#eaf2fc', color: '#23406e', borderRadius: '999px', px: 3, py: 1, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 2 }}>OUR SERVICES</Box>
               <Typography sx={{ fontSize: { xs: '1.6rem', sm: '2.2rem', lg: '2rem' }, fontWeight: 900, mb: 2, lineHeight: 1.2 }}>
-                Nine Expert Brands, <span style={{ color: '#10355f' }}>One Trusted Platform</span>
+                Expert Brands, <span style={{ color: '#10355f' }}>One Trusted Platform</span>
               </Typography>
               <Typography sx={{ color: '#666', fontSize: { xs: '0.85rem', sm: '1rem', lg: '0.9rem' }, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}>
                 Each AllFix brand specializes in a distinct service area, staffed by trained, background-checked professionals with industry certifications.
@@ -605,7 +605,7 @@ const LandingPage = () => {
                 <Box sx={{ bgcolor: 'white', color: '#10355f', px: 1.5, py: 0.3, borderRadius: '999px', fontSize: '0.7rem', fontWeight: 800, width: 'fit-content', mb: 1.5 }}>Step 1</Box>
                 <Typography sx={{ fontSize: { xs: '1.3rem', sm: '1.6rem', lg: '1.5rem' }, fontWeight: 900, mb: 1, lineHeight: 1.2 }}>Choose a Service</Typography>
                 <Typography sx={{ fontSize: '0.85rem', opacity: 0.9, lineHeight: 1.5, mb: 2, maxWidth: '90%' }}>
-                  Select the type of work you need from our 9 specialized brands. Browse by category or search directly.
+                  Select the type of work you need from our specialized brands. Browse by category or search directly.
                 </Typography>
                 <Box sx={{ mt: 'auto', bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '16px', p: 2, border: '1px solid rgba(255,255,255,0.2)', animation: 'float1 4s ease-in-out infinite', '@keyframes float1': { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-8px)' } } }}>
                   <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', position: 'relative' }}>
