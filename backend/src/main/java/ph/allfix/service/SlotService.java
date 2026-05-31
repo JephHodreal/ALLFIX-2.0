@@ -33,13 +33,17 @@ public class SlotService {
         if (slotId != null && !slotId.isEmpty()) {
             Map<String, Object> slot = firestoreService.getById("vendor_slots", slotId);
             if (slot != null) {
-                int available = ((Number) slot.getOrDefault("available_slots", 0)).intValue();
-                if (available > 0) {
-                    firestoreService.increment("vendor_slots", slotId, "available_slots", -1);
-                    System.out.println("[SlotService] Successfully decremented slot using slotId=" + slotId);
-                } else {
-                    System.out.println("[SlotService] Slot with slotId=" + slotId + " has no available slots left (" + available + ")");
+                int available = 0;
+                Object availObj = slot.get("available_slots");
+                Object totalObj = slot.get("total_slots");
+                if (availObj != null && availObj instanceof Number) {
+                    available = ((Number) availObj).intValue();
+                } else if (totalObj != null && totalObj instanceof Number) {
+                    available = ((Number) totalObj).intValue();
                 }
+                int newAvailable = Math.max(0, available - 1);
+                firestoreService.updateField("vendor_slots", slotId, "available_slots", newAvailable);
+                System.out.println("[SlotService] Successfully decremented slot using slotId=" + slotId + " to newAvailable=" + newAvailable);
                 return;
             } else {
                 System.out.println("[SlotService] Slot with slotId=" + slotId + " not found in Firestore. Falling back to query filters.");
@@ -72,11 +76,17 @@ public class SlotService {
                 targetSlot = slots.get(0);
             }
             String targetSlotId = (String) targetSlot.get("id");
-            int available = ((Number) targetSlot.getOrDefault("available_slots", 0)).intValue();
-            if (available > 0) {
-                firestoreService.increment("vendor_slots", targetSlotId, "available_slots", -1);
-                System.out.println("[SlotService] Successfully decremented fallback target slotId=" + targetSlotId);
+            int available = 0;
+            Object availObj = targetSlot.get("available_slots");
+            Object totalObj = targetSlot.get("total_slots");
+            if (availObj != null && availObj instanceof Number) {
+                available = ((Number) availObj).intValue();
+            } else if (totalObj != null && totalObj instanceof Number) {
+                available = ((Number) totalObj).intValue();
             }
+            int newAvailable = Math.max(0, available - 1);
+            firestoreService.updateField("vendor_slots", targetSlotId, "available_slots", newAvailable);
+            System.out.println("[SlotService] Successfully decremented fallback target slotId=" + targetSlotId + " to newAvailable=" + newAvailable);
         } else {
             System.out.println("[SlotService] No vendor slots found matching vendorId=" + vendorId + ", date=" + date + ", subService=" + subService);
         }
