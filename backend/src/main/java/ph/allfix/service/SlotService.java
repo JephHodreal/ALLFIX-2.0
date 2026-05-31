@@ -324,28 +324,57 @@ public class SlotService {
                             boolean matchesService = (serviceName != null && sNameStr.equalsIgnoreCase(serviceName)) ||
                                                      (serviceBrand != null && sNameStr.equalsIgnoreCase(serviceBrand));
                             if (matchesService) {
-                                Object workTypesObj = sMap.get("work_types");
-                                if (workTypesObj instanceof List) {
-                                    List<?> wtList = (List<?>) workTypesObj;
-                                    for (Object wtObj : wtList) {
-                                        if (!(wtObj instanceof Map)) continue;
-                                        Map<?, ?> wtMap = (Map<?, ?>) wtObj;
-                                        Object wtName = wtMap.get("name");
-                                        Object wtStatus = wtMap.get("status");
-                                        Object wtSub = wtMap.get("subService");
-                                        if (wtName instanceof String && workType != null &&
-                                            ((String) wtName).equalsIgnoreCase(workType) &&
-                                            "approved".equalsIgnoreCase(wtStatus instanceof String ? (String) wtStatus : String.valueOf(wtStatus))) {
-                                            if (subService != null && !subService.isEmpty() && !"null".equalsIgnoreCase(subService)) {
-                                                if (wtSub instanceof String && ((String) wtSub).equalsIgnoreCase(subService)) {
-                                                    System.out.println("[SlotService]   VENDOR " + vId + " MATCHED (with sub-service)");
-                                                    return true;
+                                // Check if vendor offers this subService at all
+                                Object subServicesObj = sMap.get("sub_services");
+                                boolean offersSubService = false;
+                                if (subServicesObj instanceof List) {
+                                    List<?> subsList = (List<?>) subServicesObj;
+                                    for (Object sub : subsList) {
+                                        if (sub instanceof String && ((String) sub).equalsIgnoreCase(subService)) {
+                                            offersSubService = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (offersSubService) {
+                                    // Check if there are any custom work types defined for this sub-service on the vendor's profile
+                                    Object workTypesObj = sMap.get("work_types");
+                                    boolean hasWorkTypesForSub = false;
+                                    boolean hasApprovedWorkTypeForSubAndName = false;
+                                    
+                                    if (workTypesObj instanceof List) {
+                                        List<?> wtList = (List<?>) workTypesObj;
+                                        for (Object wtObj : wtList) {
+                                            if (!(wtObj instanceof Map)) continue;
+                                            Map<?, ?> wtMap = (Map<?, ?>) wtObj;
+                                            Object wtSub = wtMap.get("subService");
+                                            Object wtName = wtMap.get("name");
+                                            Object wtStatus = wtMap.get("status");
+                                            
+                                            if (wtSub instanceof String && ((String) wtSub).equalsIgnoreCase(subService)) {
+                                                hasWorkTypesForSub = true;
+                                                
+                                                if (wtName instanceof String && workType != null &&
+                                                    ((String) wtName).equalsIgnoreCase(workType) &&
+                                                    "approved".equalsIgnoreCase(wtStatus instanceof String ? (String) wtStatus : String.valueOf(wtStatus))) {
+                                                    hasApprovedWorkTypeForSubAndName = true;
                                                 }
-                                            } else {
-                                                System.out.println("[SlotService]   VENDOR " + vId + " MATCHED (no sub filter)");
-                                                return true;
                                             }
                                         }
+                                    }
+                                    
+                                    // MATCHING LOGIC:
+                                    // 1. If the vendor has custom work types for this subService, strictly match the requested workType and check status.
+                                    // 2. If the vendor has no custom work types for this subService (Base Price only), match purely on subService presence.
+                                    if (hasWorkTypesForSub) {
+                                        if (hasApprovedWorkTypeForSubAndName) {
+                                            System.out.println("[SlotService]   VENDOR " + vId + " MATCHED (with strict work-type check)");
+                                            return true;
+                                        }
+                                    } else {
+                                        System.out.println("[SlotService]   VENDOR " + vId + " MATCHED (Base Price sub-service, no work-types defined in profile)");
+                                        return true;
                                     }
                                 }
                             }
