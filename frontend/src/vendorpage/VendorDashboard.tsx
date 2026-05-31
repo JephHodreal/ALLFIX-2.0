@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight } from 'lucide-react';
+import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -100,25 +100,607 @@ function VendorBookings() {
   const { profile } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [showAssignPersonnelModal, setShowAssignPersonnelModal] = useState(false);
+
+  // Refund Form State
+  const [refundAmount, setRefundAmount] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [refundMethod, setRefundMethod] = useState('GCash');
+  const [receiverGcashNumber, setReceiverGcashNumber] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundError, setRefundError] = useState('');
+
+  // Personnel List State
+  const [personnel, setPersonnel] = useState<any[]>([]);
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [showAllPersonnel, setShowAllPersonnel] = useState(false);
+
   useEffect(() => {
-    if (profile?.id) api.get(`/api/bookings/vendor/${profile.id}`).then(r => setBookings(r.data || [])).catch(() => {}).finally(() => setLoading(false));
-    else setLoading(false);
+    if (profile?.id) {
+      setLoading(true);
+      api.get(`/api/bookings/vendor/${profile.id}`)
+        .then(r => setBookings(r.data || []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+
+      api.get(`/api/personnel?vendor_id=${profile.id}`)
+        .then(r => setPersonnel(r.data || []))
+        .catch(() => {});
+    } else {
+      setLoading(false);
+    }
   }, [profile]);
-  return (
-    <DataTable columns={[
-      { key: 'service_type', label: 'Service', sortable: true },
-      { key: 'scheduled_date', label: 'Date', sortable: true },
-      { key: 'status', label: 'Status', render: (item: any) => {
-        const cls: Record<string, string> = { pending: 'badge-pending', confirmed: 'badge-confirmed', in_progress: 'badge-in-progress', completed: 'badge-completed' };
-        return <span className={cls[item.status] || 'badge'}>{item.status?.replace('_', ' ')}</span>;
-      }},
-      { key: 'actions', label: 'Actions', render: (item: any) => (
-        <div className="flex gap-2">
-          {item.status === 'confirmed' && <Button size="sm" onClick={() => api.patch(`/api/bookings/${item.id}/assign-personnel`)}>Assign</Button>}
-          {item.status === 'in_progress' && <Button size="sm" variant="success" onClick={() => api.patch(`/api/bookings/${item.id}/complete`)}>Complete</Button>}
+
+  const statusBadge = (status: string) => {
+    const cls: Record<string, string> = {
+      pending: 'badge-pending',
+      confirmed: 'badge-confirmed',
+      in_progress: 'badge-in-progress',
+      completed: 'badge-completed',
+      cancelled: 'badge-cancelled'
+    };
+    return <span className={cls[status] || 'badge'}>{status?.replace('_', ' ')}</span>;
+  };
+
+  const handleAssignPersonnelSubmit = async (personnelId: string) => {
+    setAssigningLoading(true);
+    try {
+      await api.patch(`/api/bookings/${selectedBooking.id}/assign-personnel`, {
+        personnel_id: personnelId,
+      });
+
+      // Update selected booking in state
+      setSelectedBooking((prev: any) => ({
+        ...prev,
+        status: 'in_progress',
+        personnel_id: personnelId,
+      }));
+
+      // Update bookings list
+      setBookings((prevList: any[]) =>
+        prevList.map((b: any) =>
+          b.id === selectedBooking.id
+            ? { ...b, status: 'in_progress', personnel_id: personnelId }
+            : b
+        )
+      );
+
+      setShowAssignPersonnelModal(false);
+      alert('Personnel assigned successfully!');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to assign personnel.');
+    } finally {
+      setAssigningLoading(false);
+    }
+  };
+
+  const handleCompleteBooking = async () => {
+    try {
+      await api.patch(`/api/bookings/${selectedBooking.id}/complete`);
+      
+      // Update selected booking in state
+      setSelectedBooking((prev: any) => ({
+        ...prev,
+        status: 'completed',
+      }));
+
+      // Update bookings list
+      setBookings((prevList: any[]) =>
+        prevList.map((b: any) =>
+          b.id === selectedBooking.id
+            ? { ...b, status: 'completed' }
+            : b
+        )
+      );
+
+      alert('Booking completed successfully!');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to complete booking.');
+    }
+  };
+
+  const handleSubmitRefund = async () => {
+    setRefundError('');
+    setRefundSubmitting(true);
+    try {
+      const payload = {
+        refund_amount: parseFloat(refundAmount) || 0,
+        reference_number: referenceNumber.trim(),
+        refund_method: refundMethod,
+        receiver_gcash_number: refundMethod === 'GCash' ? receiverGcashNumber.trim() : '',
+      };
+
+      await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);
+      
+      // Update selected booking in state
+      setSelectedBooking((prev: any) => ({
+        ...prev,
+        status: 'cancelled',
+        cancellation_requested: true,
+        refund_id: 'linked',
+        refund_amount: payload.refund_amount,
+        refund_reference_number: payload.reference_number,
+        refund_method: payload.refund_method,
+        refund_receiver_gcash_number: payload.receiver_gcash_number,
+      }));
+
+      // Update bookings list too!
+      setBookings((prevList: any[]) =>
+        prevList.map((b: any) =>
+          b.id === selectedBooking.id
+            ? {
+                ...b,
+                status: 'cancelled',
+                cancellation_requested: true,
+                refund_amount: payload.refund_amount,
+                refund_reference_number: payload.reference_number,
+                refund_method: payload.refund_method,
+                refund_receiver_gcash_number: payload.receiver_gcash_number,
+              }
+            : b
+        )
+      );
+
+      setShowRefundForm(false);
+      alert('Booking cancelled and refund details linked successfully!');
+    } catch (err: any) {
+      setRefundError(err.response?.data?.message || 'Failed to submit refund.');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
+  // Helper to get assigned personnel display name
+  const getAssignedPersonnelName = (id: string) => {
+    const p = personnel.find((x: any) => x.id === id || x.uid === id);
+    return p ? `${p.first_name} ${p.last_name}` : null;
+  };
+
+  if (selectedBooking) {
+    // Filter personnel associated with this subservice
+    const bookingSubService = (selectedBooking.sub_service || selectedBooking.service_type || '').toLowerCase();
+    const matchedPersonnel = personnel.filter((p: any) => {
+      if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
+      if (!p.services || !Array.isArray(p.services)) return false;
+      return p.services.some((svc: any) => {
+        const subs = svc.sub_services || [];
+        return subs.some((sub: string) => sub.toLowerCase() === bookingSubService);
+      });
+    });
+
+    const displayPersonnelList = showAllPersonnel 
+      ? personnel.filter((p: any) => p.acc_approve === 'approved' && p.temp_delete !== 1)
+      : matchedPersonnel;
+
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Header with Back button */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setSelectedBooking(null);
+                setShowRefundForm(false);
+                setShowCancelConfirm(false);
+                setShowAssignPersonnelModal(false);
+              }}
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
+            </div>
+          </div>
+          <div>
+            {statusBadge(selectedBooking.status)}
+          </div>
         </div>
-      )},
-    ]} data={bookings} loading={loading} searchPlaceholder="Search bookings..." />
+
+        {/* Two column layout: Booking Info & Payment Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Booking Info Card */}
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Service Category:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-bold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Work Type:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.service_type}</span>
+              </div>
+              {selectedBooking.description && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Description:</span>
+                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic">"{selectedBooking.description}"</span>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Customer:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
+                  {selectedBooking.customer_name || '—'}
+                  {selectedBooking.customer_phone && <span className="text-xs text-slate-500 dark:text-slate-450 block font-normal">{selectedBooking.customer_phone}</span>}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Date & Time:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">📅 {selectedBooking.scheduled_date} at ⏰ {selectedBooking.scheduled_time}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Address:</span>
+                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-normal">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
+              </div>
+              {selectedBooking.personnel_id && (
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+                  <span className="text-slate-400 font-medium">Assigned Personnel:</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-bold flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-brand-green" />
+                    {getAssignedPersonnelName(selectedBooking.personnel_id) || 'Assigned'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Payment Info Card */}
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Unit Price:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{selectedBooking.price || '0.00'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Quantity:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+                <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
+                <span className="col-span-2 text-lg font-black text-brand-green">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+                <span className="text-slate-400 font-medium">Payment Method:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Reference No:</span>
+                <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Payment Status:</span>
+                <span className="col-span-2">
+                  {selectedBooking.payment_confirmed ? (
+                    <span className="badge-completed">Confirmed</span>
+                  ) : (
+                    <span className="badge-pending">Pending</span>
+                  )}
+                </span>
+              </div>
+              {(selectedBooking.refund_reference_number || selectedBooking.refund_method) && (
+                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-350">
+                  <p className="font-extrabold uppercase tracking-wide">Linked Refund Information</p>
+                  <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>
+                  <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>
+                  <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>
+                  {selectedBooking.refund_receiver_gcash_number && (
+                    <p><span className="font-bold">Receiver GCash Number:</span> {selectedBooking.refund_receiver_gcash_number}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Action Buttons */}
+        {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
+          <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
+            <Button
+              variant="ghost"
+              className="flex-1 py-3 text-sm font-semibold rounded-xl min-w-[120px]"
+              onClick={() => setSelectedBooking(null)}
+            >
+              Back
+            </Button>
+            {selectedBooking.status !== 'cancelled' && (
+              <Button
+                variant="danger"
+                className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[120px]"
+                onClick={() => {
+                  setShowCancelConfirm(true);
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+            {selectedBooking.status === 'confirmed' && (
+              <Button
+                variant="success"
+                className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl min-w-[150px] bg-brand-navy hover:bg-[#0a2d5c]"
+                onClick={() => {
+                  setShowAssignPersonnelModal(true);
+                  setShowAllPersonnel(false);
+                }}
+              >
+                Assign Personnel
+              </Button>
+            )}
+            {selectedBooking.status === 'in_progress' && (
+              <Button
+                variant="success"
+                className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl min-w-[150px]"
+                onClick={handleCompleteBooking}
+              >
+                Complete
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Cancel Confirmation Dialog */}
+        {showCancelConfirm && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
+            </div>
+            <p className="text-sm text-slate-655 dark:text-slate-350">
+              Are you sure you want to cancel this booking?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowCancelConfirm(false);
+                  const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00';
+                  setRefundAmount(String(totalAmt));
+                  setRefundMethod('GCash');
+                  setReceiverGcashNumber('');
+                  setReferenceNumber('');
+                  setShowRefundForm(true);
+                }}
+              >
+                Yes, Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Refund Form */}
+        {showRefundForm && (
+          <Card className="p-6 bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/30 rounded-2xl shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white">Refund Form</h4>
+                <p className="text-xs text-slate-500">Provide details to submit the booking cancellation refund.</p>
+              </div>
+            </div>
+
+            {refundError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
+                {refundError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Refund Amount (₱) *</label>
+                <input
+                  type="number"
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-black focus:outline-none"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Refund Method *</label>
+                <select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                >
+                  <option value="GCash">GCash</option>
+                  <option value="Dragonpay">Dragonpay</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reference Number *</label>
+                <input
+                  type="text"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                  placeholder="Enter Reference Number"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Receiver GCash Number</label>
+                <input
+                  type="text"
+                  value={receiverGcashNumber}
+                  onChange={(e) => setReceiverGcashNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                  placeholder="Enter Receiver's GCash Number"
+                  disabled={refundMethod !== 'GCash'}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowRefundForm(false);
+                  setRefundError('');
+                }}
+                disabled={refundSubmitting}
+              >
+                Back to Details
+              </Button>
+              <Button
+                variant="danger"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
+                onClick={handleSubmitRefund}
+                loading={refundSubmitting}
+                disabled={!referenceNumber.trim() || !refundAmount.trim()}
+              >
+                Submit Refund Details
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Assign Personnel Modal/Section */}
+        {showAssignPersonnelModal && (
+          <Card className="p-6 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-xl space-y-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-navy/10 dark:bg-brand-green/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white">Assign Personnel</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Select qualified personnel for: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAssignPersonnelModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {displayPersonnelList.length === 0 ? (
+              <div className="text-center py-8 space-y-4">
+                <p className="text-sm text-slate-500">
+                  {showAllPersonnel 
+                    ? "No approved personnel found under your account." 
+                    : "No personnel found who offer this specific sub-service."}
+                </p>
+                {!showAllPersonnel && personnel.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowAllPersonnel(true)}
+                  >
+                    Show All Approved Personnel
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    {showAllPersonnel ? "All Approved Personnel" : "Qualified Personnel"}
+                  </span>
+                  {!showAllPersonnel && personnel.length > matchedPersonnel.length && (
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAllPersonnel(true)}
+                      className="text-xs text-brand-navy dark:text-brand-green font-bold hover:underline"
+                    >
+                      Show All Personnel
+                    </button>
+                  )}
+                  {showAllPersonnel && matchedPersonnel.length > 0 && (
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAllPersonnel(false)}
+                      className="text-xs text-brand-navy dark:text-brand-green font-bold hover:underline"
+                    >
+                      Show Only Qualified
+                    </button>
+                  )}
+                </div>
+
+                {displayPersonnelList.map((p: any) => (
+                  <div 
+                    key={p.id} 
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/50 dark:hover:bg-slate-900 flex justify-between items-center transition-all"
+                  >
+                    <div>
+                      <h5 className="text-sm font-bold text-slate-900 dark:text-white">{p.first_name} {p.last_name}</h5>
+                      <div className="flex flex-col sm:flex-row sm:gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        <span>✉ {p.email}</span>
+                        {p.phone && <span>📞 {p.phone}</span>}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-brand-navy hover:bg-[#0a2d5c]"
+                      onClick={() => handleAssignPersonnelSubmit(p.id)}
+                      loading={assigningLoading}
+                    >
+                      Assign
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                onClick={() => setShowAssignPersonnelModal(false)}
+                disabled={assigningLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <DataTable
+      columns={[
+        { key: 'service_type', label: 'Service', sortable: true },
+        { key: 'scheduled_date', label: 'Date', sortable: true },
+        { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
+        {
+          key: 'actions',
+          label: 'Actions',
+          render: (item: any) => (
+            <Button
+              size="sm"
+              className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
+              onClick={(e: any) => {
+                e.stopPropagation();
+                setSelectedBooking(item);
+              }}
+              icon={<Eye className="w-4 h-4" />}
+            >
+              View Details
+            </Button>
+          )
+        },
+      ]}
+      data={bookings}
+      loading={loading}
+      searchPlaceholder="Search bookings..."
+    />
   );
 }
 
