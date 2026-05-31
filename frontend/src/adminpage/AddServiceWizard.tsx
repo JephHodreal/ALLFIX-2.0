@@ -62,10 +62,18 @@ export default function AddServiceWizard({ onClose, onSuccess, serviceToEdit, st
             const price = sub.prices && sub.prices[wtName] ? String(sub.prices[wtName]) : '';
             workTypesList.push({ name: wtName, price });
           });
+          // Preserve Base Price / Standard Price from database if present!
+          if (sub.prices && sub.prices['Base Price']) {
+            directPrice = String(sub.prices['Base Price']);
+          }
         } else if (sub.prices) {
           const keys = Object.keys(sub.prices);
           if (keys.length > 0) {
-            directPrice = String(sub.prices[keys[0]]);
+            if (sub.prices['Base Price']) {
+              directPrice = String(sub.prices['Base Price']);
+            } else {
+              directPrice = String(sub.prices[keys[0]]);
+            }
           }
         }
         
@@ -320,6 +328,10 @@ export default function AddServiceWizard({ onClose, onSuccess, serviceToEdit, st
           sub.workTypes.forEach(wt => {
             pricesMap[wt.name] = wt.price;
           });
+          // Preserve the Base Price / Standard Price if it exists
+          if (sub.directPrice) {
+            pricesMap['Base Price'] = sub.directPrice;
+          }
         } else {
           pricesMap['Base Price'] = sub.directPrice;
         }
@@ -379,6 +391,29 @@ export default function AddServiceWizard({ onClose, onSuccess, serviceToEdit, st
     }
   };
 
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteService = async () => {
+    if (!serviceToEdit) return;
+    const confirmDelete = window.confirm("Are you sure you want to remove this service?");
+    if (!confirmDelete) return;
+
+    setDeleting(true);
+    try {
+      console.log("[CAVEMAN] Initiating permanent deletion of service", serviceToEdit.id);
+      await api.delete(`/api/services/${serviceToEdit.id}`);
+      console.log("[CAVEMAN] Successfully deleted service", serviceToEdit.id);
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err: any) {
+      console.error("[CAVEMAN] Error deleting service", err);
+      setGlobalError(err.response?.data?.message || 'Failed to permanently delete this service.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className={standalone ? "w-full max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-2xl" : "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"} onClick={standalone ? undefined : () => onClose && onClose()}>
       <motion.div 
@@ -404,11 +439,23 @@ export default function AddServiceWizard({ onClose, onSuccess, serviceToEdit, st
               </p>
             </div>
           </div>
-          {onClose && (
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {serviceToEdit && (
+              <button 
+                onClick={handleDeleteService}
+                disabled={deleting}
+                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-650 transition-colors border border-red-500/20"
+                title="Delete Service"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            {onClose && (
+              <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Wizard Progress Bar */}

@@ -1495,6 +1495,9 @@ function ServicesManagementPage() {
       if (editingSubserviceId) {
         const existingSub = (backendMatch.subServices || []).find((s: any) => s.id === editingSubserviceId || s.name === editingSubserviceId);
         const subIdToUse = existingSub ? existingSub.id : editingSubserviceId;
+        if (existingSub && existingSub.prices && existingSub.prices['Base Price'] && !pricesObj['Base Price']) {
+          pricesObj['Base Price'] = existingSub.prices['Base Price'];
+        }
         await api.put(`/api/services/${backendMatch.id}/subservices/${subIdToUse}`, {
           name: subForm.name.trim(),
           description: subForm.description.trim(),

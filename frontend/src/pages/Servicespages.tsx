@@ -33,6 +33,7 @@ import api from '../services/apiService';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 
 const ServicesPages = () => {
   const navigate = useNavigate();
@@ -241,6 +242,93 @@ const ServicesPages = () => {
       setEditorError(err?.response?.data?.message || 'Failed to save work types.');
     } finally {
       setEditorSaving(false);
+    }
+  };
+
+  const handleDeleteWorkType = async (wtName: string) => {
+    if (!activeSubService || !service) return;
+    const confirmDelete = window.confirm("Are you sure you want to remove this work type?");
+    if (!confirmDelete) return;
+
+    try {
+      // Find the service document from the backend
+      const allRes = await api.get('/api/services');
+      let backendMatch = allRes.data.find(
+        (s: any) => s.name.toLowerCase() === service.brand.toLowerCase()
+      );
+      
+      if (!backendMatch) return;
+
+      const subserviceId = activeSubService.id;
+      const existingSub = (backendMatch.subServices || []).find(
+        (sub: any) => sub.id === subserviceId || sub.name === activeSubService.name
+      );
+      
+      if (!existingSub) return;
+
+      const subIdToUse = existingSub.id;
+
+      // Filter out the deleted work type
+      const finalWorkTypes = (existingSub.workTypes || []).filter((wt: string) => wt !== wtName);
+      const finalPrices: Record<string, string> = {};
+      if (existingSub.prices) {
+        Object.keys(existingSub.prices).forEach(key => {
+          if (key !== wtName) {
+            finalPrices[key] = existingSub.prices[key];
+          }
+        });
+      }
+
+      // Update backend using PUT endpoint
+      await api.put(`/api/services/${backendMatch.id}/subservices/${subIdToUse}`, {
+        id: subIdToUse,
+        name: existingSub.name,
+        description: existingSub.description || '',
+        imageUrl: existingSub.imageUrl || existingSub.image || '',
+        workTypes: finalWorkTypes,
+        prices: finalPrices
+      });
+
+      // Refetch latest data from database automatically!
+      const freshServicesRes = await api.get('/api/services');
+      const freshBackendService = freshServicesRes.data.find(
+        (s: any) => s.name.toLowerCase() === service.brand.toLowerCase()
+      );
+      
+      if (freshBackendService) {
+        const freshSub = (freshBackendService.subServices || []).find(
+          (sub: any) => sub.id === subIdToUse || sub.name === activeSubService.name
+        );
+        if (freshSub) {
+          const updatedSub = {
+            id: freshSub.id,
+            name: freshSub.name,
+            description: freshSub.description,
+            image: freshSub.imageUrl || freshSub.image || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+            workTypes: freshSub.workTypes || [],
+            prices: freshSub.prices || {},
+          };
+
+          // Update local state list so it updates on-screen instantly
+          setServices(prev => prev.map(s => {
+            if (s.id === service.id) {
+              return {
+                ...s,
+                subServices: s.subServices.map((sub: any) => 
+                  (sub.id === subIdToUse || sub.name === activeSubService.name) ? updatedSub : sub
+                )
+              };
+            }
+            return s;
+          }));
+
+          // Also update activeSubService so UI updates immediately
+          setActiveSubService(updatedSub);
+        }
+      }
+    } catch (err) {
+      console.error("[CAVEMAN] Error deleting work type", err);
+      alert("Failed to delete work type.");
     }
   };
 
@@ -801,11 +889,47 @@ const ServicesPages = () => {
                             {wt}
                           </Typography>
                         </Box>
-                        {pricesMap[wt] && (
-                          <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem', ml: 'auto' }}>
-                            ₱{pricesMap[wt]}
-                          </Typography>
-                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+                          {pricesMap[wt] && (
+                            <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
+                              ₱{pricesMap[wt]}
+                            </Typography>
+                          )}
+                          {role === 'admin' && (
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const subToEdit = activeSubService;
+                                  setActiveSubService(null);
+                                  handleOpenWorkTypesEditor(subToEdit);
+                                }}
+                                sx={{
+                                  color: service?.accent || '#2E5BA8',
+                                  bgcolor: 'rgba(46, 91, 168, 0.05)',
+                                  '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
+                                }}
+                                title="Edit Work Types"
+                              >
+                                <EditIcon sx={{ fontSize: '1.1rem' }} />
+                              </IconButton>
+                              {wtList.length >= 2 && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeleteWorkType(wt)}
+                                  sx={{
+                                    color: '#ef4444',
+                                    bgcolor: 'rgba(239, 68, 68, 0.05)',
+                                    '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' }
+                                  }}
+                                  title="Delete Work Type"
+                                >
+                                  <DeleteIcon sx={{ fontSize: '1.1rem' }} />
+                                </IconButton>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
                       </Box>
                     ))
                   )}
