@@ -853,6 +853,7 @@ const ServicesPages = () => {
                 : (WORK_TYPES_MAPPING[activeSubService.name] || []);
               
               const pricesMap = activeSubService.prices || {};
+              const pricesCount = Object.keys(pricesMap).length;
 
               return (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -880,22 +881,41 @@ const ServicesPages = () => {
                         ₱{pricesMap['Base Price'] !== undefined ? pricesMap['Base Price'] : (pricesMap[activeSubService.name] || '0')}
                       </Typography>
                       {role === 'admin' && (
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            const subToEdit = activeSubService;
-                            setActiveSubService(null);
-                            handleOpenWorkTypesEditor(subToEdit, 'base_price');
-                          }}
-                          sx={{
-                            color: service?.accent || '#2E5BA8',
-                            bgcolor: 'rgba(46, 91, 168, 0.05)',
-                            '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
-                          }}
-                          title="Edit Standard Price"
-                        >
-                          <EditIcon sx={{ fontSize: '1.1rem' }} />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              const subToEdit = activeSubService;
+                              setActiveSubService(null);
+                              handleOpenWorkTypesEditor(subToEdit, 'base_price');
+                            }}
+                            sx={{
+                              color: service?.accent || '#2E5BA8',
+                              bgcolor: 'rgba(46, 91, 168, 0.05)',
+                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
+                            }}
+                            title="Edit Standard Price"
+                          >
+                            <EditIcon sx={{ fontSize: '1.1rem' }} />
+                          </IconButton>
+                          {pricesCount >= 2 && (
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                const standardPriceKey = pricesMap['Base Price'] !== undefined ? 'Base Price' : activeSubService.name;
+                                handleDeleteWorkType(standardPriceKey);
+                              }}
+                              sx={{
+                                color: '#ef4444',
+                                bgcolor: 'rgba(239, 68, 68, 0.05)',
+                                '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' }
+                              }}
+                              title="Delete Standard Price"
+                            >
+                              <DeleteIcon sx={{ fontSize: '1.1rem' }} />
+                            </IconButton>
+                          )}
+                        </Box>
                       )}
                     </Box>
                   </Box>
@@ -958,7 +978,7 @@ const ServicesPages = () => {
                               >
                                 <EditIcon sx={{ fontSize: '1.1rem' }} />
                               </IconButton>
-                              {wtList.length >= 2 && (
+                              {pricesCount >= 2 && (
                                 <IconButton
                                   size="small"
                                   onClick={() => handleDeleteWorkType(wt)}
