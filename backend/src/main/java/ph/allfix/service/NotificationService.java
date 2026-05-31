@@ -27,10 +27,18 @@ public class NotificationService {
     }
 
     public List<Map<String, Object>> getForUser(String userId) throws Exception {
+        System.out.println("[CAVEMAN] Fetching notifications for user: " + userId);
         return firestoreService.getWhere("notifications", "user_id", userId);
     }
 
+    public Map<String, Object> getById(String id) throws Exception {
+        return firestoreService.getById("notifications", id);
+    }
+
     public void markRead(String notificationId) throws Exception {
+        System.out.println("[CAVEMAN] Marking notification " + notificationId + " as read (is_read = true)");
         firestoreService.updateField("notifications", notificationId, "is_read", true);
+        System.out.println("[CAVEMAN] Automatically deleting read notification " + notificationId + " from database for cleanup");
+        firestoreService.delete("notifications", notificationId);
     }
 }
