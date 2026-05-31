@@ -29,6 +29,7 @@ import CloseIcon from '@mui/icons-material/Close';
 // --- Centralized Service Data Source ---
 import { servicesData, WORK_TYPES_MAPPING, SubServiceData } from '../constants/servicesData';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -39,6 +40,7 @@ const ServicesPages = () => {
   const navigate = useNavigate();
   const { serviceId } = useParams();
   const { isAuthenticated, role } = useAuth();
+  const { isDark } = useTheme();
   const [activeSubService, setActiveSubService] = useState<any | null>(null);
   const [editingSubService, setEditingSubService] = useState<any | null>(null);
   const [services, setServices] = useState<any[]>(servicesData);
@@ -389,7 +391,7 @@ const ServicesPages = () => {
       <>
         <CssBaseline />
         <Navbar />
-        <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', width: '100%' }}>
+        <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', minHeight: '100vh', width: '100%' }}>
           
           {/* HERO BANNER SKELETON */}
           <Box sx={{
@@ -411,11 +413,11 @@ const ServicesPages = () => {
           </Box>
 
           {/* TAB BAR SKELETON */}
-          <Box sx={{ bgcolor: '#ffffff', borderBottom: '1px solid rgba(16, 53, 95, 0.08)', py: 2 }}>
+          <Box sx={{ bgcolor: isDark ? '#0f172a' : '#ffffff', borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)', py: 2 }}>
             <Container maxWidth="xl">
               <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} variant="rectangular" width={100} height={36} sx={{ borderRadius: '30px', bgcolor: 'rgba(16, 53, 95, 0.04)' }} />
+                  <Skeleton key={i} variant="rectangular" width={100} height={36} sx={{ borderRadius: '30px', bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 53, 95, 0.04)' }} />
                 ))}
               </Box>
             </Container>
@@ -424,21 +426,21 @@ const ServicesPages = () => {
           {/* SUB-SERVICES GRID SKELETON */}
           <Container maxWidth="xl" sx={{ py: { xs: 8, md: 10 }, px: { xs: 2.5, sm: 4, lg: 6 } }}>
             <Box sx={{ mb: 6, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <Skeleton variant="text" width={320} height={40} />
-              <Skeleton variant="text" width={480} height={20} />
+              <Skeleton variant="text" width={320} height={40} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : undefined }} />
+              <Skeleton variant="text" width={480} height={20} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : undefined }} />
             </Box>
 
             <Grid component="div" container spacing={4} sx={{ justifyContent: 'center' }}>
               {[1, 2, 3, 4].map((i) => (
                 <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 3 }} key={i} sx={{ display: 'flex' }}>
-                  <Box sx={{ width: '100%', bgcolor: 'white', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(16, 53, 95, 0.06)', p: 0 }}>
-                    <Skeleton variant="rectangular" width="100%" height={200} />
+                  <Box sx={{ width: '100%', bgcolor: isDark ? '#1e293b' : 'white', borderRadius: '20px', overflow: 'hidden', border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.06)', p: 0 }}>
+                    <Skeleton variant="rectangular" width="100%" height={200} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : undefined }} />
                     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      <Skeleton variant="text" width="60%" height={28} />
-                      <Skeleton variant="text" width="40%" height={20} />
-                      <Skeleton variant="rectangular" width={28} height={4} />
-                      <Skeleton variant="text" width="90%" height={16} />
-                      <Skeleton variant="text" width="80%" height={16} />
+                      <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : undefined }} />
+                      <Skeleton variant="text" width="40%" height={20} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : undefined }} />
+                      <Skeleton variant="rectangular" width={28} height={4} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : undefined }} />
+                      <Skeleton variant="text" width="90%" height={16} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : undefined }} />
+                      <Skeleton variant="text" width="80%" height={16} sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : undefined }} />
                     </Box>
                   </Box>
                 </Grid>
@@ -456,15 +458,15 @@ const ServicesPages = () => {
   const renderTabs = (activeService: any | null) => {
     return (
       <Box sx={{
-        bgcolor: '#ffffff',
-        borderBottom: '1px solid rgba(16, 53, 95, 0.08)',
+        bgcolor: isDark ? '#0f172a' : '#ffffff',
+        borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
         position: 'sticky',
         top: { xs: '56px', sm: '64px' }, // Sticky below Navbar
         zIndex: 90,
         py: 2,
-        boxShadow: '0 4px 12px rgba(16, 53, 95, 0.03)',
+        boxShadow: isDark ? '0 4px 12px rgba(0, 0, 0, 0.2)' : '0 4px 12px rgba(16, 53, 95, 0.03)',
         backdropFilter: 'blur(8px)',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
       }}>
         <Container maxWidth="xl">
           <Box sx={{
@@ -495,13 +497,13 @@ const ServicesPages = () => {
                     py: 1,
                     flexShrink: 0,
                     fontSize: '0.85rem',
-                    bgcolor: isCurrent ? svc.accent : 'rgba(16, 53, 95, 0.04)',
-                    color: isCurrent ? '#ffffff' : '#64748b',
-                    border: isCurrent ? `1px solid ${svc.accent}` : '1px solid rgba(16, 53, 95, 0.08)',
+                    bgcolor: isCurrent ? svc.accent : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 53, 95, 0.04)'),
+                    color: isCurrent ? '#ffffff' : (isDark ? '#94a3b8' : '#64748b'),
+                    border: isCurrent ? `1px solid ${svc.accent}` : (isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)'),
                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: isCurrent ? svc.accentDark : 'rgba(16, 53, 95, 0.08)',
-                      borderColor: isCurrent ? svc.accentDark : 'rgba(16, 53, 95, 0.2)',
+                      bgcolor: isCurrent ? svc.accentDark : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(16, 53, 95, 0.08)'),
+                      borderColor: isCurrent ? svc.accentDark : (isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(16, 53, 95, 0.2)'),
                     }
                   }}
                 >
@@ -524,7 +526,7 @@ const ServicesPages = () => {
         <CssBaseline />
         <Navbar />
 
-        <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', width: '100%' }}>
+        <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', minHeight: '100vh', width: '100%', transition: 'background-color 0.3s ease' }}>
           
           {/* HERO BANNER SECTION */}
           <Box sx={{
@@ -607,10 +609,10 @@ const ServicesPages = () => {
           {/* SUB-SERVICES GRID CONTAINER */}
           <Container id="subservices-grid" maxWidth="xl" sx={{ py: { xs: 8, md: 10 }, px: { xs: 2.5, sm: 4, lg: 6 }, scrollMarginTop: { xs: '120px', sm: '140px' } }}>
             <Box sx={{ mb: 6, textAlign: 'center' }}>
-              <Typography variant="h2" color="#10355f" sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.6rem' }, mb: 2, letterSpacing: '-0.01em' }}>
+              <Typography variant="h2" color={isDark ? '#ffffff' : '#10355f'} sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.6rem' }, mb: 2, letterSpacing: '-0.01em' }}>
                 Specialized {renderBrandName(service.brand)} Solutions
               </Typography>
-              <Typography sx={{ color: '#64748b', fontSize: '1.08rem', maxWidth: '620px', mx: 'auto', lineHeight: 1.6 }}>
+              <Typography sx={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: '1.08rem', maxWidth: '620px', mx: 'auto', lineHeight: 1.6 }}>
                 {service.description || 'Explore customized, premium services tailored for your property. Rest easy knowing each job is handled by background-checked pros.'}
               </Typography>
             </Box>
@@ -643,15 +645,16 @@ const ServicesPages = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         borderRadius: '20px',
-                        boxShadow: '0 4px 20px rgba(16, 53, 95, 0.04)',
-                        border: '1px solid rgba(16, 53, 95, 0.06)',
+                        boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(16, 53, 95, 0.04)',
+                        bgcolor: isDark ? '#1e293b' : '#ffffff',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.06)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         overflow: 'hidden',
                         cursor: 'pointer',
                         '&:hover': {
                           transform: 'translateY(-6px)',
-                          boxShadow: '0 12px 32px rgba(16, 53, 95, 0.12)',
-                          borderColor: 'rgba(16, 53, 95, 0.12)',
+                          boxShadow: isDark ? '0 12px 32px rgba(0, 0, 0, 0.4)' : '0 12px 32px rgba(16, 53, 95, 0.12)',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(16, 53, 95, 0.12)',
                           '& .sub-media': {
                             transform: 'scale(1.05)'
                           },
@@ -718,7 +721,7 @@ const ServicesPages = () => {
                         <Typography 
                           variant="h5" 
                           sx={{ 
-                            color: '#002855', 
+                            color: isDark ? '#ffffff' : '#002855', 
                             fontWeight: '800', 
                             fontSize: '20px', 
                             lineHeight: 1.2, 
@@ -731,7 +734,7 @@ const ServicesPages = () => {
                         {/* Category (Subtitle) */}
                         <Typography 
                           sx={{ 
-                            color: '#0f3661', 
+                            color: isDark ? service.accent : '#0f3661', 
                             fontWeight: '700', 
                             fontSize: '14px', 
                             mb: '12px',
@@ -746,7 +749,7 @@ const ServicesPages = () => {
                           sx={{ 
                             width: '28px', 
                             height: '3.5px', 
-                            bgcolor: '#002855', 
+                            bgcolor: isDark ? service.accent : '#002855', 
                             mb: '18px',
                             borderRadius: '2px'
                           }} 
@@ -755,7 +758,7 @@ const ServicesPages = () => {
                         {/* Description */}
                         <Typography 
                           sx={{ 
-                            color: '#5c6f84', 
+                            color: isDark ? '#94a3b8' : '#5c6f84', 
                             fontSize: '14px', 
                             fontWeight: '400',
                             lineHeight: 1.6, 
@@ -773,15 +776,15 @@ const ServicesPages = () => {
           </Container>
 
           {/* SERVICE GUARANTEE SECTION */}
-          <Box sx={{ bgcolor: 'white', py: { xs: 8, md: 10 }, borderTop: '1px solid rgba(16, 53, 95, 0.05)' }}>
+          <Box sx={{ bgcolor: isDark ? '#1e293b' : 'white', py: { xs: 8, md: 10 }, borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.05)' }}>
             <Container maxWidth="md" sx={{ textAlign: 'center' }}>
-              <Box sx={{ display: 'inline-flex', p: 1.5, bgcolor: '#f0f7ff', borderRadius: '50%', mb: 2, color: '#2E5BA8' }}>
+              <Box sx={{ display: 'inline-flex', p: 1.5, bgcolor: isDark ? 'rgba(46, 91, 168, 0.15)' : '#f0f7ff', borderRadius: '50%', mb: 2, color: isDark ? '#38bdf8' : '#2E5BA8' }}>
                 <CheckCircleIcon sx={{ fontSize: 32 }} />
               </Box>
-              <Typography variant="h3" color="#10355f" sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.2rem' }, mb: 2 }}>
+              <Typography variant="h3" color={isDark ? '#ffffff' : '#10355f'} sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.2rem' }, mb: 2 }}>
                 The AllFix Service Guarantee
               </Typography>
-              <Typography sx={{ color: '#555', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: '650px', mx: 'auto', mb: 4 }}>
+              <Typography sx={{ color: isDark ? '#94a3b8' : '#555', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: '650px', mx: 'auto', mb: 4 }}>
                 All our service brands are backed by certified experts, transparent upfront pricing, and a full satisfaction warranty. If you are not happy with our work, we will make it right, guaranteed.
               </Typography>
               <Button
@@ -793,11 +796,11 @@ const ServicesPages = () => {
                   borderRadius: '8px',
                   px: 4,
                   py: 1.2,
-                  color: '#10355f',
-                  borderColor: '#10355f',
+                  color: isDark ? '#38bdf8' : '#10355f',
+                  borderColor: isDark ? '#38bdf8' : '#10355f',
                   '&:hover': {
-                    bgcolor: 'rgba(16, 53, 95, 0.04)',
-                    borderColor: '#0d264a',
+                    bgcolor: isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(16, 53, 95, 0.04)',
+                    borderColor: isDark ? '#0ea5e9' : '#0d264a',
                   }
                 }}
               >
@@ -821,16 +824,16 @@ const ServicesPages = () => {
                 borderRadius: '24px',
                 padding: '24px',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-                background: '#ffffff',
+                background: isDark ? '#1e293b' : '#ffffff',
               }
             }
           }}
         >
           <DialogTitle sx={{ p: 0, mb: 2, position: 'relative' }}>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: '#10355f', pr: 4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: isDark ? '#ffffff' : '#10355f', pr: 4 }}>
               {activeSubService?.name}
             </Typography>
-            <Typography variant="subtitle2" sx={{ color: '#64748b', mt: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ color: isDark ? '#94a3b8' : '#64748b', mt: 0.5 }}>
               Available Work Types
             </Typography>
             <IconButton
@@ -868,13 +871,13 @@ const ServicesPages = () => {
                         gap: 2,
                         p: 2,
                         borderRadius: '16px',
-                        border: '1px solid rgba(16, 53, 95, 0.08)',
-                        background: 'rgba(16, 53, 95, 0.02)'
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+                        background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(16, 53, 95, 0.02)'
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
-                        <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
+                        <Typography sx={{ color: isDark ? '#ffffff' : '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
                           Standard Price
                         </Typography>
                       </Box>
@@ -941,19 +944,19 @@ const ServicesPages = () => {
                           gap: 2,
                           p: 2,
                           borderRadius: '16px',
-                          border: '1px solid rgba(16, 53, 95, 0.08)',
-                          background: 'rgba(16, 53, 95, 0.02)',
+                          border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+                          background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(16, 53, 95, 0.02)',
                           transition: 'all 0.2s',
                           '&:hover': {
-                            background: 'rgba(16, 53, 95, 0.04)',
-                            borderColor: 'rgba(16, 53, 95, 0.15)',
+                            background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(16, 53, 95, 0.04)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(16, 53, 95, 0.15)',
                             transform: 'translateX(4px)'
                           }
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
-                          <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
+                          <Typography sx={{ color: isDark ? '#ffffff' : '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
                             {wt}
                           </Typography>
                         </Box>
@@ -1262,7 +1265,7 @@ const ServicesPages = () => {
       <CssBaseline />
       <Navbar />
 
-      <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', width: '100%' }}>
+      <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', minHeight: '100vh', width: '100%', transition: 'background-color 0.3s ease' }}>
         
         {/* INDEX HERO SECTION */}
         <Box sx={{
@@ -1321,10 +1324,10 @@ const ServicesPages = () => {
         {/* BRANDS CATALOG GRID */}
         <Container maxWidth="xl" sx={{ py: { xs: 8, md: 10 }, px: { xs: 2.5, sm: 4, lg: 6 } }}>
           <Box sx={{ mb: 6, textAlign: 'center' }}>
-            <Typography variant="h2" color="#10355f" sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 2 }}>
+            <Typography variant="h2" color={isDark ? '#ffffff' : '#10355f'} sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 2 }}>
               Explore Our Specialized Brands
             </Typography>
-            <Typography sx={{ color: '#666', fontSize: '1.05rem', maxWidth: '600px', mx: 'auto' }}>
+            <Typography sx={{ color: isDark ? '#94a3b8' : '#666', fontSize: '1.05rem', maxWidth: '600px', mx: 'auto' }}>
               Select a brand to view custom care services and secure immediate expert bookings.
             </Typography>
           </Box>
@@ -1342,15 +1345,16 @@ const ServicesPages = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       borderRadius: '16px',
-                      boxShadow: '0 4px 20px rgba(16, 53, 95, 0.08)',
-                      border: '1px solid rgba(16, 53, 95, 0.05)',
+                      boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(16, 53, 95, 0.08)',
+                      bgcolor: isDark ? '#1e293b' : '#ffffff',
+                      border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.05)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       overflow: 'hidden',
                       cursor: 'pointer',
                       '&:hover': {
                         transform: 'translateY(-6px)',
-                        boxShadow: '0 12px 32px rgba(16, 53, 95, 0.15)',
-                        borderColor: 'rgba(16, 53, 95, 0.15)',
+                        boxShadow: isDark ? '0 12px 32px rgba(0, 0, 0, 0.4)' : '0 12px 32px rgba(16, 53, 95, 0.15)',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(16, 53, 95, 0.15)',
                         '& .brand-media': {
                           transform: 'scale(1.05)',
                         }
@@ -1379,14 +1383,15 @@ const ServicesPages = () => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: 1,
-                        bgcolor: 'white',
+                        bgcolor: isDark ? '#1e293b' : 'white',
                         borderRadius: '24px',
                         px: 2,
                         py: 0.8,
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : 'none'
                       }}>
                         <Icon sx={{ color: svc.accent, fontSize: '1.2rem' }} />
-                        <Typography sx={{ fontWeight: 800, color: '#10355f', fontSize: '0.85rem' }}>
+                        <Typography sx={{ fontWeight: 800, color: isDark ? '#ffffff' : '#10355f', fontSize: '0.85rem' }}>
                           {renderBrandName(svc.brand)}
                         </Typography>
                       </Box>
@@ -1395,7 +1400,7 @@ const ServicesPages = () => {
                     {/* Content - ONLY name and description */}
                     <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       {/* Service Name */}
-                      <Typography variant="h5" color="#10355f" sx={{ fontWeight: '800', mb: 1.5, fontSize: '1.3rem' }}>
+                      <Typography variant="h5" color={isDark ? '#ffffff' : '#10355f'} sx={{ fontWeight: '800', mb: 1.5, fontSize: '1.3rem' }}>
                         {renderBrandName(svc.brand)}
                       </Typography>
                     </CardContent>
@@ -1407,15 +1412,15 @@ const ServicesPages = () => {
         </Container>
 
         {/* SATISFACTION ASSURANCE */}
-        <Box sx={{ bgcolor: 'white', py: { xs: 8, md: 10 }, borderTop: '1px solid rgba(16, 53, 95, 0.05)' }}>
+        <Box sx={{ bgcolor: isDark ? '#1e293b' : 'white', py: { xs: 8, md: 10 }, borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.05)' }}>
           <Container maxWidth="md" sx={{ textAlign: 'center' }}>
-            <Box sx={{ display: 'inline-flex', p: 1.5, bgcolor: '#f0f7ff', borderRadius: '50%', mb: 2, color: '#2E5BA8' }}>
+            <Box sx={{ display: 'inline-flex', p: 1.5, bgcolor: isDark ? 'rgba(46, 91, 168, 0.15)' : '#f0f7ff', borderRadius: '50%', mb: 2, color: isDark ? '#38bdf8' : '#2E5BA8' }}>
               <CheckCircleIcon sx={{ fontSize: 32 }} />
             </Box>
-            <Typography variant="h3" color="#10355f" sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.2rem' }, mb: 2 }}>
+            <Typography variant="h3" color={isDark ? '#ffffff' : '#10355f'} sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.2rem' }, mb: 2 }}>
               The AllFix Service Guarantee
             </Typography>
-            <Typography sx={{ color: '#555', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: '650px', mx: 'auto', mb: 4 }}>
+            <Typography sx={{ color: isDark ? '#94a3b8' : '#555', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: '650px', mx: 'auto', mb: 4 }}>
               All our service brands are backed by certified experts, transparent upfront pricing, and a full satisfaction warranty. If you are not happy with our work, we will make it right, guaranteed.
             </Typography>
             <Button
@@ -1427,11 +1432,11 @@ const ServicesPages = () => {
                 borderRadius: '8px',
                 px: 4,
                 py: 1.2,
-                color: '#10355f',
-                borderColor: '#10355f',
+                color: isDark ? '#38bdf8' : '#10355f',
+                borderColor: isDark ? '#38bdf8' : '#10355f',
                 '&:hover': {
-                  bgcolor: 'rgba(16, 53, 95, 0.04)',
-                  borderColor: '#0d264a',
+                  bgcolor: isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(16, 53, 95, 0.04)',
+                  borderColor: isDark ? '#0ea5e9' : '#0d264a',
                 }
               }}
             >
