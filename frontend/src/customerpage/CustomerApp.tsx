@@ -577,7 +577,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   });
 
   // Fetch unit price
-  const price = Number(activeSubService?.prices?.[workType] || activeSubService?.prices?.[activeSubService?.name] || 0);
+  const price = Number(activeSubService?.prices?.[workType] || activeSubService?.prices?.[activeSubService?.name] || activeSubService?.prices?.['Base Price'] || 0);
   const itemTotal = price * quantity;
 
   // Add or edit item in cart

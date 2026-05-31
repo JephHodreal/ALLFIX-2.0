@@ -45,6 +45,7 @@ const ServicesPages = () => {
   const [loading, setLoading] = useState(true);
   const [showWorkTypesEditor, setShowWorkTypesEditor] = useState(false);
   const [editorWorkTypes, setEditorWorkTypes] = useState<{ name: string; price: string }[]>([]);
+  const [editorBasePrice, setEditorBasePrice] = useState('');
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [editorSuccess, setEditorSuccess] = useState('');
@@ -120,6 +121,9 @@ const ServicesPages = () => {
       });
     }
     
+    const basePriceVal = targetSub.prices?.['Base Price'] || '';
+    setEditorBasePrice(String(basePriceVal));
+    
     setEditorWorkTypes(initialList);
     setEditorError('');
     setEditorSuccess('');
@@ -136,6 +140,11 @@ const ServicesPages = () => {
     );
     if (invalid) {
       setEditorError('Each work type requires a name and a valid positive price.');
+      return;
+    }
+
+    if (editorBasePrice.trim() && (isNaN(Number(editorBasePrice)) || Number(editorBasePrice) < 0)) {
+      setEditorError('Standard price must be a valid positive number.');
       return;
     }
 
@@ -173,13 +182,6 @@ const ServicesPages = () => {
         return;
       }
 
-      // Format workTypes (string array) and prices (map) for the database
-      const finalWorkTypes = editorWorkTypes.map(wt => wt.name.trim());
-      const finalPrices: Record<string, string> = {};
-      editorWorkTypes.forEach(wt => {
-        finalPrices[wt.name.trim()] = wt.price.trim();
-      });
-
       // Find the subservice in backendMatch.subServices, or use the active ID
       const subserviceId = targetSub.id;
       const existingSub = (backendMatch.subServices || []).find(
@@ -187,6 +189,28 @@ const ServicesPages = () => {
       );
       
       const subIdToUse = existingSub ? existingSub.id : subserviceId;
+
+      // Format workTypes (string array) and prices (map) for the database
+      const finalWorkTypes = editorWorkTypes.map(wt => wt.name.trim());
+      const finalPrices: Record<string, string> = {};
+      editorWorkTypes.forEach(wt => {
+        finalPrices[wt.name.trim()] = wt.price.trim();
+      });
+
+      // [CAVEMAN] Save or preserve Base Price / Standard Price
+      console.log("[CAVEMAN] Checking if Base Price exists or was edited...");
+      if (editorBasePrice.trim()) {
+        console.log("[CAVEMAN] Saving edited Base Price:", editorBasePrice.trim());
+        finalPrices['Base Price'] = editorBasePrice.trim();
+      } else if (existingSub && existingSub.prices && existingSub.prices['Base Price']) {
+        console.log("[CAVEMAN] Preserving Base Price from existing subservice in DB:", existingSub.prices['Base Price']);
+        finalPrices['Base Price'] = String(existingSub.prices['Base Price']);
+      } else if (targetSub && targetSub.prices && targetSub.prices['Base Price']) {
+        console.log("[CAVEMAN] Preserving Base Price from target subservice state:", targetSub.prices['Base Price']);
+        finalPrices['Base Price'] = String(targetSub.prices['Base Price']);
+      } else {
+        console.log("[CAVEMAN] No Base Price found to preserve/save");
+      }
 
       // Update backend using PUT endpoint (will append if not found!)
       await api.put(`/api/services/${backendMatch.id}/subservices/${subIdToUse}`, {
@@ -846,9 +870,29 @@ const ServicesPages = () => {
                           Standard Price
                         </Typography>
                       </Box>
-                      <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem', ml: 'auto' }}>
-                        ₱{directPriceVal}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+                        <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
+                          ₱{directPriceVal}
+                        </Typography>
+                        {role === 'admin' && (
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              const subToEdit = activeSubService;
+                              setActiveSubService(null);
+                              handleOpenWorkTypesEditor(subToEdit);
+                            }}
+                            sx={{
+                              color: service?.accent || '#2E5BA8',
+                              bgcolor: 'rgba(46, 91, 168, 0.05)',
+                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
+                            }}
+                            title="Edit Standard Price"
+                          >
+                            <EditIcon sx={{ fontSize: '1.1rem' }} />
+                          </IconButton>
+                        )}
+                      </Box>
                     </Box>
                   </Box>
                 );
@@ -856,12 +900,58 @@ const ServicesPages = () => {
 
               return (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {wtList.length === 0 ? (
-                    <Box sx={{ py: 3, textAlign: 'center' }}>
-                      <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                        No work types specified yet.
-                      </Typography>
+                  {pricesMap['Base Price'] && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 2,
+                        p: 2,
+                        borderRadius: '16px',
+                        border: '1px solid rgba(16, 53, 95, 0.08)',
+                        background: 'rgba(16, 53, 95, 0.02)'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
+                        <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
+                          Standard Price
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+                        <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
+                          ₱{pricesMap['Base Price']}
+                        </Typography>
+                        {role === 'admin' && (
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              const subToEdit = activeSubService;
+                              setActiveSubService(null);
+                              handleOpenWorkTypesEditor(subToEdit);
+                            }}
+                            sx={{
+                              color: service?.accent || '#2E5BA8',
+                              bgcolor: 'rgba(46, 91, 168, 0.05)',
+                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
+                            }}
+                            title="Edit Standard Price"
+                          >
+                            <EditIcon sx={{ fontSize: '1.1rem' }} />
+                          </IconButton>
+                        )}
+                      </Box>
                     </Box>
+                  )}
+                  {wtList.length === 0 ? (
+                    !pricesMap['Base Price'] && (
+                      <Box sx={{ py: 3, textAlign: 'center' }}>
+                        <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                          No work types specified yet.
+                        </Typography>
+                      </Box>
+                    )
                   ) : (
                     wtList.map((wt: string) => (
                       <Box
@@ -1015,6 +1105,38 @@ const ServicesPages = () => {
                 {editorSuccess}
               </Box>
             )}
+
+            <Box
+              sx={{
+                mb: 2.5,
+                p: 2,
+                borderRadius: '16px',
+                background: 'rgba(16, 53, 95, 0.02)',
+                border: '1px solid rgba(16, 53, 95, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1.5
+              }}
+            >
+              <Typography sx={{ color: '#0f3661', fontWeight: 700, fontSize: '0.85rem' }}>
+                Standard Price (₱)
+              </Typography>
+              <Box sx={{ position: 'relative', width: '120px' }}>
+                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>₱</span>
+                <input
+                  type="text"
+                  value={editorBasePrice}
+                  onChange={e => setEditorBasePrice(e.target.value)}
+                  placeholder="Enter price"
+                  className="w-full pl-6 pr-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-brand-navy/20"
+                  style={{
+                    height: '38px',
+                    background: '#ffffff'
+                  }}
+                />
+              </Box>
+            </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '400px', overflowY: 'auto', pr: 1 }}>
               {editorWorkTypes.length === 0 ? (
