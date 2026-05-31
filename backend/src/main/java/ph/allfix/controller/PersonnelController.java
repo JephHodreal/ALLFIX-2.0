@@ -120,9 +120,37 @@ public class PersonnelController {
             String phone = (String) body.get("phone");
             String password = (String) body.get("password");
             String confirmPassword = (String) body.get("confirmPassword");
-            String selectedService = (String) body.get("service");
-            String selectedSubService = (String) body.get("subService");
-            if (selectedSubService == null) selectedSubService = (String) body.get("sub_service");
+
+            // Extract and normalize selected services list (supports single fields fallback)
+            List<Map<String, Object>> selectedServices = new ArrayList<>();
+            Object selectedServicesObj = body.get("services");
+            if (selectedServicesObj instanceof List) {
+                List<?> list = (List<?>) selectedServicesObj;
+                for (Object item : list) {
+                    if (item instanceof Map) {
+                        Map<String, Object> m = new HashMap<>();
+                        Map<?, ?> map = (Map<?, ?>) item;
+                        m.put("service", map.get("service"));
+                        m.put("sub_services", map.get("sub_services"));
+                        selectedServices.add(m);
+                    }
+                }
+            } else {
+                String selectedService = (String) body.get("service");
+                String selectedSubService = (String) body.get("subService");
+                if (selectedSubService == null) selectedSubService = (String) body.get("sub_service");
+                
+                if (selectedService != null && !selectedService.isBlank()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("service", selectedService);
+                    if (selectedSubService != null && !selectedSubService.isBlank()) {
+                        m.put("sub_services", List.of(selectedSubService));
+                    } else {
+                        m.put("sub_services", Collections.emptyList());
+                    }
+                    selectedServices.add(m);
+                }
+            }
 
             // Validation
             if (firstName == null || firstName.isBlank() ||
@@ -132,10 +160,10 @@ public class PersonnelController {
                 phone == null || phone.isBlank() ||
                 password == null || password.isBlank() ||
                 confirmPassword == null || confirmPassword.isBlank() ||
-                selectedService == null || selectedService.isBlank()) {
-                logger.warn("Validation failed: Some required fields are empty");
+                selectedServices.isEmpty()) {
+                logger.warn("Validation failed: Some required fields are empty or no services selected");
                 return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "All fields are required."));
+                    .body(Map.of("success", false, "message", "All fields are required and at least one service must be selected."));
             }
 
             if (!email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
@@ -156,50 +184,69 @@ public class PersonnelController {
                     .body(Map.of("success", false, "message", "Passwords do not match."));
             }
 
-            // Validate that the selected service and sub-service belong to the vendor's assigned services
+            // Validate that all selected services and sub-services belong to the vendor's assigned services
             Object servicesObj = vendorProfile.get("services");
-            boolean serviceValid = false;
-            boolean selectedServiceHasSubServices = false;
+            boolean allServicesValid = true;
 
-            if (servicesObj instanceof List) {
-                List<?> servicesList = (List<?>) servicesObj;
-                for (Object sObj : servicesList) {
-                    if (sObj instanceof Map) {
-                        Map<?, ?> sMap = (Map<?, ?>) sObj;
-                        Object serviceName = sMap.get("service");
-                        if (serviceName instanceof String && ((String) serviceName).equalsIgnoreCase(selectedService)) {
-                            Object subServicesObj = sMap.get("sub_services");
-                            if (subServicesObj instanceof List) {
-                                List<?> subServicesList = (List<?>) subServicesObj;
-                                if (!subServicesList.isEmpty()) {
-                                    selectedServiceHasSubServices = true;
-                                    if (selectedSubService != null && !selectedSubService.isBlank()) {
-                                        for (Object subName : subServicesList) {
-                                            if (subName instanceof String && ((String) subName).equalsIgnoreCase(selectedSubService)) {
-                                                serviceValid = true;
+            for (Map<String, Object> selSvc : selectedServices) {
+                String selSvcName = (String) selSvc.get("service");
+                List<?> selSubs = (List<?>) selSvc.get("sub_services");
+                
+                boolean singleSvcValid = false;
+                if (servicesObj instanceof List) {
+                    List<?> servicesList = (List<?>) servicesObj;
+                    for (Object sObj : servicesList) {
+                        if (sObj instanceof Map) {
+                            Map<?, ?> sMap = (Map<?, ?>) sObj;
+                            Object serviceName = sMap.get("service");
+                            if (serviceName instanceof String && ((String) serviceName).equalsIgnoreCase(selSvcName)) {
+                                Object subServicesObj = sMap.get("sub_services");
+                                if (subServicesObj instanceof List) {
+                                    List<?> subServicesList = (List<?>) subServicesObj;
+                                    if (selSubs == null || selSubs.isEmpty()) {
+                                        if (subServicesList.isEmpty()) {
+                                            singleSvcValid = true;
+                                        }
+                                    } else {
+                                        boolean allSubsValid = true;
+                                        for (Object selSub : selSubs) {
+                                            boolean subMatch = false;
+                                            for (Object vendorSub : subServicesList) {
+                                                if (selSub instanceof String && vendorSub instanceof String &&
+                                                    ((String) selSub).equalsIgnoreCase((String) vendorSub)) {
+                                                    subMatch = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!subMatch) {
+                                                allSubsValid = false;
                                                 break;
                                             }
                                         }
+                                        if (allSubsValid) {
+                                            singleSvcValid = true;
+                                        }
                                     }
                                 } else {
-                                    // Service exists, and has no subservices
-                                    serviceValid = true;
+                                    if (selSubs == null || selSubs.isEmpty()) {
+                                        singleSvcValid = true;
+                                    }
                                 }
-                            } else {
-                                // Service exists, and sub_services is null/absent
-                                serviceValid = true;
+                                break;
                             }
-                            break;
                         }
                     }
                 }
+                if (!singleSvcValid) {
+                    allServicesValid = false;
+                    break;
+                }
             }
 
-            if (!serviceValid) {
-                logger.warn("Validation failed: Service '{}' or Sub-service '{}' does not belong to vendor profile services or missing required subservice", selectedService, selectedSubService);
-                String msg = selectedServiceHasSubServices ? "Selected service requires a valid sub-service." : "Selected service is invalid.";
+            if (!allServicesValid) {
+                logger.warn("Validation failed: Some selected services or sub-services do not belong to the vendor's profile");
                 return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", msg));
+                    .body(Map.of("success", false, "message", "Some selected services/sub-services do not belong to your vendor profile."));
             }
 
             // Check if username is already taken in the system
@@ -285,14 +332,7 @@ public class PersonnelController {
                 profile.put("temp_delete", 0);
                 profile.put("requires_password_reset", true);
 
-                Map<String, Object> serviceMap = new HashMap<>();
-                serviceMap.put("service", selectedService);
-                if (selectedSubService != null && !selectedSubService.isBlank()) {
-                    serviceMap.put("sub_services", List.of(selectedSubService));
-                } else {
-                    serviceMap.put("sub_services", Collections.emptyList());
-                }
-                profile.put("services", List.of(serviceMap));
+                profile.put("services", selectedServices);
 
                 firestoreService.createWithId("personnel", uid, profile);
                 logger.info("Successfully saved personnel profile to Firestore with UID: {}", uid);

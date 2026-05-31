@@ -391,13 +391,39 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
     email: '',
     password: '',
     confirmPassword: '',
-    phone: '',
-    service: '',
-    subService: ''
+    phone: ''
   });
+  const [selectedServices, setSelectedServices] = useState<Array<{ service: string; sub_services: string[] }>>([]);
   const [createError, setCreateError] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const toggleService = (serviceName: string) => {
+    setSelectedServices(prev => {
+      const exists = prev.find(s => s.service === serviceName);
+      if (exists) {
+        return prev.filter(s => s.service !== serviceName);
+      } else {
+        return [...prev, { service: serviceName, sub_services: [] }];
+      }
+    });
+  };
+
+  const toggleSubService = (serviceName: string, subServiceName: string) => {
+    setSelectedServices(prev => prev.map(s => {
+      if (s.service === serviceName) {
+        const hasSub = s.sub_services.includes(subServiceName);
+        const newSubs = hasSub
+          ? s.sub_services.filter(sub => sub !== subServiceName)
+          : [...s.sub_services, subServiceName];
+        return {
+          ...s,
+          sub_services: newSubs
+        };
+      }
+      return s;
+    }));
+  };
 
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
@@ -485,13 +511,11 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   };
 
   const vendorServices = getFilteredVendorServices((profile as any)?.services || [], dbServices);
-  const selectedServiceObj = vendorServices.find((s: any) => s.service === createForm.service);
-  const hasSubServices = !!(selectedServiceObj && selectedServiceObj.sub_services && selectedServiceObj.sub_services.length > 0);
   const handleCreatePersonnelSubmit = async () => {
     setCreateError('');
 
-    if (!createForm.firstName || !createForm.lastName || !createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.service || (hasSubServices && !createForm.subService)) {
-      setCreateError('All fields are required.');
+    if (!createForm.firstName || !createForm.lastName || !createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || selectedServices.length === 0) {
+      setCreateError('All fields are required and at least one service must be selected.');
       return;
     }
     if (!/^\d{11}$/.test(createForm.phone)) {
@@ -513,7 +537,10 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
 
     setCreateSaving(true);
     try {
-      const res = await api.post('/api/personnel/create-by-vendor', createForm);
+      const res = await api.post('/api/personnel/create-by-vendor', {
+        ...createForm,
+        services: selectedServices
+      });
       const newPersonnel = {
         id: res.data.id,
         uid: res.data.id,
@@ -535,10 +562,9 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         email: '',
         password: '',
         confirmPassword: '',
-        phone: '',
-        service: '',
-        subService: ''
+        phone: ''
       });
+      setSelectedServices([]);
     } catch (err: any) {
       setCreateError(err.response?.data?.message || err.message || 'Failed to create personnel account.');
     } finally {
@@ -739,34 +765,65 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service</label>
-                        <select
-                          value={createForm.service}
-                          onChange={(e) => updateCreateForm('service', e.target.value)}
-                          className="input-base text-sm py-3"
-                        >
-                          <option value="">Select Service</option>
-                          {vendorServices.map((s: any) => (
-                            <option key={s.service} value={s.service}>{s.service}</option>
-                          ))}
-                        </select>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Services You Offer</label>
+                      <div className="max-h-60 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
+                        {vendorServices.map(service => {
+                          const isSelected = selectedServices.find(s => s.service === service.service);
+                          return (
+                            <div key={service.service} className="space-y-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleService(service.service)}
+                                className={`w-full p-2 rounded-lg border transition-all text-left text-xs ${isSelected
+                                  ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10'
+                                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                                  }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-slate-900 dark:text-white">{service.service}</span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-brand-green" />}
+                                </div>
+                              </button>
+
+                              {(() => {
+                                const dbService = dbServices.find(
+                                  (ds: any) => ds.name.toLowerCase() === service.service.toLowerCase()
+                                );
+                                const dbSubServices = dbService?.subServices || [];
+                                return isSelected && dbSubServices.length > 0 && (
+                                  <div className="ml-3 mt-1 p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sub-services:</p>
+                                    {dbSubServices.map((sub: any) => {
+                                      const subName = sub.name || sub;
+                                      const isSubSelected = isSelected.sub_services.includes(subName);
+
+                                      return (
+                                        <div key={subName} className="space-y-1 border-l-2 border-slate-100 dark:border-slate-800 pl-2">
+                                          <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={isSubSelected}
+                                              onChange={() => toggleSubService(service.service, subName)}
+                                              className="w-3 h-3 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
+                                            />
+                                            <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
+                                          </label>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sub Service</label>
-                        <select
-                          value={createForm.subService}
-                          onChange={(e) => updateCreateForm('subService', e.target.value)}
-                          className="input-base text-sm py-3"
-                          disabled={!createForm.service}
-                        >
-                          <option value="">Select Sub Service</option>
-                          {createForm.service && vendorServices.find((s: any) => s.service === createForm.service)?.sub_services.map((sub: string) => (
-                            <option key={sub} value={sub}>{sub}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {selectedServices.length > 0 && (
+                        <div className="mt-2 p-1.5 rounded-lg bg-brand-green/10 border border-brand-green/20">
+                          <p className="text-[10px] font-medium text-brand-green">Selected: {selectedServices.map(s => `${s.service} (${s.sub_services.length})`).join(', ')}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -777,7 +834,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                       className="flex-grow sm:flex-1"
                       onClick={handleCreatePersonnelSubmit}
                       loading={createSaving}
-                      disabled={!createForm.firstName || !createForm.lastName || !createForm.username || !usernameValid || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !/^\d{11}$/.test(createForm.phone) || !createForm.service || (hasSubServices && !createForm.subService) || createForm.password !== createForm.confirmPassword || strength < 4}
+                      disabled={!createForm.firstName || !createForm.lastName || !createForm.username || !usernameValid || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !/^\d{11}$/.test(createForm.phone) || selectedServices.length === 0 || createForm.password !== createForm.confirmPassword || strength < 4}
                       icon={<Plus className="w-4 h-4" />}
                     >
                       Create Personnel
