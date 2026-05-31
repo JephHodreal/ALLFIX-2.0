@@ -377,11 +377,10 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 }
 
 function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
-  const [acceptPersonnel, setAcceptPersonnel] = useState(!!(profile as any)?.accept_personnel);
 
   // Creation form states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -403,24 +402,6 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [usernameValid, setUsernameValid] = useState(false);
-
-  useEffect(() => {
-    setAcceptPersonnel(!!(profile as any)?.accept_personnel);
-  }, [profile]);
-
-  const handleToggleAccept = async (checked: boolean) => {
-    if (!profile?.id) return;
-    try {
-      setAcceptPersonnel(checked);
-      await api.put(`/api/vendors/${profile.id}`, {
-        accept_personnel: checked
-      });
-      await refreshProfile();
-    } catch (e) {
-      console.error(e);
-      setAcceptPersonnel(!checked);
-    }
-  };
 
   useEffect(() => {
     if (profile?.id) api.get(`/api/personnel?vendor_id=${profile.id}`).then(r => setPersonnel(r.data || [])).catch(() => {}).finally(() => setLoading(false));
@@ -567,26 +548,6 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Accept Personnel Applications</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Enable this option to allow new personnel to register under your vendor profile.
-            </p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={acceptPersonnel}
-              onChange={(e) => handleToggleAccept(e.target.checked)}
-            />
-            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-green"></div>
-          </label>
-        </div>
-      </Card>
-
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Personnel List</h3>
         <Button onClick={() => { setShowCreateModal(true); setCreateError(''); }} icon={<Plus className="w-4 h-4" />}>

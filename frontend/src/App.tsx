@@ -6,7 +6,6 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminRegisterPage from './pages/AdminRegisterPage';
-import PersonnelRegisterPage from './pages/PersonnelRegisterPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminDashboard from './adminpage/AdminDashboard';
