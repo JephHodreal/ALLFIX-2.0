@@ -49,6 +49,7 @@ const ServicesPages = () => {
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState('');
   const [editorSuccess, setEditorSuccess] = useState('');
+  const [editorMode, setEditorMode] = useState<'base_price' | 'work_types'>('work_types');
 
   useEffect(() => {
     setLoading(true);
@@ -106,10 +107,12 @@ const ServicesPages = () => {
       });
   }, []);
 
-  const handleOpenWorkTypesEditor = (subServiceArg?: any) => {
+  const handleOpenWorkTypesEditor = (subServiceArg?: any, mode: 'base_price' | 'work_types' = 'work_types') => {
+    console.log(`[CAVEMAN] handleOpenWorkTypesEditor called with mode: ${mode}`);
     const targetSub = subServiceArg || activeSubService;
     if (!targetSub) return;
     
+    setEditorMode(mode);
     setEditingSubService(targetSub);
     const initialList: { name: string; price: string }[] = [];
     if (targetSub.workTypes && targetSub.workTypes.length > 0) {
@@ -134,18 +137,21 @@ const ServicesPages = () => {
     const targetSub = editingSubService || activeSubService;
     if (!targetSub || !service) return;
     
-    // Validate
-    const invalid = editorWorkTypes.some(
-      wt => !wt.name.trim() || !wt.price.trim() || isNaN(Number(wt.price)) || Number(wt.price) < 0
-    );
-    if (invalid) {
-      setEditorError('Each work type requires a name and a valid positive price.');
-      return;
-    }
-
-    if (editorBasePrice.trim() && (isNaN(Number(editorBasePrice)) || Number(editorBasePrice) < 0)) {
-      setEditorError('Standard price must be a valid positive number.');
-      return;
+    // Validate based on mode
+    if (editorMode === 'work_types') {
+      const invalid = editorWorkTypes.some(
+        wt => !wt.name.trim() || !wt.price.trim() || isNaN(Number(wt.price)) || Number(wt.price) < 0
+      );
+      if (invalid) {
+        setEditorError('Each work type requires a name and a valid positive price.');
+        return;
+      }
+    } else {
+      // base_price mode
+      if (!editorBasePrice.trim() || isNaN(Number(editorBasePrice)) || Number(editorBasePrice) < 0) {
+        setEditorError('Standard price must be a valid positive number.');
+        return;
+      }
     }
 
     setEditorSaving(true);
@@ -848,110 +854,59 @@ const ServicesPages = () => {
               
               const pricesMap = activeSubService.prices || {};
 
-              if (wtList.length === 0 && Object.keys(pricesMap).length > 0) {
-                const directPriceVal = Object.values(pricesMap)[0] as any;
-                return (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                        p: 2,
-                        borderRadius: '16px',
-                        border: '1px solid rgba(16, 53, 95, 0.08)',
-                        background: 'rgba(16, 53, 95, 0.02)'
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
-                        <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
-                          Standard Price
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
-                        <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
-                          ₱{directPriceVal}
-                        </Typography>
-                        {role === 'admin' && (
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              const subToEdit = activeSubService;
-                              setActiveSubService(null);
-                              handleOpenWorkTypesEditor(subToEdit);
-                            }}
-                            sx={{
-                              color: service?.accent || '#2E5BA8',
-                              bgcolor: 'rgba(46, 91, 168, 0.05)',
-                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
-                            }}
-                            title="Edit Standard Price"
-                          >
-                            <EditIcon sx={{ fontSize: '1.1rem' }} />
-                          </IconButton>
-                        )}
-                      </Box>
-                    </Box>
-                  </Box>
-                );
-              }
-
               return (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {pricesMap['Base Price'] && (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                        p: 2,
-                        borderRadius: '16px',
-                        border: '1px solid rgba(16, 53, 95, 0.08)',
-                        background: 'rgba(16, 53, 95, 0.02)'
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
-                        <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
-                          Standard Price
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
-                        <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
-                          ₱{pricesMap['Base Price']}
-                        </Typography>
-                        {role === 'admin' && (
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              const subToEdit = activeSubService;
-                              setActiveSubService(null);
-                              handleOpenWorkTypesEditor(subToEdit);
-                            }}
-                            sx={{
-                              color: service?.accent || '#2E5BA8',
-                              bgcolor: 'rgba(46, 91, 168, 0.05)',
-                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
-                            }}
-                            title="Edit Standard Price"
-                          >
-                            <EditIcon sx={{ fontSize: '1.1rem' }} />
-                          </IconButton>
-                        )}
-                      </Box>
+                  {/* Standard Price - Always Displayed */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 2,
+                      p: 2,
+                      borderRadius: '16px',
+                      border: '1px solid rgba(16, 53, 95, 0.08)',
+                      background: 'rgba(16, 53, 95, 0.02)'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
+                      <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
+                        Standard Price
+                      </Typography>
                     </Box>
-                  )}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+                      <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
+                        ₱{pricesMap['Base Price'] !== undefined ? pricesMap['Base Price'] : (pricesMap[activeSubService.name] || '0')}
+                      </Typography>
+                      {role === 'admin' && (
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const subToEdit = activeSubService;
+                            setActiveSubService(null);
+                            handleOpenWorkTypesEditor(subToEdit, 'base_price');
+                          }}
+                          sx={{
+                            color: service?.accent || '#2E5BA8',
+                            bgcolor: 'rgba(46, 91, 168, 0.05)',
+                            '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
+                          }}
+                          title="Edit Standard Price"
+                        >
+                          <EditIcon sx={{ fontSize: '1.1rem' }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Work Types Section */}
                   {wtList.length === 0 ? (
-                    !pricesMap['Base Price'] && (
-                      <Box sx={{ py: 3, textAlign: 'center' }}>
-                        <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                          No work types specified yet.
-                        </Typography>
-                      </Box>
-                    )
+                    <Box sx={{ py: 3, textAlign: 'center' }}>
+                      <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                        No work types specified yet.
+                      </Typography>
+                    </Box>
                   ) : (
                     wtList.map((wt: string) => (
                       <Box
@@ -992,7 +947,7 @@ const ServicesPages = () => {
                                 onClick={() => {
                                   const subToEdit = activeSubService;
                                   setActiveSubService(null);
-                                  handleOpenWorkTypesEditor(subToEdit);
+                                  handleOpenWorkTypesEditor(subToEdit, 'work_types');
                                 }}
                                 sx={{
                                   color: service?.accent || '#2E5BA8',
@@ -1032,7 +987,7 @@ const ServicesPages = () => {
               onClick={() => {
                 const subToEdit = activeSubService;
                 setActiveSubService(null);
-                handleOpenWorkTypesEditor(subToEdit);
+                handleOpenWorkTypesEditor(subToEdit, 'work_types');
               }}
               variant="contained"
               sx={{
@@ -1074,10 +1029,13 @@ const ServicesPages = () => {
         >
           <DialogTitle sx={{ p: 0, mb: 1, position: 'relative' }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: '#10355f' }}>
-              Edit Work Types & Prices
+              {editorMode === 'base_price' ? 'Edit Standard Price' : 'Edit Work Types & Prices'}
             </Typography>
             <Typography variant="subtitle2" sx={{ color: '#64748b', mt: 0.5 }}>
-              Configure work types for {editingSubService?.name || activeSubService?.name}
+              {editorMode === 'base_price' 
+                ? `Configure standard price for ${editingSubService?.name || activeSubService?.name}`
+                : `Configure work types for ${editingSubService?.name || activeSubService?.name}`
+              }
             </Typography>
             <IconButton
               onClick={() => { setShowWorkTypesEditor(false); setEditingSubService(null); }}
@@ -1106,142 +1064,135 @@ const ServicesPages = () => {
               </Box>
             )}
 
-            <Box
-              sx={{
-                mb: 2.5,
-                p: 2,
-                borderRadius: '16px',
-                background: 'rgba(16, 53, 95, 0.02)',
-                border: '1px solid rgba(16, 53, 95, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1.5
-              }}
-            >
-              <Typography sx={{ color: '#0f3661', fontWeight: 700, fontSize: '0.85rem' }}>
-                Standard Price (₱)
-              </Typography>
-              <Box sx={{ position: 'relative', width: '120px' }}>
-                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>₱</span>
-                <input
-                  type="text"
-                  value={editorBasePrice}
-                  onChange={e => setEditorBasePrice(e.target.value)}
-                  placeholder="Enter price"
-                  className="w-full pl-6 pr-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-brand-navy/20"
-                  style={{
-                    height: '38px',
-                    background: '#ffffff'
-                  }}
-                />
-              </Box>
-            </Box>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '400px', overflowY: 'auto', pr: 1 }}>
-              {editorWorkTypes.length === 0 ? (
-                <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed #e2e8f0', borderRadius: '16px' }}>
-                  <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                    No work types configured yet.
-                  </Typography>
-                </Box>
-              ) : (
-                editorWorkTypes.map((wt, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      gap: 1.5,
-                      alignItems: { xs: 'stretch', sm: 'center' },
-                      p: 2,
-                      borderRadius: '16px',
-                      background: 'rgba(16, 53, 95, 0.01)',
-                      border: '1px solid rgba(16, 53, 95, 0.04)',
+            {editorMode === 'base_price' && (
+              <Box
+                sx={{
+                  mb: 2.5,
+                  p: 2,
+                  borderRadius: '16px',
+                  background: 'rgba(16, 53, 95, 0.02)',
+                  border: '1px solid rgba(16, 53, 95, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5
+                }}
+              >
+                <Typography sx={{ color: '#0f3661', fontWeight: 700, fontSize: '0.85rem' }}>
+                  Standard Price (₱)
+                </Typography>
+                <Box sx={{ position: 'relative', width: '120px' }}>
+                  <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>₱</span>
+                  <input
+                    type="text"
+                    value={editorBasePrice}
+                    onChange={e => setEditorBasePrice(e.target.value)}
+                    placeholder="Enter price"
+                    className="w-full pl-6 pr-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-brand-navy/20"
+                    style={{
+                      height: '38px',
+                      background: '#ffffff'
                     }}
-                  >
-                    {/* Work Type Name Textarea for Wrapping Text */}
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                      <textarea
-                        value={wt.name}
-                        onChange={e => {
-                          const updated = [...editorWorkTypes];
-                          updated[index] = { ...updated[index], name: e.target.value };
-                          setEditorWorkTypes(updated);
-                        }}
-                        rows={1}
-                        placeholder="Work Type Name (e.g. Split Type)"
-                        className="w-full text-xs font-semibold px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-brand-navy/20 resize-none overflow-hidden"
-                        style={{
-                          fontFamily: 'inherit',
-                          background: '#ffffff',
-                          minHeight: '38px',
-                          display: 'block'
-                        }}
-                        onInput={e => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = `${target.scrollHeight}px`;
-                        }}
-                      />
-                    </Box>
+                  />
+                </Box>
+              </Box>
+            )}
 
-                    {/* Price Input with Trash Button */}
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
-                      <Box sx={{ position: 'relative', flexGrow: 1, width: { sm: '120px' } }}>
-                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>₱</span>
-                        <input
-                          type="text"
-                          value={wt.price}
+            {editorMode === 'work_types' && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '400px', overflowY: 'auto', pr: 1 }}>
+                {editorWorkTypes.length === 0 ? (
+                  <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed #e2e8f0', borderRadius: '16px' }}>
+                    <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                      No work types configured yet.
+                    </Typography>
+                  </Box>
+                ) : (
+                  editorWorkTypes.map((wt, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: 1.5,
+                        alignItems: { xs: 'stretch', sm: 'center' },
+                        p: 2,
+                        borderRadius: '16px',
+                        background: 'rgba(16, 53, 95, 0.01)',
+                        border: '1px solid rgba(16, 53, 95, 0.04)',
+                      }}
+                    >
+                      {/* Work Type Name Textarea for Wrapping Text */}
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <textarea
+                          value={wt.name}
                           onChange={e => {
                             const updated = [...editorWorkTypes];
-                            updated[index] = { ...updated[index], price: e.target.value };
+                            updated[index] = { ...updated[index], name: e.target.value };
                             setEditorWorkTypes(updated);
                           }}
-                          placeholder="Enter price"
-                          className="w-full pl-6 pr-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-brand-navy/20"
+                          rows={1}
+                          placeholder="Work Type Name (e.g. Split Type)"
+                          className="w-full text-xs font-semibold px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-brand-navy/20 resize-none overflow-hidden"
                           style={{
-                            height: '38px',
-                            background: '#ffffff'
+                            fontFamily: 'inherit',
+                            background: '#ffffff',
+                            minHeight: '38px',
+                            display: 'block'
+                          }}
+                          onInput={e => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = `${target.scrollHeight}px`;
                           }}
                         />
                       </Box>
 
-                      <IconButton
-                        onClick={() => setEditorWorkTypes(editorWorkTypes.filter((_, i) => i !== index))}
-                        sx={{
-                          color: '#ef4444',
-                          bgcolor: 'rgba(239, 68, 68, 0.05)',
-                          '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' }
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: '1.2rem' }} />
-                      </IconButton>
+                      {/* Price Input without Trash Button */}
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
+                        <Box sx={{ position: 'relative', flexGrow: 1, width: { sm: '120px' } }}>
+                          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>₱</span>
+                          <input
+                            type="text"
+                            value={wt.price}
+                            onChange={e => {
+                              const updated = [...editorWorkTypes];
+                              updated[index] = { ...updated[index], price: e.target.value };
+                              setEditorWorkTypes(updated);
+                            }}
+                            placeholder="Enter price"
+                            className="w-full pl-6 pr-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-brand-navy/20"
+                            style={{
+                              height: '38px',
+                              background: '#ffffff'
+                            }}
+                          />
+                        </Box>
+                      </Box>
                     </Box>
-                  </Box>
-                ))
-              )}
+                  ))
+                )}
 
-              <Button
-                variant="outlined"
-                onClick={() => setEditorWorkTypes([...editorWorkTypes, { name: '', price: '' }])}
-                startIcon={<AddIcon />}
-                sx={{
-                  mt: 1,
-                  borderRadius: '12px',
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  borderColor: service?.accent || '#2E5BA8',
-                  color: service?.accent || '#2E5BA8',
-                  '&:hover': {
-                    borderColor: service?.accentDark || '#10355f',
-                    bgcolor: 'rgba(46, 91, 168, 0.02)'
-                  }
-                }}
-              >
-                Add Row
-              </Button>
-            </Box>
+                <Button
+                  variant="outlined"
+                  onClick={() => setEditorWorkTypes([...editorWorkTypes, { name: '', price: '' }])}
+                  startIcon={<AddIcon />}
+                  sx={{
+                    mt: 1,
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    borderColor: service?.accent || '#2E5BA8',
+                    color: service?.accent || '#2E5BA8',
+                    '&:hover': {
+                      borderColor: service?.accentDark || '#10355f',
+                      bgcolor: 'rgba(46, 91, 168, 0.02)'
+                    }
+                  }}
+                >
+                  Add Row
+                </Button>
+              </Box>
+            )}
           </DialogContent>
 
           <DialogActions sx={{ p: 0, mt: 3, gap: 1.5 }}>
