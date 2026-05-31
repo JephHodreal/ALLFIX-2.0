@@ -207,21 +207,21 @@ export const servicesData: ServiceBrand[] = [
     id: 'spacefix',
     icon: HomeOutlinedIcon,
     brand: 'SpaceFix',
-    tagline: 'Space Planning & Interiors',
-    description: 'Transform and optimize your living or working spaces with professional organization and improvement services.',
+    tagline: 'Parking',
+    description: 'Find and manage available parking spaces for vehicles. Convenient, secure, and affordable parking solutions powered by LeeveitPH.',
     image: '/images/spacefix.jpg',
     accent: '#2E5BA8',
     accentDark: '#10355f',
     headerBg: '#10355f',
     headerBgLight: '#2E5BA8',
     pillText: '#2E5BA8',
-    services: ['Space Planning', 'Parking'],
+    services: ['Parking'],
     subServices: [
       {
         name: 'Parking',
         description: 'Find and manage available parking spaces for vehicles. Convenient, secure, and affordable parking solutions powered by LeeveitPH.',
         icon: LocalParkingIcon,
-        image: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+        image: '/images/spacefix.jpg',
         redirectUrl: 'https://leeveit.com/parking/listings/makati/3-large-empty-lot/63157fc65f25653ac1f48fc8'
       } as SubServiceData
     ]
