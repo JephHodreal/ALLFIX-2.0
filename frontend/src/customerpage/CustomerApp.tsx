@@ -386,6 +386,30 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
+  // [CAVEMAN] Helper to check if a booking slot has already passed
+  const isSlotPassed = (dateStr: string, timeStr: string) => {
+    if (!dateStr || !timeStr) return false;
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    let passed = false;
+    if (dateStr < todayStr) {
+      passed = true;
+    } else if (dateStr === todayStr) {
+      const currentHour = now.getHours();
+      const currentMin = now.getMinutes();
+      const [selHour, selMin] = timeStr.split(':').map(Number);
+      if (selHour < currentHour || (selHour === currentHour && selMin <= currentMin)) {
+        passed = true;
+      }
+    }
+    console.log(`[CAVEMAN] Slot check for ${dateStr} ${timeStr} against today ${todayStr} ${now.getHours()}:${now.getMinutes()} -> passed: ${passed}`);
+    return passed;
+  };
+
   const [services, setServices] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -583,6 +607,14 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   // Add or edit item in cart
   const handleAddToCart = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // [CAVEMAN] Prevent multi-service booking by restricting cart length to 1
+    if (cart.length >= 1 && !editingId) {
+      console.log(`[CAVEMAN] Multi-service booking blocked: Cart already contains 1 item`);
+      alert("Only one service booking is allowed at a time. Please remove the existing service from your Selected Services cart or complete the current booking before adding another service.");
+      return;
+    }
+
     if (!serviceId || !subServiceId || !workType || !vendorId || !scheduledDate || !scheduledTime || quantity < 1) {
       alert("Please fill all booking details");
       return;
@@ -693,22 +725,13 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   const handleCheckout = () => {
     if (cart.length === 0) return;
 
-    // Validate preferred start time if date is today
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-
+    // [CAVEMAN] Validate slots of all selected services in cart before checkout
+    console.log('[CAVEMAN] Verifying all slots in cart for checkout');
     for (const item of cart) {
-      if (item.scheduledDate === todayStr) {
-        const currentHour = now.getHours();
-        const currentMin = now.getMinutes();
-        const [selHour, selMin] = item.scheduledTime.split(':').map(Number);
-        if (selHour < currentHour || (selHour === currentHour && selMin <= currentMin)) {
-          alert(`The booking for "${item.subServiceName}" - "${item.workType}" has a preferred start time that has already passed today (${item.scheduledTime}). Please edit or remove this item to proceed.`);
-          return;
-        }
+      if (isSlotPassed(item.scheduledDate, item.scheduledTime)) {
+        console.log('[CAVEMAN] Checkout blocked: expired slot found in cart:', item);
+        alert(`The booking for "${item.subServiceName}" - "${item.workType}" has a preferred slot that has already passed (${item.scheduledDate} ${item.scheduledTime}). Please edit or remove this item to proceed.`);
+        return;
       }
     }
 
@@ -1062,51 +1085,73 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
               ) : (
                 <>
                   <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
-                    {cart.map((item) => (
-                      <div key={item.id} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative group">
-                        <div className="flex justify-between items-start gap-4">
-                          <div>
-                            <p className="font-extrabold text-sm text-slate-950 dark:text-white">{item.workType}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-300 font-medium mb-2">{item.serviceName} • {item.subServiceName}</p>
-                            {item.description && (
-                              <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80">
-                                "{item.description}"
-                              </p>
-                            )}
-                            <p className="text-xs text-slate-500 dark:text-slate-300 font-bold bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block">{item.vendorName}</p>
-                            <div className="flex gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-semibold">
-                              <span>📅 {item.scheduledDate}</span>
-                              <span>•</span>
-                              <span>⏰ {item.scheduledTime}</span>
+                    {cart.map((item) => {
+                      const isPassed = isSlotPassed(item.scheduledDate, item.scheduledTime);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 bg-white dark:bg-slate-800 rounded-2xl border shadow-sm relative group transition-colors ${
+                            isPassed
+                              ? 'border-red-500 dark:border-red-500 bg-red-50/5 dark:bg-red-950/5'
+                              : 'border-slate-100 dark:border-slate-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-4">
+                            <div>
+                              <p className="font-extrabold text-sm text-slate-950 dark:text-white">{item.workType}</p>
+                              <p className="text-xs text-slate-400 dark:text-slate-300 font-medium mb-2">{item.serviceName} • {item.subServiceName}</p>
+                              {item.description && (
+                                <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl mb-2 italic border border-slate-100 dark:border-slate-800/80">
+                                  "{item.description}"
+                                </p>
+                              )}
+                              <p className="text-xs text-slate-500 dark:text-slate-300 font-bold bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block">{item.vendorName}</p>
+                              <div className="flex gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-semibold">
+                                <span className={isPassed ? 'text-red-500 dark:text-red-400 font-bold' : ''}>📅 {item.scheduledDate}</span>
+                                <span>•</span>
+                                <span className={isPassed ? 'text-red-500 dark:text-red-400 font-bold' : ''}>⏰ {item.scheduledTime}</span>
+                              </div>
+                              {isPassed && (
+                                <div className="mt-2 text-xs font-bold text-red-500 dark:text-red-400 bg-red-500/10 dark:bg-red-500/25 p-2 rounded-xl border border-red-500/20 flex items-center gap-1.5 animate-pulse">
+                                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-red-500 dark:text-red-400" />
+                                  <span>Time slot has passed / Invalid</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black text-sm text-brand-green">₱{item.total}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Qty: {item.quantity}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-black text-sm text-brand-green">₱{item.total}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Qty: {item.quantity}</p>
+
+                          {/* Actions */}
+                          <div className="flex gap-1.5 justify-end mt-3 pt-3 border-t border-slate-50 dark:border-slate-800/80">
+                            <button
+                              onClick={() => handleEditCartItem(item)}
+                              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-500 hover:border-orange-200 dark:hover:border-orange-900 transition-colors"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveCartItem(item.id)}
+                              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-1.5 justify-end mt-3 pt-3 border-t border-slate-50 dark:border-slate-800/80">
-                          <button
-                            onClick={() => handleEditCartItem(item)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-500 hover:border-orange-200 dark:hover:border-orange-900 transition-colors"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleRemoveCartItem(item.id)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Billing Details */}
                   <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2 text-sm">
+                    {cart.some(item => isSlotPassed(item.scheduledDate, item.scheduledTime)) && (
+                      <div className="p-3 bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 text-red-500 dark:text-red-400 text-xs font-bold rounded-xl flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-500 dark:text-red-400" />
+                        <span>Some selected services have expired slots. Please edit or remove them to proceed.</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-slate-900 dark:text-white pt-2 text-lg font-black">
                       <span>Total Amount</span>
                       <span className="text-brand-green">₱{cart.reduce((sum, item) => sum + item.total, 0)}</span>
@@ -1116,10 +1161,11 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                   <Button
                     onClick={handleCheckout}
                     loading={checkoutLoading}
+                    disabled={cart.some(item => isSlotPassed(item.scheduledDate, item.scheduledTime))}
                     variant="success"
                     className="w-full py-4 text-sm font-extrabold rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:scale-[1.01] transition-transform"
                   >
-                    <span>Complete Multi-Service Booking</span>
+                    <span>Complete Booking</span>
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </>
