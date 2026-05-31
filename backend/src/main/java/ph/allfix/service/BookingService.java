@@ -91,7 +91,31 @@ public class BookingService {
     }
 
     public void requestCancellation(String bookingId) throws Exception {
-        firestoreService.updateField("bookings", bookingId, "cancellation_requested", true);
+        System.out.println("[CAVEMAN] requestCancellation: bookingId=" + bookingId);
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
+
+        // Update booking status to cancelled AND mark cancellation_requested
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "cancelled");
+        updates.put("cancellation_requested", true);
+        firestoreService.update("bookings", bookingId, updates);
+
+        // Notify customer
+        String customerId = (String) booking.get("customer_id");
+        if (customerId != null) {
+            notificationService.notify(customerId, "customer",
+                "Your booking for \"" + booking.get("service_type") + "\" has been cancelled. A refund request has been submitted for admin review.");
+        }
+
+        // Notify vendor
+        String vendorId = (String) booking.get("vendor_id");
+        if (vendorId != null) {
+            notificationService.notify(vendorId, "vendor",
+                "A booking for \"" + booking.get("service_type") + "\" has been cancelled by the customer.");
+        }
+
+        System.out.println("[CAVEMAN] requestCancellation complete: status set to cancelled, notifications sent.");
     }
 
     public void cancelWithRefund(String bookingId, Map<String, Object> refundDetails) throws Exception {
@@ -136,10 +160,14 @@ public class BookingService {
         
         firestoreService.update("bookings", bookingId, bookingUpdates);
 
-        // 3. Notify the customer
+        // 3. Notify the customer and vendor
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) {
             notificationService.notify(customerId, "customer", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+        }
+        String vendorId = (String) booking.get("vendor_id");
+        if (vendorId != null) {
+            notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
         }
     }
 }

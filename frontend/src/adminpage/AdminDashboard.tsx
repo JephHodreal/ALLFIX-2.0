@@ -1220,13 +1220,6 @@ function BookingsTab() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && (
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            <Button
-              variant="ghost"
-              className="flex-1 py-3 text-sm font-semibold rounded-xl"
-              onClick={() => setSelectedBooking(null)}
-            >
-              Back
-            </Button>
             {selectedBooking.status !== 'cancelled' && (
               <Button
                 variant="danger"

@@ -134,6 +134,15 @@ function VendorBookings() {
     }
   }, [profile]);
 
+  // [CAVEMAN] Compute set of personnel IDs who are actively assigned (in_progress bookings)
+  // These personnel must be excluded from the assign-personnel list
+  const activePersonnelIds = new Set(
+    bookings
+      .filter((b: any) => b.status === 'in_progress' && b.personnel_id)
+      .map((b: any) => b.personnel_id)
+  );
+  console.log('[CAVEMAN] activePersonnelIds (busy personnel):', Array.from(activePersonnelIds));
+
   const statusBadge = (status: string) => {
     const cls: Record<string, string> = {
       pending: 'badge-pending',
@@ -260,10 +269,16 @@ function VendorBookings() {
   };
 
   if (selectedBooking) {
-    // Filter personnel associated with this subservice
+    // [CAVEMAN] Filter personnel: must be approved, not deleted, qualified for sub-service,
+    // AND not currently assigned to an active/in_progress booking.
     const bookingSubService = (selectedBooking.sub_service || selectedBooking.service_type || '').toLowerCase();
     const matchedPersonnel = personnel.filter((p: any) => {
       if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
+      // Exclude personnel currently on an active assignment (in_progress)
+      if (activePersonnelIds.has(p.id) || activePersonnelIds.has(p.uid)) {
+        console.log(`[CAVEMAN] Excluding busy personnel: ${p.first_name} ${p.last_name} (ID: ${p.id})`);
+        return false;
+      }
       if (!p.services || !Array.isArray(p.services)) return false;
       return p.services.some((svc: any) => {
         const subs = svc.sub_services || [];
@@ -271,8 +286,16 @@ function VendorBookings() {
       });
     });
 
-    const displayPersonnelList = showAllPersonnel 
-      ? personnel.filter((p: any) => p.acc_approve === 'approved' && p.temp_delete !== 1)
+    // showAllPersonnel fallback also excludes actively-busy personnel
+    const displayPersonnelList = showAllPersonnel
+      ? personnel.filter((p: any) => {
+          if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
+          if (activePersonnelIds.has(p.id) || activePersonnelIds.has(p.uid)) {
+            console.log(`[CAVEMAN] (showAll) Excluding busy personnel: ${p.first_name} ${p.last_name}`);
+            return false;
+          }
+          return true;
+        })
       : matchedPersonnel;
 
     return (
@@ -400,13 +423,6 @@ function VendorBookings() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            <Button
-              variant="ghost"
-              className="flex-1 py-3 text-sm font-semibold rounded-xl min-w-[120px]"
-              onClick={() => setSelectedBooking(null)}
-            >
-              Back
-            </Button>
             {selectedBooking.status !== 'cancelled' && (
               <Button
                 variant="danger"
@@ -578,7 +594,7 @@ function VendorBookings() {
                 <div>
                   <h4 className="text-lg font-bold text-slate-900 dark:text-white">Assign Personnel</h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Select qualified personnel for: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+                    Qualified &amp; available personnel for: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedBooking.sub_service || selectedBooking.service_type}</span>
                   </p>
                 </div>
               </div>
@@ -593,17 +609,17 @@ function VendorBookings() {
             {displayPersonnelList.length === 0 ? (
               <div className="text-center py-8 space-y-4">
                 <p className="text-sm text-slate-500">
-                  {showAllPersonnel 
-                    ? "No approved personnel found under your account." 
-                    : "No personnel found who offer this specific sub-service."}
+                  {showAllPersonnel
+                    ? "No available personnel found. All personnel are either busy with active bookings or not yet approved."
+                    : "No available personnel qualified for this sub-service. They may be busy with active assignments."}
                 </p>
                 {!showAllPersonnel && personnel.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowAllPersonnel(true)}
                   >
-                    Show All Approved Personnel
+                    Show All Available Personnel
                   </Button>
                 )}
               </div>

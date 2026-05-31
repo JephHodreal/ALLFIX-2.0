@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -1137,21 +1137,394 @@ function MyBookingsTab() {
   const { profile } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+
+  // Cancel / Refund flow state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundError, setRefundError] = useState('');
+
+  const fetchBookings = () => {
     if (profile?.id) {
-      api.get(`/api/bookings/customer/${profile.id}`).then(r => setBookings(r.data || [])).catch(() => {}).finally(() => setLoading(false));
-    } else { setLoading(false); }
+      setLoading(true);
+      api.get(`/api/bookings/customer/${profile.id}`)
+        .then(r => setBookings(r.data || []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, [profile]);
+
+  const statusBadge = (status: string) => {
+    const cls: Record<string, string> = {
+      pending: 'badge-pending',
+      confirmed: 'badge-confirmed',
+      in_progress: 'badge-in-progress',
+      completed: 'badge-completed',
+      cancelled: 'badge-cancelled',
+    };
+    return <span className={cls[status] || 'badge'}>{status?.replace('_', ' ')}</span>;
+  };
+
+  const handleSubmitRefundRequest = async () => {
+    console.log('[CAVEMAN] Customer submitting refund/cancellation request for booking:', selectedBooking?.id);
+    setRefundError('');
+    if (!refundReason.trim()) {
+      setRefundError('Please provide a reason for cancellation.');
+      return;
+    }
+    setRefundSubmitting(true);
+    try {
+      // Step 1: Create a refund record in the refunds collection for admin review
+      const refundPayload = {
+        booking_id: selectedBooking.id,
+        customer_id: profile?.id,
+        customer_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Customer',
+        reason: refundReason.trim(),
+        refund_amount: selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0,
+        payment_method: selectedBooking.payment_method || '',
+        payment_reference: selectedBooking.payment_reference || '',
+        status: 'pending',
+      };
+      console.log('[CAVEMAN] Submitting refund request payload:', refundPayload);
+      await api.post('/api/refunds', refundPayload);
+
+      // Step 2: Mark booking as cancellation_requested
+      await api.patch(`/api/bookings/${selectedBooking.id}/cancel`);
+
+      console.log('[CAVEMAN] Refund request submitted. Booking marked as cancellation_requested.');
+
+      // Step 3: Update local state — backend sets status to 'cancelled'
+      const updatedBooking = { ...selectedBooking, status: 'cancelled', cancellation_requested: true };
+      setSelectedBooking(updatedBooking);
+      setBookings(prev => prev.map(b => b.id === selectedBooking.id ? updatedBooking : b));
+
+      setShowRefundForm(false);
+      setRefundReason('');
+      alert('Your cancellation and refund request has been submitted. An administrator will review and process it shortly.');
+    } catch (err: any) {
+      console.error('[CAVEMAN] Refund request failed:', err);
+      setRefundError(err.response?.data?.message || 'Failed to submit refund request. Please try again.');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
+  // ── Booking Details View ──
+  if (selectedBooking) {
+    const isCancellable = selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && !selectedBooking.cancellation_requested;
+    const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method;
+
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setSelectedBooking(null);
+                setShowCancelConfirm(false);
+                setShowRefundForm(false);
+                setRefundReason('');
+                setRefundError('');
+              }}
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
+            </div>
+          </div>
+          <div>
+            {statusBadge(selectedBooking.status)}
+          </div>
+        </div>
+
+        {/* Cancellation Notice Banner (if requested) */}
+        {selectedBooking.cancellation_requested && selectedBooking.status !== 'cancelled' && (
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Cancellation Requested</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Your cancellation and refund request has been submitted and is pending admin review.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Two-column info layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Service Information */}
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Service:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-bold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Work Type:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.service_type}</span>
+              </div>
+              {selectedBooking.description && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Description:</span>
+                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic">"{selectedBooking.description}"</span>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Vendor:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.vendor_name || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Date & Time:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">📅 {selectedBooking.scheduled_date} at ⏰ {selectedBooking.scheduled_time}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Address:</span>
+                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-normal">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
+              </div>
+              {selectedBooking.personnel_id && (
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-medium">Personnel:</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">Assigned</span>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Payment Information */}
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Unit Price:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{selectedBooking.price || '0.00'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Quantity:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-slate-900 dark:text-white font-black">Total:</span>
+                <span className="col-span-2 text-lg font-black text-brand-green">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-slate-400 font-medium">Payment Method:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Reference No:</span>
+                <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-slate-400 font-medium">Payment Status:</span>
+                <span className="col-span-2">
+                  {selectedBooking.payment_confirmed ? (
+                    <span className="badge-completed">Confirmed</span>
+                  ) : (
+                    <span className="badge-pending">Pending</span>
+                  )}
+                </span>
+              </div>
+              {hasRefundInfo && (
+                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-300">
+                  <p className="font-extrabold uppercase tracking-wide">Refund Information</p>
+                  {selectedBooking.refund_amount && <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>}
+                  {selectedBooking.refund_method && <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>}
+                  {selectedBooking.refund_reference_number && <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Action Buttons */}
+        {!showRefundForm && !showCancelConfirm && isCancellable && (
+          <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
+            <Button
+              variant="danger"
+              className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[140px]"
+              onClick={() => {
+                console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
+                setShowCancelConfirm(true);
+              }}
+            >
+              Cancel Booking
+            </Button>
+          </div>
+        )}
+
+        {/* Cancel Confirmation Dialog */}
+        {showCancelConfirm && !showRefundForm && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-350">
+              Are you sure you want to cancel this booking? A refund request will be automatically submitted to the administrator for review.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  console.log('[CAVEMAN] Customer confirmed cancellation, showing refund form.');
+                  setShowCancelConfirm(false);
+                  setRefundReason('');
+                  setRefundError('');
+                  setShowRefundForm(true);
+                }}
+              >
+                Yes, Proceed
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Refund Request Form */}
+        {showRefundForm && (
+          <Card className="p-6 bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/30 rounded-2xl shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancellation & Refund Request</h4>
+                <p className="text-xs text-slate-500">Your request will be reviewed by an administrator.</p>
+              </div>
+            </div>
+
+            {/* Booking Summary (read-only) */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2 text-sm">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Booking Summary</p>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Service</span>
+                <span className="font-semibold text-slate-800 dark:text-white">{selectedBooking.service_type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Vendor</span>
+                <span className="font-semibold text-slate-800 dark:text-white">{selectedBooking.vendor_name || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Scheduled</span>
+                <span className="font-semibold text-slate-800 dark:text-white">{selectedBooking.scheduled_date} at {selectedBooking.scheduled_time}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-slate-700 dark:text-slate-300 font-bold">Refund Amount</span>
+                <span className="font-black text-brand-green text-base">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+              </div>
+            </div>
+
+            {/* Reason Field */}
+            <div>
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Cancellation *</label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => {
+                  console.log('[CAVEMAN] Refund reason updated:', e.target.value);
+                  setRefundReason(e.target.value);
+                }}
+                placeholder="Please describe why you need to cancel this booking..."
+                rows={3}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy resize-none placeholder:text-slate-400"
+              />
+            </div>
+
+            {refundError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {refundError}
+              </div>
+            )}
+
+            {/* Notice */}
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-3 flex items-start gap-2 text-amber-800 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs font-semibold leading-normal">
+                Refunds are subject to administrator review. A deduction fee may apply depending on the booking status.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowRefundForm(false);
+                  setRefundReason('');
+                  setRefundError('');
+                }}
+                disabled={refundSubmitting}
+              >
+                Back to Details
+              </Button>
+              <Button
+                variant="danger"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
+                onClick={handleSubmitRefundRequest}
+                loading={refundSubmitting}
+                disabled={!refundReason.trim()}
+              >
+                Submit Refund Request
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // ── Bookings List View ──
   return (
-    <DataTable columns={[
-      { key: 'service_type', label: 'Service', sortable: true },
-      { key: 'scheduled_date', label: 'Date', sortable: true },
-      { key: 'scheduled_time', label: 'Time' },
-      { key: 'status', label: 'Status', render: (item: any) => {
-        const cls: Record<string, string> = { pending: 'badge-pending', confirmed: 'badge-confirmed', in_progress: 'badge-in-progress', completed: 'badge-completed' };
-        return <span className={cls[item.status] || 'badge'}>{item.status?.replace('_', ' ')}</span>;
-      }},
-    ]} data={bookings} loading={loading} searchPlaceholder="Search bookings..." emptyTitle="No bookings yet" emptyDescription="Book a service to see your bookings here." />
+    <DataTable
+      columns={[
+        { key: 'service_type', label: 'Service', sortable: true },
+        { key: 'scheduled_date', label: 'Date', sortable: true },
+        { key: 'scheduled_time', label: 'Time' },
+        {
+          key: 'status', label: 'Status', render: (item: any) => {
+            const cls: Record<string, string> = { pending: 'badge-pending', confirmed: 'badge-confirmed', in_progress: 'badge-in-progress', completed: 'badge-completed', cancelled: 'badge-cancelled' };
+            return <span className={cls[item.status] || 'badge'}>{item.status?.replace('_', ' ')}</span>;
+          }
+        },
+        {
+          key: 'actions',
+          label: 'Actions',
+          render: (item: any) => (
+            <Button
+              size="sm"
+              className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
+              onClick={(e: any) => {
+                e.stopPropagation();
+                console.log('[CAVEMAN] Customer viewing booking details for:', item.id);
+                setSelectedBooking(item);
+              }}
+              icon={<Eye className="w-4 h-4" />}
+            >
+              View Details
+            </Button>
+          )
+        },
+      ]}
+      data={bookings}
+      loading={loading}
+      searchPlaceholder="Search bookings..."
+      emptyTitle="No bookings yet"
+      emptyDescription="Book a service to see your bookings here."
+    />
   );
 }
 
