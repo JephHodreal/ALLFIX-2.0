@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -423,7 +423,7 @@ function VendorBookings() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            {selectedBooking.status !== 'cancelled' && (
+            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
               <Button
                 variant="danger"
                 className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[120px]"
@@ -979,6 +979,15 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
+  const [editSelectedServices, setEditSelectedServices] = useState<Array<{ service: string; sub_services: string[] }>>([]);
+
+  useEffect(() => {
+    if (editItem) {
+      setEditSelectedServices(editItem.services || []);
+    } else {
+      setEditSelectedServices([]);
+    }
+  }, [editItem]);
 
   // Creation form states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1220,9 +1229,99 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
             { key: 'phone', label: 'Phone', type: 'tel', placeholder: '09XX XXX XXXX' },
           ]}
           initialData={editItem}
-          onSave={handleEditSave}
+          onSave={async (data) => {
+            const updatedData = {
+              ...data,
+              services: editSelectedServices
+            };
+            await handleEditSave(updatedData);
+          }}
           onClose={() => setEditItem(null)}
-        />
+        >
+          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Services & Sub-services Offered</label>
+            <div className="max-h-60 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
+              {vendorServices.map(service => {
+                const isSelected = editSelectedServices.find(s => s.service === service.service);
+                return (
+                  <div key={service.service} className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditSelectedServices(prev => {
+                          const exists = prev.find(s => s.service === service.service);
+                          if (exists) {
+                            return prev.filter(s => s.service !== service.service);
+                          } else {
+                            return [...prev, { service: service.service, sub_services: [] }];
+                          }
+                        });
+                      }}
+                      className={`w-full p-2 rounded-lg border transition-all text-left text-xs ${isSelected
+                        ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                        }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-900 dark:text-white">{service.service}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-green" />}
+                      </div>
+                    </button>
+
+                    {(() => {
+                      const dbService = dbServices.find(
+                        (ds: any) => ds.name.toLowerCase() === service.service.toLowerCase()
+                      );
+                      const dbSubServices = dbService?.subServices || [];
+                      return isSelected && dbSubServices.length > 0 && (
+                        <div className="ml-3 mt-1 p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sub-services:</p>
+                          {dbSubServices.map((sub: any) => {
+                            const subName = sub.name || sub;
+                            const isSubSelected = isSelected.sub_services.includes(subName);
+
+                            return (
+                              <div key={subName} className="space-y-1 border-l-2 border-slate-100 dark:border-slate-800 pl-2">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSubSelected}
+                                    onChange={() => {
+                                      setEditSelectedServices(prev => prev.map(s => {
+                                        if (s.service === service.service) {
+                                          const hasSub = s.sub_services.includes(subName);
+                                          const newSubs = hasSub
+                                            ? s.sub_services.filter(subItem => subItem !== subName)
+                                            : [...s.sub_services, subName];
+                                          return {
+                                            ...s,
+                                            sub_services: newSubs
+                                          };
+                                        }
+                                        return s;
+                                      }));
+                                    }}
+                                    className="w-3 h-3 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
+                                  />
+                                  <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })}
+            </div>
+            {editSelectedServices.length > 0 && (
+              <div className="mt-2 p-1.5 rounded-lg bg-brand-green/10 border border-brand-green/20">
+                <p className="text-[10px] font-medium text-brand-green">Selected: {editSelectedServices.map(s => `${s.service} (${s.sub_services.length})`).join(', ')}</p>
+              </div>
+            )}
+          </div>
+        </EditModal>
       )}
 
       {/* Create Modal */}
@@ -2506,7 +2605,7 @@ export default function VendorDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<VendorHome />} />
+            <Route index element={<Navigate to="bookings" replace />} />
             <Route path="schedule" element={<SlotCalendar dbServices={dbServices} />} />
             <Route path="bookings" element={<VendorBookings />} />
             <Route path="services" element={<VendorServices dbServices={dbServices} loadingDb={loadingDb} refreshServices={fetchServices} />} />

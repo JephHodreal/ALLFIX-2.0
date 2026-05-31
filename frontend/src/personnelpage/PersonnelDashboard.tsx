@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -333,7 +333,7 @@ export default function PersonnelDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<PersonnelHome />} />
+            <Route index element={<Navigate to="bookings" replace />} />
             <Route path="bookings" element={<PersonnelBookings />} />
             <Route path="profile" element={<PersonnelProfile />} />
           </Routes>

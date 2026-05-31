@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Building2, ClipboardList, CreditCard, TrendingUp, DollarSign, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -1220,7 +1220,7 @@ function BookingsTab() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && (
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            {selectedBooking.status !== 'cancelled' && (
+            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
               <Button
                 variant="danger"
                 className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white"
@@ -2328,7 +2328,7 @@ export default function AdminDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<DashboardHome />} />
+            <Route index element={<Navigate to="bookings" replace />} />
             {/* Overview */}
             <Route path="calendar" element={<CalendarPage />} />
             {/* Communications */}

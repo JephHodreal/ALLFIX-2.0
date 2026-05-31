@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
+import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -2382,7 +2382,7 @@ export default function CustomerApp() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<CustomerHome />} />
+            <Route index element={<Navigate to="bookings" replace />} />
             <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="bookings" element={<MyBookingsTab />} />
             <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
