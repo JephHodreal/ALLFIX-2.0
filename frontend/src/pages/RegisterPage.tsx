@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, Wrench, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { registerUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
@@ -313,9 +313,7 @@ export default function RegisterPage() {
       <div className="hidden lg:flex lg:w-2/5 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="text-center relative z-10">
-          <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-8">
-            <Wrench className="w-10 h-10 text-white" />
-          </div>
+          <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-20 h-20 object-contain mx-auto mb-8" />
           <h2 className="text-3xl font-bold text-white mb-4">Create your account</h2>
           <p className="text-white/70 max-w-sm">Join AllFix.ph and start managing your property services today.</p>
           {/* Step indicator */}
@@ -340,7 +338,7 @@ export default function RegisterPage() {
             <LampButton />
           </div>
           <div className="lg:hidden flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center"><Wrench className="w-5 h-5 text-white" /></div>
+            <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-8 h-8 object-contain" />
             <span className="text-xl font-bold text-brand-navy dark:text-white">AllFix<span className="text-brand-green">.ph</span></span>
           </div>
           {/* Mobile step indicator */}

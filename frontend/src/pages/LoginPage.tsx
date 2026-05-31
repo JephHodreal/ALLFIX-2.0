@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, Wrench, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 import { loginUser, logoutUser, resetPassword } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import LampButton from '../components/shared/LampButton';
@@ -161,9 +161,7 @@ export default function LoginPage() {
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-brand-yellow/5 rounded-full blur-3xl" />
         <div className="text-center relative z-10">
-          <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-8">
-            <Wrench className="w-10 h-10 text-white" />
-          </div>
+          <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-20 h-20 object-contain mx-auto mb-8" />
           <h2 className="text-4xl font-bold text-white mb-4">Welcome back!</h2>
           <p className="text-white/70 text-lg max-w-sm">Sign in to manage your bookings and property maintenance services.</p>
         </div>
@@ -176,9 +174,7 @@ export default function LoginPage() {
             <LampButton />
           </div>
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-white" />
-            </div>
+            <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-8 h-8 object-contain" />
             <span className="text-xl font-bold text-brand-navy dark:text-white">AllFix<span className="text-brand-green">.ph</span></span>
           </div>
 

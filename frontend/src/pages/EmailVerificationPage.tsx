@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, RefreshCw, CheckCircle, Wrench } from 'lucide-react';
+import { Mail, ArrowLeft, RefreshCw, CheckCircle } from 'lucide-react';
 import { resendVerificationEmail, checkEmailVerified, getCurrentUser, verifyEmail } from '../services/firebaseService';
 import api from '../services/apiService';
 import { ROUTES } from '../routes/paths';
@@ -163,9 +163,7 @@ export default function EmailVerificationPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-light dark:bg-surface-dark p-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center">
-            <Wrench className="w-5 h-5 text-white" />
-          </div>
+          <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-8 h-8 object-contain" />
           <span className="text-xl font-bold text-brand-navy dark:text-white">AllFix<span className="text-brand-green">.ph</span></span>
         </div>
 
