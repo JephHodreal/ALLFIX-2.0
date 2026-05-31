@@ -79,4 +79,14 @@ public class BookingController {
         bookingService.requestCancellation(id);
         return ResponseEntity.ok(Map.of("message", "Cancellation requested"));
     }
+
+    @PostMapping("/{id}/cancel-with-refund")
+    public ResponseEntity<?> cancelWithRefund(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            bookingService.cancelWithRefund(id, body);
+            return ResponseEntity.ok(Map.of("message", "Booking cancelled and refund processed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
 }

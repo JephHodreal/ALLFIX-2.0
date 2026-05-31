@@ -93,4 +93,53 @@ public class BookingService {
     public void requestCancellation(String bookingId) throws Exception {
         firestoreService.updateField("bookings", bookingId, "cancellation_requested", true);
     }
+
+    public void cancelWithRefund(String bookingId, Map<String, Object> refundDetails) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        // 1. Create a refund record in the refunds collection
+        Map<String, Object> refundData = new HashMap<>();
+        refundData.put("booking_id", bookingId);
+        refundData.put("customer_id", booking.get("customer_id"));
+        refundData.put("customer_name", booking.get("customer_name"));
+        refundData.put("reason", "Admin Cancelled Booking");
+        
+        // Capture refund amount correctly (handling Double/Integer/String)
+        Object amt = refundDetails.get("refund_amount");
+        double amount = 0.0;
+        if (amt instanceof Number) {
+            amount = ((Number) amt).doubleValue();
+        } else if (amt instanceof String) {
+            amount = Double.parseDouble((String) amt);
+        }
+        refundData.put("deduction_amount", 0.0); // No deduction since it is a full refund or direct refund
+        refundData.put("refund_amount", amount);
+        refundData.put("reference_number", refundDetails.get("reference_number"));
+        refundData.put("refund_method", refundDetails.get("refund_method"));
+        refundData.put("receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+        refundData.put("status", "approved");
+        refundData.put("notified", true);
+        
+        String refundId = firestoreService.create("refunds", refundData);
+
+        // 2. Update the booking record
+        Map<String, Object> bookingUpdates = new HashMap<>();
+        bookingUpdates.put("status", "cancelled");
+        bookingUpdates.put("cancellation_requested", true);
+        bookingUpdates.put("refund_id", refundId);
+        bookingUpdates.put("refund_amount", amount);
+        bookingUpdates.put("refund_reference_number", refundDetails.get("reference_number"));
+        bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
+        bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+        bookingUpdates.put("refund_processed_at", new Date());
+        
+        firestoreService.update("bookings", bookingId, bookingUpdates);
+
+        // 3. Notify the customer
+        String customerId = (String) booking.get("customer_id");
+        if (customerId != null) {
+            notificationService.notify(customerId, "customer", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+        }
+    }
 }
