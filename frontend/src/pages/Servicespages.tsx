@@ -854,71 +854,74 @@ const ServicesPages = () => {
               
               const pricesMap = activeSubService.prices || {};
               const pricesCount = Object.keys(pricesMap).length;
+              const hasBasePrice = pricesMap['Base Price'] !== undefined || pricesMap[activeSubService.name] !== undefined;
 
               return (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {/* Standard Price - Always Displayed */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 2,
-                      p: 2,
-                      borderRadius: '16px',
-                      border: '1px solid rgba(16, 53, 95, 0.08)',
-                      background: 'rgba(16, 53, 95, 0.02)'
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
-                      <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
-                        Standard Price
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
-                      <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
-                        ₱{pricesMap['Base Price'] !== undefined ? pricesMap['Base Price'] : (pricesMap[activeSubService.name] || '0')}
-                      </Typography>
-                      {role === 'admin' && (
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              const subToEdit = activeSubService;
-                              setActiveSubService(null);
-                              handleOpenWorkTypesEditor(subToEdit, 'base_price');
-                            }}
-                            sx={{
-                              color: service?.accent || '#2E5BA8',
-                              bgcolor: 'rgba(46, 91, 168, 0.05)',
-                              '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
-                            }}
-                            title="Edit Standard Price"
-                          >
-                            <EditIcon sx={{ fontSize: '1.1rem' }} />
-                          </IconButton>
-                          {pricesCount >= 2 && (
+                  {/* Standard Price - Displayed only if present in database prices map */}
+                  {hasBasePrice && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 2,
+                        p: 2,
+                        borderRadius: '16px',
+                        border: '1px solid rgba(16, 53, 95, 0.08)',
+                        background: 'rgba(16, 53, 95, 0.02)'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <CheckCircleIcon sx={{ color: service?.accent || '#2E5BA8', fontSize: '1.25rem', flexShrink: 0 }} />
+                        <Typography sx={{ color: '#0f3661', fontWeight: 600, fontSize: '0.9rem' }}>
+                          Standard Price
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+                        <Typography sx={{ color: service?.accent || '#2E5BA8', fontWeight: 700, fontSize: '0.9rem' }}>
+                          ₱{pricesMap['Base Price'] !== undefined ? pricesMap['Base Price'] : (pricesMap[activeSubService.name] || '0')}
+                        </Typography>
+                        {role === 'admin' && (
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
                             <IconButton
                               size="small"
                               onClick={() => {
-                                const standardPriceKey = pricesMap['Base Price'] !== undefined ? 'Base Price' : activeSubService.name;
-                                handleDeleteWorkType(standardPriceKey);
+                                const subToEdit = activeSubService;
+                                setActiveSubService(null);
+                                handleOpenWorkTypesEditor(subToEdit, 'base_price');
                               }}
                               sx={{
-                                color: '#ef4444',
-                                bgcolor: 'rgba(239, 68, 68, 0.05)',
-                                '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' }
+                                color: service?.accent || '#2E5BA8',
+                                bgcolor: 'rgba(46, 91, 168, 0.05)',
+                                '&:hover': { bgcolor: 'rgba(46, 91, 168, 0.1)' }
                               }}
-                              title="Delete Standard Price"
+                              title="Edit Standard Price"
                             >
-                              <DeleteIcon sx={{ fontSize: '1.1rem' }} />
+                              <EditIcon sx={{ fontSize: '1.1rem' }} />
                             </IconButton>
-                          )}
-                        </Box>
-                      )}
+                            {pricesCount >= 2 && (
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const standardPriceKey = pricesMap['Base Price'] !== undefined ? 'Base Price' : activeSubService.name;
+                                  handleDeleteWorkType(standardPriceKey);
+                                }}
+                                sx={{
+                                  color: '#ef4444',
+                                  bgcolor: 'rgba(239, 68, 68, 0.05)',
+                                  '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' }
+                                }}
+                                title="Delete Standard Price"
+                              >
+                                <DeleteIcon sx={{ fontSize: '1.1rem' }} />
+                              </IconButton>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
                     </Box>
-                  </Box>
+                  )}
 
                   {/* Work Types Section */}
                   {wtList.length === 0 ? (
