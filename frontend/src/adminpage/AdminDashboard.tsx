@@ -1928,7 +1928,7 @@ function AssignedVouchersPage() { return <PlaceholderPage title="Assigned Vouche
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
       <Sidebar role="admin" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />

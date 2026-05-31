@@ -1863,7 +1863,7 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
 
 
 export default function VendorDashboard() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [dbServices, setDbServices] = useState<any[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
 

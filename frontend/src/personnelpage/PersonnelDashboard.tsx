@@ -67,7 +67,7 @@ function PersonnelProfile() {
 }
 
 export default function PersonnelDashboard() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
       <Sidebar role="personnel" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />

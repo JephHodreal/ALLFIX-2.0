@@ -1931,7 +1931,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function CustomerApp() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [cart, setCart] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('booking_cart');

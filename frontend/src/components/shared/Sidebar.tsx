@@ -158,30 +158,39 @@ function SidebarSectionGroup({ section, role, collapsed }: { section: SidebarSec
 
 export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
   const sections = menuSections[role] || [];
   const handleLogout = async () => { await logoutUser(); navigate('/login'); };
+
+  const effectiveCollapsed = !isHovered;
 
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
+      animate={{ width: effectiveCollapsed ? 72 : 260 }}
       transition={{ duration: 0.3 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className="fixed left-0 top-0 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-40 flex flex-col"
     >
       <div className="h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-8 h-8 object-contain" />
           </div>
           <AnimatePresence>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <motion.span
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-lg font-bold text-brand-navy dark:text-white whitespace-nowrap overflow-hidden"
+                className="text-lg font-bold text-brand-navy dark:text-white whitespace-nowrap overflow-hidden flex items-center"
               >
-                AllFix.ph
+                <span>All</span>
+                <span className="text-brand-green">F</span>
+                <span className="text-brand-yellow">i</span>
+                <span className="text-brand-red">x</span>
+                <span>.ph</span>
               </motion.span>
             )}
           </AnimatePresence>
@@ -189,7 +198,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
       </div>
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {sections.map((section, i) => (
-          <SidebarSectionGroup key={i} section={section} role={role} collapsed={collapsed} />
+          <SidebarSectionGroup key={i} section={section} role={role} collapsed={effectiveCollapsed} />
         ))}
       </nav>
       <div className="border-t border-slate-200 dark:border-slate-700 p-2 space-y-1">
@@ -198,13 +207,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-brand-red transition-all"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Logout</span>}
-        </button>
-        <button
-          onClick={onToggle}
-          className="flex items-center justify-center w-full py-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {!effectiveCollapsed && <span className="text-sm font-medium">Logout</span>}
         </button>
       </div>
     </motion.aside>
