@@ -475,6 +475,23 @@ public class AdminController {
 
             String id = firestoreService.create("payouts", data);
             System.out.println("[CAVEMAN] AdminController.createPayout: created payout with ID " + id);
+
+            // Synchronize with the linked booking if booking_id is provided
+            if (body.get("booking_id") != null) {
+                String bookingId = (String) body.get("booking_id");
+                System.out.println("[CAVEMAN] AdminController.createPayout: updating booking " + bookingId + " payout_status to Paid");
+                firestoreService.updateField("bookings", bookingId, "payout_status", "Paid");
+                if (data.get("payout_date") != null) {
+                    firestoreService.updateField("bookings", bookingId, "payout_date", data.get("payout_date"));
+                }
+                if (body.get("check_number") != null) {
+                    firestoreService.updateField("bookings", bookingId, "payout_reference", body.get("check_number"));
+                }
+                if (body.get("attachment") != null) {
+                    firestoreService.updateField("bookings", bookingId, "payout_attachment", body.get("attachment"));
+                }
+            }
+
             return ResponseEntity.ok(Map.of("id", id, "message", "Payout recorded successfully."));
         } catch (Exception e) {
             System.err.println("[CAVEMAN] Error in createPayout: " + e.getMessage());
@@ -516,6 +533,16 @@ public class AdminController {
     public ResponseEntity<?> deletePayout(@PathVariable String id) {
         System.out.println("[CAVEMAN] AdminController.deletePayout: deleting payout " + id);
         try {
+            // Get payout to check for linked booking
+            Map<String, Object> payout = firestoreService.getById("payouts", id);
+            if (payout != null && payout.get("booking_id") != null) {
+                String bookingId = (String) payout.get("booking_id");
+                System.out.println("[CAVEMAN] AdminController.deletePayout: resetting booking " + bookingId + " payout fields");
+                firestoreService.updateField("bookings", bookingId, "payout_status", "Unpaid");
+                firestoreService.updateField("bookings", bookingId, "payout_reference", "");
+                firestoreService.updateField("bookings", bookingId, "payout_attachment", "");
+            }
+
             firestoreService.delete("payouts", id);
             System.out.println("[CAVEMAN] AdminController.deletePayout: payout " + id + " deleted");
             return ResponseEntity.ok(Map.of("message", "Payout deleted successfully."));

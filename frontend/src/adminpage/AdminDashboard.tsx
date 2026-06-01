@@ -2902,6 +2902,107 @@ function TransactionsPage() {
     return isNaN(num) ? '₱0.00' : `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const getMonthYearString = (dateVal: any) => {
+    if (!dateVal) return new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    let d: Date;
+    if (dateVal.seconds) {
+      d = new Date(dateVal.seconds * 1000);
+    } else {
+      d = new Date(dateVal);
+    }
+    if (isNaN(d.getTime())) return new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  };
+
+  // Payout states in TransactionsPage
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutDate, setPayoutDate] = useState('');
+  const [checkNumber, setCheckNumber] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [payoutError, setPayoutError] = useState('');
+
+  const setPayoutFormFields = (tx: any) => {
+    setSelectedTx(tx);
+    setPayoutDate(new Date().toISOString().split('T')[0]);
+    setCheckNumber('');
+    setAttachmentUrl('');
+    setPayoutError('');
+  };
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setPayoutError('');
+    console.log('[CAVEMAN] TransactionsPage: Uploading supporting document:', file.name);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await api.post('/api/upload/image', {
+          image: base64,
+          folder: 'payouts'
+        });
+        setAttachmentUrl(res.data.url);
+        console.log('[CAVEMAN] TransactionsPage: Upload success. URL:', res.data.url);
+      } catch (err: any) {
+        console.error('[CAVEMAN] TransactionsPage: Upload failed', err);
+        setPayoutError('Failed to upload attachment. Please try again.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleProcessPayoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPayoutError('');
+    
+    if (!payoutDate) {
+      setPayoutError('Please select a payout date.');
+      return;
+    }
+    if (!checkNumber.trim()) {
+      setPayoutError('Please enter a Reference Number.');
+      return;
+    }
+    if (!attachmentUrl) {
+      setPayoutError('Please upload a proof of payment.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        vendor_id: selectedTx.vendor_id,
+        vendor_name: selectedTx.vendor_name,
+        amount: Number(selectedTx.vendor_earnings),
+        month: getMonthYearString(selectedTx.completed_at),
+        check_number: checkNumber.trim(),
+        attachment: attachmentUrl,
+        payout_date: new Date(payoutDate),
+        booking_id: selectedTx.id,
+        status: 'Paid'
+      };
+
+      console.log('[CAVEMAN] TransactionsPage: Processing payout for booking:', selectedTx.id, 'with payload:', payload);
+      await api.post('/api/admin/payouts', payload);
+      setShowPayoutModal(false);
+      setSelectedTx(null);
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] TransactionsPage: Process payout failed', err);
+      setPayoutError(err?.response?.data?.message || 'Failed to process payout.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Filter transactions
   const filteredTransactions = transactions.filter(tx => {
     if (searchVendor.trim()) {
@@ -3335,9 +3436,121 @@ function TransactionsPage() {
               </div>
 
               {/* Footer */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end">
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end gap-2">
+                {selectedTx.payout_status !== 'Paid' && (
+                  <Button 
+                    onClick={() => {
+                      setPayoutFormFields(selectedTx);
+                      setShowPayoutModal(true);
+                    }}
+                    variant="success"
+                    className="font-bold"
+                  >
+                    Payout
+                  </Button>
+                )}
                 <Button onClick={() => setSelectedTx(null)} variant="ghost" className="font-bold">Close details</Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payout Form Modal for TransactionsPage */}
+      <AnimatePresence>
+        {showPayoutModal && selectedTx && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowPayoutModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <form onSubmit={handleProcessPayoutSubmit}>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855/50 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Process Vendor Payout</h3>
+                    <p className="text-xs text-slate-400 font-bold">Log transfer reference details for {selectedTx.vendor_name}</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowPayoutModal(false)} 
+                    className="p-1 rounded-xl hover:bg-slate-205 dark:hover:bg-slate-800 text-slate-400"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {payoutError && (
+                  <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex gap-2 items-center animate-fadeIn">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{payoutError}</span>
+                  </div>
+                )}
+
+                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                  {/* Payout Date */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date *</label>
+                    <input
+                      type="date"
+                      value={payoutDate}
+                      onChange={(e) => setPayoutDate(e.target.value)}
+                      required
+                      placeholder="Select payout date..."
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
+                  </div>
+
+                  {/* Reference Number */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Reference Number *</label>
+                    <input
+                      type="text"
+                      value={checkNumber}
+                      onChange={(e) => setCheckNumber(e.target.value)}
+                      required
+                      placeholder="Enter GCash or Bank Reference Number..."
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
+                  </div>
+
+                  {/* Attach Proof */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof *</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf" 
+                        onChange={handleUploadFile}
+                        id="tx-payout-file-process"
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                      <label 
+                        htmlFor="tx-payout-file-process"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
+                      </label>
+                      <span className="text-xs text-slate-400 truncate max-w-[200px]">
+                        {attachmentUrl ? '✓ File loaded' : 'No document chosen'}
+                      </span>
+                    </div>
+                    {attachmentUrl && (
+                      <div className="mt-2 text-xs font-semibold text-emerald-500 flex items-center gap-1 animate-pulse">
+                        <Check className="w-3 h-3" /> Supporting file attached successfully!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855 flex gap-3">
+                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowPayoutModal(false)}>Cancel</Button>
+                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Payout</Button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
@@ -3347,15 +3560,13 @@ function TransactionsPage() {
 }
 
 function PayoutsPage() {
-  const [payouts, setPayouts] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [personnelList, setPersonnelList] = useState<any[]>([]);
   
   // Modal toggles
   const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  
-  const [selectedPayout, setSelectedPayout] = useState<any | null>(null);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
   
   // Form elements
   const [payoutDate, setPayoutDate] = useState('');
@@ -3368,19 +3579,21 @@ function PayoutsPage() {
 
   // Filters state
   const [searchVendor, setSearchVendor] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
+  const [searchService, setSearchService] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const loadData = async () => {
     setLoading(true);
     try {
-      console.log('[CAVEMAN] PayoutsPage: loadData - Loading payouts and vendors');
-      const [payoutsRes, vendorsRes] = await Promise.all([
-        api.get('/api/admin/payouts'),
-        api.get('/api/vendors').catch(() => ({ data: [] }))
+      console.log('[CAVEMAN] PayoutsPage: loadData - Loading transactions and personnel');
+      const [txRes, personnelRes] = await Promise.all([
+        api.get('/api/admin/transactions'),
+        api.get('/api/personnel').catch(() => ({ data: [] }))
       ]);
-      setPayouts(payoutsRes.data || []);
-      setVendors(vendorsRes.data || []);
-      console.log('[CAVEMAN] PayoutsPage: loadData - Loaded', payoutsRes.data?.length, 'payouts');
+      setTransactions(txRes.data || []);
+      setPersonnelList(personnelRes.data || []);
+      console.log('[CAVEMAN] PayoutsPage: loadData - Loaded', txRes.data?.length, 'transactions');
     } catch (err) {
       console.error('[CAVEMAN] PayoutsPage: Failed to load data', err);
     } finally {
@@ -3391,6 +3604,23 @@ function PayoutsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const getPersonnelDetails = (pId: string) => {
+    if (!pId) return null;
+    return personnelList.find(p => p.id === pId || p.uid === pId);
+  };
+
+  const getMonthYearString = (dateVal: any) => {
+    if (!dateVal) return new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    let d: Date;
+    if (dateVal.seconds) {
+      d = new Date(dateVal.seconds * 1000);
+    } else {
+      d = new Date(dateVal);
+    }
+    if (isNaN(d.getTime())) return new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  };
 
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3420,25 +3650,11 @@ function PayoutsPage() {
     reader.readAsDataURL(file);
   };
 
-  const setPayoutFormFields = (p: any) => {
-    setSelectedPayout(p);
-    
-    let rawDate = '';
-    if (p.payout_date) {
-      if (p.payout_date.seconds) {
-        rawDate = new Date(p.payout_date.seconds * 1000).toISOString().split('T')[0];
-      } else {
-        const parsed = new Date(p.payout_date);
-        if (!isNaN(parsed.getTime())) {
-          rawDate = parsed.toISOString().split('T')[0];
-        }
-      }
-    } else {
-      rawDate = new Date().toISOString().split('T')[0];
-    }
-    setPayoutDate(rawDate);
-    setCheckNumber(p.check_number && p.check_number !== '—' ? p.check_number : '');
-    setAttachmentUrl(p.attachment || '');
+  const setPayoutFormFields = (tx: any) => {
+    setSelectedTx(tx);
+    setPayoutDate(new Date().toISOString().split('T')[0]);
+    setCheckNumber('');
+    setAttachmentUrl('');
     setError('');
   };
 
@@ -3462,37 +3678,27 @@ function PayoutsPage() {
     setSaving(true);
     try {
       const payload = {
-        vendor_id: selectedPayout.vendor_id,
-        vendor_name: selectedPayout.vendor_name,
-        amount: Number(selectedPayout.amount),
-        month: selectedPayout.month,
+        vendor_id: selectedTx.vendor_id,
+        vendor_name: selectedTx.vendor_name,
+        amount: Number(selectedTx.vendor_earnings),
+        month: getMonthYearString(selectedTx.completed_at),
         check_number: checkNumber.trim(),
         attachment: attachmentUrl,
         payout_date: new Date(payoutDate),
+        booking_id: selectedTx.id,
         status: 'Paid'
       };
 
-      console.log('[CAVEMAN] PayoutsPage: Processing payout ID:', selectedPayout.id, 'with payload:', payload);
-      await api.put(`/api/admin/payouts/${selectedPayout.id}`, payload);
+      console.log('[CAVEMAN] PayoutsPage: Processing payout for booking ID:', selectedTx.id, 'with payload:', payload);
+      await api.post('/api/admin/payouts', payload);
       setShowPayoutModal(false);
+      setSelectedTx(null);
       loadData();
     } catch (err: any) {
       console.error('[CAVEMAN] PayoutsPage: Process payout failed', err);
       setError(err?.response?.data?.message || 'Failed to process payout.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDeletePayout = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this payout record?')) {
-      try {
-        console.log('[CAVEMAN] PayoutsPage: Deleting payout ID', id);
-        await api.delete(`/api/admin/payouts/${id}`);
-        setPayouts(prev => prev.filter(p => p.id !== id));
-      } catch (err) {
-        console.error('[CAVEMAN] PayoutsPage: Delete failed', err);
-      }
     }
   };
 
@@ -3515,27 +3721,45 @@ function PayoutsPage() {
     return isNaN(num) ? '₱0.00' : `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Filter payouts
-  const filteredPayouts = payouts.filter(p => {
+  // Filter completed bookings eligible for payouts
+  const filteredEligible = transactions.filter(tx => {
+    if (tx.payout_status === 'Paid') return false;
+
     if (searchVendor.trim()) {
-      const vName = (p.vendor_name || '').toLowerCase();
+      const vName = (tx.vendor_name || '').toLowerCase();
       if (!vName.includes(searchVendor.toLowerCase())) return false;
     }
-    if (filterMonth.trim()) {
-      const m = (p.month || '').toLowerCase();
-      if (!m.includes(filterMonth.toLowerCase())) return false;
+    if (searchService.trim()) {
+      const sType = (tx.service_type || '').toLowerCase();
+      const subSvc = (tx.sub_service || '').toLowerCase();
+      const term = searchService.toLowerCase();
+      if (!sType.includes(term) && !subSvc.includes(term)) return false;
+    }
+    const txDate = tx.completed_at ? 
+      (tx.completed_at.seconds ? new Date(tx.completed_at.seconds * 1000) : new Date(tx.completed_at)) : null;
+    if (startDate && txDate) {
+      const start = new Date(startDate);
+      start.setHours(0,0,0,0);
+      if (txDate < start) return false;
+    }
+    if (endDate && txDate) {
+      const end = new Date(endDate);
+      end.setHours(23,59,59,999);
+      if (txDate > end) return false;
     }
     return true;
   });
 
-  const totalPayouts = filteredPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalVolume = filteredEligible.reduce((sum, tx) => sum + (tx.vendor_earnings || 0), 0);
+  const totalRecords = filteredEligible.length;
+  const avgPayout = totalRecords ? totalVolume / totalRecords : 0;
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h3 className="text-xl font-bold text-slate-905 dark:text-white flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-brand-navy dark:text-brand-green" />
             <span>Payout Management</span>
           </h3>
@@ -3547,42 +3771,60 @@ function PayoutsPage() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Payout Volume" value={formatCurrency(totalPayouts)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
-        <StatCard title="Total Payout Records" value={filteredPayouts.length} icon={<ClipboardList className="w-5 h-5" />} color="green" />
-        <StatCard title="Average Payout" value={formatCurrency(filteredPayouts.length ? totalPayouts / filteredPayouts.length : 0)} icon={<Receipt className="w-5 h-5" />} color="yellow" />
+        <StatCard title="Pending Payout Volume" value={formatCurrency(totalVolume)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
+        <StatCard title="Eligible Payout Jobs" value={totalRecords} icon={<ClipboardList className="w-5 h-5" />} color="green" />
+        <StatCard title="Average Pending Payout" value={formatCurrency(avgPayout)} icon={<Receipt className="w-5 h-5" />} color="yellow" />
       </div>
 
       {/* Filters Bar */}
       <Card className="p-5 border border-slate-200 dark:border-slate-800">
         <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5" /> Filter Payouts
+          <Filter className="w-3.5 h-3.5" /> Filter Eligible Bookings
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
-              placeholder="Search Vendor Name..."
+              placeholder="Search Vendor Partner..."
               value={searchVendor}
               onChange={(e) => setSearchVendor(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
             />
           </div>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Wrench className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
-              placeholder="Filter Month (e.g. June 2026)..."
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              placeholder="Search Service..."
+              value={searchService}
+              onChange={(e) => setSearchService(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
             />
           </div>
         </div>
-        {(searchVendor || filterMonth) && (
+        {(searchVendor || searchService || startDate || endDate) && (
           <div className="mt-3 flex justify-end">
             <button 
-              onClick={() => { setSearchVendor(''); setFilterMonth(''); }}
+              onClick={() => { setSearchVendor(''); setSearchService(''); setStartDate(''); setEndDate(''); }}
               className="text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors"
             >
               Reset Filters
@@ -3600,10 +3842,10 @@ function PayoutsPage() {
                 <div key={i} className="skeleton h-12 rounded-xl" />
               ))}
             </div>
-          ) : filteredPayouts.length === 0 ? (
+          ) : filteredEligible.length === 0 ? (
             <EmptyState 
-              title="No Payout Logs Found" 
-              description="No payout transactions match your selected search filters." 
+              title="No Pending Payouts Found" 
+              description="All completed vendor booking payouts have been processed successfully." 
               icon={<CreditCard className="w-8 h-8 text-slate-400" />} 
             />
           ) : (
@@ -3613,41 +3855,47 @@ function PayoutsPage() {
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold text-xs uppercase tracking-wider">
-                      <th className="py-4 px-4">Vendor Partner</th>
-                      <th className="py-4 px-4 text-center">Month Of</th>
-                      <th className="py-4 px-4 text-right">Payout Amount</th>
-                      <th className="py-4 px-4 text-center">Ref Number</th>
-                      <th className="py-4 px-4 text-center">Payout Date</th>
+                      <th className="py-4 px-4">Service</th>
+                      <th className="py-4 px-4">Vendor</th>
+                      <th className="py-4 px-4 text-right">Total Payment</th>
+                      <th className="py-4 px-4 text-right">System Fee</th>
+                      <th className="py-4 px-4 text-center">Date Completed</th>
                       <th className="py-4 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPayouts.map((p) => (
+                    {filteredEligible.map((tx) => (
                       <tr 
-                        key={p.id}
+                        key={tx.id}
                         className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
                       >
                         <td className="py-4 px-4">
-                          <span className="font-bold text-slate-850 dark:text-white">{p.vendor_name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-855 dark:text-white">{tx.sub_service || tx.service_type}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{tx.service_type}</span>
+                          </div>
                         </td>
-                        <td className="py-4 px-4 text-center font-semibold text-slate-600 dark:text-slate-400">
-                          {p.month}
+                        <td className="py-4 px-4">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">{tx.vendor_name || '—'}</span>
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <span className="font-extrabold text-brand-green">{formatCurrency(p.amount)}</span>
+                          <span className="font-extrabold text-brand-green">{formatCurrency(tx.total_payment)}</span>
                         </td>
-                        <td className="py-4 px-4 text-center font-mono text-xs font-semibold text-slate-850 dark:text-slate-300">
-                          {p.check_number || '—'}
+                        <td className="py-4 px-4 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-bold text-brand-navy dark:text-brand-green">{formatCurrency(tx.system_fee)}</span>
+                            <span className="text-[9px] text-slate-400 font-semibold">({tx.system_fee_percentage}%)</span>
+                          </div>
                         </td>
-                        <td className="py-4 px-4 text-center font-semibold text-slate-700 dark:text-slate-355">
-                          {formatDate(p.payout_date)}
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-xs font-semibold text-slate-655 dark:text-slate-400">{formatDate(tx.completed_at)}</span>
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="flex justify-center gap-2">
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => { setPayoutFormFields(p); setShowPayoutModal(true); }}
+                              onClick={() => { setPayoutFormFields(tx); setShowPayoutModal(true); }}
                               icon={<CreditCard className="w-4 h-4" />}
                               className="inline-flex text-brand-navy dark:text-brand-green hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
                             >
@@ -3656,19 +3904,12 @@ function PayoutsPage() {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                              onClick={() => setSelectedTx(tx)}
                               icon={<Eye className="w-4 h-4" />}
                               className="inline-flex text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
                             >
                               View Details
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeletePayout(p.id)}
-                              icon={<Trash2 className="w-4 h-4" />}
-                              className="inline-flex text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg p-1.5"
-                            >{""}</Button>
                           </div>
                         </td>
                       </tr>
@@ -3679,36 +3920,43 @@ function PayoutsPage() {
 
               {/* Mobile / Tablet cards list view */}
               <div className="block sm:hidden space-y-4">
-                {filteredPayouts.map((p) => (
+                {filteredEligible.map((tx) => (
                   <div 
-                    key={p.id}
+                    key={tx.id}
                     className="p-4 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/25 space-y-3"
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Month: {p.month}</span>
-                        <h5 className="font-bold text-slate-905 dark:text-white text-sm">{p.vendor_name}</h5>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{tx.service_type}</span>
+                        <h5 className="font-bold text-slate-905 dark:text-white text-sm">{tx.sub_service || tx.service_type}</h5>
                       </div>
+                      <span className="text-xs font-semibold text-slate-450 dark:text-slate-500">{formatDate(tx.completed_at)}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-105 dark:border-slate-800/80 py-2.5">
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-150 dark:border-slate-800/80 py-2.5">
                       <div>
-                        <p className="text-slate-400 font-semibold mb-0.5">Payout Date</p>
-                        <p className="font-bold text-slate-705 dark:text-slate-355">{formatDate(p.payout_date)}</p>
+                        <p className="text-slate-400 font-semibold mb-0.5">Vendor Partner</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-300 truncate">{tx.vendor_name || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-semibold mb-0.5">Payout Amount</p>
-                        <p className="font-extrabold text-brand-green text-sm">{formatCurrency(p.amount)}</p>
+                        <p className="text-slate-400 font-semibold mb-0.5">Total Payment</p>
+                        <p className="font-extrabold text-brand-green text-sm">{formatCurrency(tx.total_payment)}</p>
                       </div>
-                      <div className="mt-1 col-span-2">
-                        <p className="text-slate-400 font-semibold mb-0.5">Ref No</p>
-                        <p className="font-mono font-bold text-slate-800 dark:text-slate-300">{p.check_number || '—'}</p>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">System Fee Deduction</p>
+                        <p className="font-bold text-brand-navy dark:text-brand-green">
+                          {formatCurrency(tx.system_fee)} <span className="text-[9px] text-slate-400">({tx.system_fee_percentage}%)</span>
+                        </p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">Vendor Net Earnings</p>
+                        <p className="font-bold text-emerald-500">{formatCurrency(tx.vendor_earnings)}</p>
                       </div>
                     </div>
 
                     <div className="flex justify-end gap-2">
                       <Button 
-                        onClick={() => { setPayoutFormFields(p); setShowPayoutModal(true); }}
+                        onClick={() => { setPayoutFormFields(tx); setShowPayoutModal(true); }}
                         variant="ghost" 
                         size="sm" 
                         icon={<CreditCard className="w-4 h-4" />}
@@ -3717,7 +3965,7 @@ function PayoutsPage() {
                         Payout
                       </Button>
                       <Button 
-                        onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                        onClick={() => setSelectedTx(tx)}
                         variant="ghost" 
                         size="sm" 
                         icon={<Eye className="w-4 h-4" />}
@@ -3734,9 +3982,9 @@ function PayoutsPage() {
         </div>
       </Card>
 
-      {/* Payout Form Modal (button-triggered form) */}
+      {/* Payout Form Modal */}
       <AnimatePresence>
-        {showPayoutModal && selectedPayout && (
+        {showPayoutModal && selectedTx && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowPayoutModal(false)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
@@ -3749,12 +3997,12 @@ function PayoutsPage() {
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855/50 flex justify-between items-center">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Process Vendor Payout</h3>
-                    <p className="text-xs text-slate-400 font-bold">Log transfer reference details for {selectedPayout.vendor_name}</p>
+                    <p className="text-xs text-slate-400 font-bold">Log transfer reference details for {selectedTx.vendor_name}</p>
                   </div>
                   <button 
                     type="button"
                     onClick={() => setShowPayoutModal(false)} 
-                    className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400"
+                    className="p-1 rounded-xl hover:bg-slate-205 dark:hover:bg-slate-800 text-slate-400"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -3824,7 +4072,7 @@ function PayoutsPage() {
                   </div>
                 </div>
 
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex gap-3">
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855 flex gap-3">
                   <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowPayoutModal(false)}>Cancel</Button>
                   <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Payout</Button>
                 </div>
@@ -3834,80 +4082,164 @@ function PayoutsPage() {
         )}
       </AnimatePresence>
 
-      {/* Payout Details Modal */}
+      {/* Booking/Transaction Details Modal */}
       <AnimatePresence>
-        {showDetailsModal && selectedPayout && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowDetailsModal(false)}>
+        {selectedTx && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setSelectedTx(null)}>
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855/50 flex justify-between items-center">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-855/50">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payout Details</span>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{selectedPayout.vendor_name}</h3>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Details</span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">Booking Ref: #{selectedTx.id}</h3>
                 </div>
                 <button 
-                  onClick={() => setShowDetailsModal(false)} 
-                  className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-455"
+                  onClick={() => setSelectedTx(null)} 
+                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-455 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-6 space-y-4 text-sm text-slate-650 dark:text-slate-400">
-                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">For Month Of</span>
-                    <p className="font-bold text-slate-800 dark:text-white text-base mt-0.5">{selectedPayout.month}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Payout Date</span>
-                    <p className="font-bold text-slate-800 dark:text-white text-base mt-0.5">{formatDate(selectedPayout.payout_date)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Payout Amount</span>
-                    <p className="font-black text-brand-green text-lg mt-0.5">{formatCurrency(selectedPayout.amount)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Reference Number</span>
-                    <p className="font-bold text-slate-800 dark:text-white mt-0.5 font-mono">{selectedPayout.check_number || '—'}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Supporting Receipt/Proof Document</span>
-                  {selectedPayout.attachment ? (
-                    <div className="space-y-3">
-                      <a 
-                        href={selectedPayout.attachment} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="text-sm font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1.5"
-                      >
-                        <FileText className="w-4 h-4" /> Open Supporting Receipt Document
-                      </a>
-                      
-                      {selectedPayout.attachment.match(/\.(jpeg|jpg|gif|png|webp)/i) || !selectedPayout.attachment.includes('.') ? (
-                        <div className="w-full h-48 border border-slate-205 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-55 dark:bg-slate-900">
-                          <img src={selectedPayout.attachment} alt="Receipt proof" className="w-full h-full object-contain" />
-                        </div>
-                      ) : null}
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-slate-650 dark:text-slate-400">
+                
+                {/* Section 1: Booking & Partner Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Service Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Wrench className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Service Description
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Service Type:</span> {selectedTx.service_type}</p>
+                      <p><span className="font-semibold">Sub-service:</span> {selectedTx.sub_service || '—'}</p>
+                      <p><span className="font-semibold">Preferred Schedule:</span> 📅 {selectedTx.scheduled_date} at ⏰ {selectedTx.scheduled_time}</p>
+                      <p><span className="font-semibold">Address:</span> {selectedTx.address || selectedTx.service_address || '—'}</p>
                     </div>
-                  ) : (
-                    <span className="text-slate-400 italic font-semibold">No supporting transfer proof document was logged.</span>
-                  )}
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Users className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Customer Details
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Name:</span> {selectedTx.customer_name || '—'}</p>
+                      <p><span className="font-semibold">User Account:</span> {selectedTx.customer_id || '—'}</p>
+                      <p><span className="font-semibold">GCash Number:</span> {selectedTx.payment_reference ? selectedTx.payment_reference.substring(0, 11) : '—'}</p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Section 2: Partner & Personnel */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Vendor Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Building2 className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Vendor Partner
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Company:</span> {selectedTx.vendor_name || '—'}</p>
+                      <p><span className="font-semibold">Vendor ID:</span> {selectedTx.vendor_id || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Assigned Personnel */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <User className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Service Personnel Assigned
+                    </h5>
+                    {selectedTx.personnel_id ? (
+                      (() => {
+                        const staff = getPersonnelDetails(selectedTx.personnel_id);
+                        return (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">Staff Name:</span> {staff ? `${staff.first_name || ''} ${staff.last_name || ''}`.trim() : 'Unknown Personnel'}</p>
+                            <p><span className="font-semibold">Username:</span> {staff?.username || '—'}</p>
+                            <p><span className="font-semibold">Phone:</span> {staff?.phone || '—'}</p>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-xs italic text-slate-450 font-bold">No dedicated personnel was assigned to this booking.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 3: Financial Payment Breakdown */}
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-850/40 p-5 rounded-2xl border border-slate-150 dark:border-slate-800/60">
+                  <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-205 dark:border-slate-700 pb-1.5 font-bold">
+                    Financial Summary Breakdown
+                  </h5>
+                  
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    {/* Item price / qty */}
+                    <div className="flex justify-between font-medium">
+                      <span>Unit Price (₱{selectedTx.price || '0.00'} × {selectedTx.quantity || 1})</span>
+                      <span className="text-slate-800 dark:text-slate-250 font-bold">
+                        {formatCurrency((selectedTx.price || 0) * (selectedTx.quantity || 1))}
+                      </span>
+                    </div>
+
+                    {/* Discount details */}
+                    {selectedTx.discount_amount > 0 && (
+                      <div className="flex justify-between font-medium text-brand-green">
+                        <span className="flex items-center gap-1.5">
+                          Voucher Discounted ({selectedTx.voucher_code})
+                        </span>
+                        <span className="font-bold">-{formatCurrency(selectedTx.discount_amount)}</span>
+                      </div>
+                    )}
+
+                    {/* Total payment */}
+                    <div className="flex justify-between font-bold border-t border-dashed border-slate-250 dark:border-slate-700 pt-2.5 text-sm">
+                      <span className="text-slate-900 dark:text-white">Customer Total Payment</span>
+                      <span className="text-brand-green text-base">{formatCurrency(selectedTx.total_payment)}</span>
+                    </div>
+
+                    {/* System Fee percentage and deduction */}
+                    <div className="flex justify-between font-bold text-rose-500 pt-1">
+                      <span>Platform Fee Deducted ({selectedTx.system_fee_percentage}%)</span>
+                      <span>-{formatCurrency(selectedTx.system_fee)}</span>
+                    </div>
+
+                    {/* Vendor Net earnings */}
+                    <div className="flex justify-between font-black text-emerald-500 border-t border-slate-200 dark:border-slate-700 pt-2.5 text-base sm:text-lg bg-emerald-500/5 dark:bg-emerald-500/10 p-2 rounded-xl">
+                      <span>Vendor Partner Earnings</span>
+                      <span>{formatCurrency(selectedTx.vendor_earnings)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date completed tracking */}
+                <div className="text-right text-[11px] text-slate-450 font-bold">
+                  Payment Confirmed Ref: {selectedTx.payment_reference || 'GCASH'} • Date Logged: {formatDate(selectedTx.completed_at)}
+                </div>
+
               </div>
 
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end">
-                <Button onClick={() => setShowDetailsModal(false)} variant="ghost" className="font-bold">Close details</Button>
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855 flex justify-end gap-2">
+                {selectedTx.payout_status !== 'Paid' && (
+                  <Button 
+                    onClick={() => {
+                      setPayoutFormFields(selectedTx);
+                      setShowPayoutModal(true);
+                    }}
+                    variant="success"
+                    className="font-bold"
+                  >
+                    Payout
+                  </Button>
+                )}
+                <Button onClick={() => setSelectedTx(null)} variant="ghost" className="font-bold">Close details</Button>
               </div>
             </motion.div>
           </div>
