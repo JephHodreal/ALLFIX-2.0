@@ -3160,6 +3160,434 @@ function AssignedVouchersPage() {
   );
 }
 
+// ─── Refunds Tab ────────────────────────────────────────────────────────────
+import { RefreshCcw } from 'lucide-react';
+
+function RefundsPage() {
+  const [refunds, setRefunds] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal / Form States
+  const [showModal, setShowModal] = useState(false);
+  const [isProcessingExisting, setIsProcessingExisting] = useState(false);
+  const [selectedRefundId, setSelectedRefundId] = useState<string | null>(null);
+
+  // Form Fields
+  const [selectedBookingId, setSelectedBookingId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [proofImageUrl, setProofImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadData = async () => {
+    console.log('[CAVEMAN] RefundsPage: loadData - Loading refunds and bookings');
+    setLoading(true);
+    try {
+      const [refundsRes, bookingsRes] = await Promise.all([
+        api.get('/api/refunds'),
+        api.get('/api/bookings')
+      ]);
+      setRefunds(refundsRes.data || []);
+      setBookings(bookingsRes.data || []);
+      console.log('[CAVEMAN] RefundsPage: loadData - Success. Refunds count:', refundsRes.data?.length, 'Bookings count:', bookingsRes.data?.length);
+    } catch (err) {
+      console.error('[CAVEMAN] RefundsPage: loadData - Failed to load data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // When a booking is selected in direct creation mode
+  useEffect(() => {
+    if (!isProcessingExisting && selectedBookingId) {
+      const booking = bookings.find(b => b.id === selectedBookingId);
+      if (booking) {
+        console.log('[CAVEMAN] RefundsPage: Booking selected:', selectedBookingId, booking);
+        setCustomerName(booking.customer_name || '—');
+        setRefundAmount(String(booking.total_price || (booking.price * (booking.quantity || 1)) || 0));
+      }
+    }
+  }, [selectedBookingId, isProcessingExisting, bookings]);
+
+  // Handle direct file upload / base64 reading
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log('[CAVEMAN] RefundsPage: handleFileChange - Selected file:', file.name);
+    setUploadingImage(true);
+    setError('');
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        console.log('[CAVEMAN] RefundsPage: Uploading base64 image to server...');
+        const res = await api.post('/api/upload/image', {
+          image: base64,
+          folder: 'refunds'
+        });
+        setProofImageUrl(res.data.url);
+        console.log('[CAVEMAN] RefundsPage: Upload success. URL:', res.data.url);
+      } catch (err: any) {
+        console.error('[CAVEMAN] RefundsPage: Upload failed', err);
+        setError('Failed to upload image. Please try again.');
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOpenCreate = () => {
+    console.log('[CAVEMAN] RefundsPage: Opening direct refund creation modal');
+    setIsProcessingExisting(false);
+    setSelectedRefundId(null);
+    setSelectedBookingId('');
+    setCustomerName('');
+    setRefundAmount('');
+    setReferenceNumber('');
+    setAccountNumber('');
+    setProofImageUrl('');
+    setError('');
+    setShowModal(true);
+  };
+
+  const handleOpenProcess = (refund: any) => {
+    console.log('[CAVEMAN] RefundsPage: Opening process refund modal for refund ID:', refund.id);
+    setIsProcessingExisting(true);
+    setSelectedRefundId(refund.id);
+    setSelectedBookingId(refund.booking_id || '');
+    setCustomerName(refund.customer_name || '—');
+    setRefundAmount(String(refund.refund_amount || 0));
+    setReferenceNumber('');
+    setAccountNumber('');
+    setProofImageUrl('');
+    setError('');
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[CAVEMAN] RefundsPage: Submitting refund. isProcessingExisting:', isProcessingExisting);
+
+    if (!referenceNumber.trim()) {
+      setError('Reference number is required.');
+      return;
+    }
+    if (!accountNumber.trim()) {
+      setError('Account number is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const payload = {
+        booking_id: selectedBookingId,
+        reference_number: referenceNumber.trim(),
+        account_number: accountNumber.trim(),
+        proof_image_url: proofImageUrl,
+        refund_amount: parseFloat(refundAmount) || 0
+      };
+
+      console.log('[CAVEMAN] RefundsPage: Submitting payload:', payload);
+
+      if (isProcessingExisting && selectedRefundId) {
+        await api.patch(`/api/refunds/${selectedRefundId}/approve`, payload);
+        console.log('[CAVEMAN] RefundsPage: Process/Approve refund successful');
+        alert('Refund approved and details recorded successfully!');
+      } else {
+        if (!selectedBookingId) {
+          setError('Please select a booking.');
+          setSubmitting(false);
+          return;
+        }
+        await api.post('/api/refunds/direct', payload);
+        console.log('[CAVEMAN] RefundsPage: Direct refund creation successful');
+        alert('Direct refund created and processed successfully!');
+      }
+
+      setShowModal(false);
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] RefundsPage: Submission failed', err);
+      setError(err.response?.data?.message || 'Failed to submit refund details. Please check the inputs.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = async (refundId: string) => {
+    if (!window.confirm('Are you sure you want to reject this refund request?')) return;
+    console.log('[CAVEMAN] RefundsPage: Rejecting refund request ID:', refundId);
+    try {
+      await api.patch(`/api/refunds/${refundId}/reject`);
+      console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
+      alert('Refund request rejected successfully!');
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] RefundsPage: Reject failed', err);
+      alert(err.response?.data?.message || 'Failed to reject refund request.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Refund Management</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Create direct booking refunds or process customer-initiated cancellation refund requests.
+          </p>
+        </div>
+        <Button onClick={handleOpenCreate} icon={<Plus className="w-4 h-4" />}>
+          Create Refund
+        </Button>
+      </div>
+
+      <Card>
+        <div className="p-6">
+          <DataTable
+            columns={[
+              { key: 'id', label: 'Refund ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-500">{item.id?.substring(0, 8)}...</span> },
+              { key: 'booking_id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{item.booking_id}</span> },
+              { key: 'customer_name', label: 'Customer Name', sortable: true, render: (item: any) => <span className="font-bold text-slate-800 dark:text-white">{item.customer_name}</span> },
+              { key: 'refund_amount', label: 'Refund Amount', sortable: true, render: (item: any) => <span className="font-black text-brand-green">₱{Number(item.refund_amount || 0).toFixed(2)}</span> },
+              { key: 'reference_number', label: 'Ref Number', render: (item: any) => <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-350">{item.reference_number || '—'}</span> },
+              { key: 'account_number', label: 'Account Number', render: (item: any) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{item.account_number || '—'}</span> },
+              { key: 'proof_image_url', label: 'Proof Image', render: (item: any) => item.proof_image_url ? (
+                <a href={item.proof_image_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-brand-navy dark:text-brand-green hover:underline font-bold">
+                  <Eye className="w-3.5 h-3.5" /> View Proof
+                </a>
+              ) : <span className="text-xs text-slate-400">None</span> },
+              {
+                key: 'status',
+                label: 'Status',
+                sortable: true,
+                render: (item: any) => {
+                  const status = item.status || 'pending';
+                  return (
+                    <span className={status === 'approved' || status.toLowerCase() === 'processed' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
+                      {status.toUpperCase()}
+                    </span>
+                  );
+                }
+              },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (item: any) => {
+                  const status = item.status || 'pending';
+                  if (status === 'pending') {
+                    return (
+                      <Button size="sm" onClick={() => handleOpenProcess(item)}>
+                        Process
+                      </Button>
+                    );
+                  }
+                  return <span className="text-xs text-slate-400">—</span>;
+                }
+              }
+            ]}
+            data={refunds}
+            loading={loading}
+            searchPlaceholder="Search refunds..."
+            emptyTitle="No Refunds Recorded"
+            emptyDescription="Create a refund or check for client cancellation requests."
+          />
+        </div>
+      </Card>
+
+      {/* Create / Process Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg"
+              onClick={e => e.stopPropagation()}
+            >
+              <Card className="p-6 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-xl space-y-6">
+                <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-brand-navy/10 dark:bg-brand-green/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {isProcessingExisting ? 'Process Refund Request' : 'Create Direct Refund'}
+                      </h4>
+                      <p className="text-xs text-slate-500">Provide details to record and execute the refund transaction.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {!isProcessingExisting ? (
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Select Booking *</label>
+                      <select
+                        value={selectedBookingId}
+                        onChange={e => setSelectedBookingId(e.target.value)}
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        required
+                      >
+                        <option value="">Select a booking to refund...</option>
+                        {bookings
+                          .filter(b => b.status !== 'cancelled' || !b.refund_id)
+                          .map(b => (
+                            <option key={b.id} value={b.id}>
+                              {b.id} - {b.customer_name} - {b.service_type} (₱{Number(b.total_price || (b.price * (b.quantity || 1)) || 0).toFixed(2)})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Booking ID</label>
+                      <input
+                        type="text"
+                        value={selectedBookingId}
+                        readOnly
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-semibold focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Customer Name</label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        readOnly
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
+                        placeholder="Customer Name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Refund Amount (₱)</label>
+                      <input
+                        type="text"
+                        value={refundAmount ? `₱${Number(refundAmount).toFixed(2)}` : '₱0.00'}
+                        readOnly
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-brand-green text-xs sm:text-sm font-black focus:outline-none"
+                        placeholder="₱0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reference Number *</label>
+                      <input
+                        type="text"
+                        value={referenceNumber}
+                        onChange={e => setReferenceNumber(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
+                        placeholder="Enter Reference Number"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Account Number *</label>
+                      <input
+                        type="text"
+                        value={accountNumber}
+                        onChange={e => setAccountNumber(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
+                        placeholder="Enter Customer's Account Number"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Proof of Refund Image File Input */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Proof of Refund Image (Optional)
+                    </label>
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
+                      {uploadingImage ? (
+                        <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading Image...</div>
+                      ) : proofImageUrl ? (
+                        <div className="relative w-full h-40 rounded-xl overflow-hidden">
+                          <img src={proofImageUrl} alt="Proof of Refund" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProofImageUrl('');
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-lg transition-colors z-10"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 mb-2">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            Click to upload receipt or transaction proof image
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-medium">PNG, JPG, or WEBP formats allowed</p>
+                        </>
+                      )}
+                      {!proofImageUrl && !uploadingImage && (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          onChange={handleFileChange}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button variant="ghost" className="flex-1" onClick={() => setShowModal(false)} type="button" disabled={submitting}>
+                      Cancel
+                    </Button>
+                    <Button variant="success" className="flex-1" type="submit" loading={submitting} disabled={uploadingImage || !referenceNumber.trim() || !accountNumber.trim()}>
+                      {isProcessingExisting ? 'Process Refund' : 'Create Refund'}
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [collapsed, setCollapsed] = useState(true);
@@ -3188,6 +3616,7 @@ export default function AdminDashboard() {
             <Route path="transactions" element={<TransactionsPage />} />
 
             <Route path="payouts" element={<PayoutsPage />} />
+            <Route path="refunds" element={<RefundsPage />} />
 
             <Route path="vouchers" element={<VouchersPage />} />
             <Route path="assigned-vouchers" element={<AssignedVouchersPage />} />

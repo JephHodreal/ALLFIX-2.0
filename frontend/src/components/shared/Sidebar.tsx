@@ -50,6 +50,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       items: [
         { label: 'Transactions', path: '/admin/transactions', icon: <Receipt className="w-5 h-5" /> },
         { label: 'Payouts', path: '/admin/payouts', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'Refunds', path: '/admin/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/admin/vouchers', icon: <Ticket className="w-5 h-5" /> },
         { label: 'Assigned Vouchers', path: '/admin/assigned-vouchers', icon: <Tag className="w-5 h-5" /> },
       ],

@@ -9,11 +9,13 @@ public class BookingService {
     private final FirestoreService firestoreService;
     private final NotificationService notificationService;
     private final SlotService slotService;
+    private final RefundService refundService;
 
-    public BookingService(FirestoreService firestoreService, NotificationService notificationService, SlotService slotService) {
+    public BookingService(FirestoreService firestoreService, NotificationService notificationService, SlotService slotService, RefundService refundService) {
         this.firestoreService = firestoreService;
         this.notificationService = notificationService;
         this.slotService = slotService;
+        this.refundService = refundService;
     }
 
     public String createBooking(Map<String, Object> data) throws Exception {
@@ -143,8 +145,9 @@ public class BookingService {
         refundData.put("reference_number", refundDetails.get("reference_number"));
         refundData.put("refund_method", refundDetails.get("refund_method"));
         refundData.put("receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
-        refundData.put("status", "approved");
+        refundData.put("status", "Processed");
         refundData.put("notified", true);
+        refundData.put("processed_at", new Date());
         
         String refundId = firestoreService.create("refunds", refundData);
 
@@ -158,6 +161,7 @@ public class BookingService {
         bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
         bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
         bookingUpdates.put("refund_processed_at", new Date());
+        bookingUpdates.put("refund_status", "Processed");
         
         firestoreService.update("bookings", bookingId, bookingUpdates);
 
@@ -169,6 +173,14 @@ public class BookingService {
         String vendorId = (String) booking.get("vendor_id");
         if (vendorId != null) {
             notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+        }
+
+        // Trigger Email Notification
+        try {
+            refundService.sendRefundEmailNotification(refundId);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] ERROR: Failed to send cancellation refund email: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
