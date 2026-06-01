@@ -5,57 +5,7 @@ import { Navbar } from '../components/shared/Navbar';
 import { Footer } from '../components/shared/Footer';
 import { useAuth } from '../context/AuthContext';
 
-// --- Testimonial Data ---
-const testimonials = [
-  {
-    initials: 'MS',
-    name: 'Maria Santos',
-    role: 'Homeowner, Makati City',
-    highlight: 'CoolFix – AC Cleaning',
-    highlightColor: '#eaf2fc',
-    highlightText: '#23406e',
-    avatarBg: '#eaf2fc',
-    avatarText: '#23406e',
-    text: '"Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!"',
-    mini: 'Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE...'
-  },
-  {
-    initials: 'RC',
-    name: 'Engr. Roberto Cruz',
-    role: 'Property Manager, Pasig',
-    highlight: 'SaniFix – Deep Cleaning',
-    highlightColor: '#eaf2fc',
-    highlightText: '#23406e',
-    avatarBg: '#eaf2fc',
-    avatarText: '#23406e',
-    text: '"We\'ve been managing commercial properties for 10 years, and AllFix SaniFix is the most reliable, professional team we\'ve worked with. Highly recommended for offices!"',
-    mini: "We've been managing commercial properties for 10 years, and AllFix SaniFix is the most..."
-  },
-  {
-    initials: 'AR',
-    name: 'Anna Reyes',
-    role: 'IT Manager, Mandaluyong',
-    highlight: 'TechFix – IT Support',
-    highlightColor: '#e1d5fa',
-    highlightText: '#6c3fcf',
-    avatarBg: '#e1d5fa',
-    avatarText: '#6c3fcf',
-    text: '"TechFix set up our entire CCTV and network infrastructure in one day. The technician was knowledgeable and courteous. Will book again!"',
-    mini: 'TechFix set up our entire CCTV and network infrastructure in one day. The technicia...'
-  },
-  {
-    initials: 'MG',
-    name: 'Mark Gonzales',
-    role: 'Homeowner, Quezon City',
-    highlight: 'HomeFix – Renovation',
-    highlightColor: '#ffe082',
-    highlightText: '#23406e',
-    avatarBg: '#ffe082',
-    avatarText: '#23406e',
-    text: '"HomeFix transformed our bathroom in just 4 days. The tiling was perfect, no leaks, and the team cleaned up after. Excellent work!"',
-    mini: 'HomeFix transformed our bathroom in just 4 days. The tiling was perfect, no leaks, and...'
-  },
-];
+// --- Dynamic Testimonial Data fetched from Database ---
 
 // --- CORE ICONS ---
 import MenuIcon from '@mui/icons-material/Menu';
@@ -277,9 +227,61 @@ const mapCities = [
 ];
 
 const LandingPage = () => {
+  const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
-  const handlePrev = () => setTestimonialIdx((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1));
-  const handleNext = () => setTestimonialIdx((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1));
+
+  const colors = [
+    { bg: '#eaf2fc', text: '#23406e' },
+    { bg: '#e1d5fa', text: '#6c3fcf' },
+    { bg: '#ffe082', text: '#805b00' },
+    { bg: '#e6f4ea', text: '#137333' }
+  ];
+
+  const mapReviewsToTestimonials = (fetchedReviews: any[]) => {
+    if (!fetchedReviews || fetchedReviews.length === 0) return [];
+    return fetchedReviews.map((r, idx) => {
+      const color = colors[idx % colors.length];
+      const initials = r.customer_name ? r.customer_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) : 'AF';
+      const cleanText = r.feedback || '';
+      const miniText = cleanText.length > 70 ? cleanText.substring(0, 70) + '...' : cleanText;
+      return {
+        id: r.id,
+        initials,
+        customer_name: r.customer_name || 'Verified Customer',
+        feedback: cleanText,
+        rating: r.rating || 5,
+        name: r.customer_name || 'Verified Customer',
+        role: 'Verified Client',
+        highlight: r.service_type || 'Premium Care',
+        highlightColor: color.bg,
+        highlightText: color.text,
+        avatarBg: color.bg,
+        avatarText: color.text,
+        text: `"${cleanText}"`,
+        mini: miniText
+      };
+    });
+  };
+
+  useEffect(() => {
+    console.log('[CAVEMAN] Fetching featured reviews from database for Client Stories...');
+    api.get('/api/reviews/featured')
+      .then(res => {
+        // Double-check featured status to be absolutely bulletproof
+        const liveFeatured = (res.data || []).filter((r: any) => r.featured === true || r.featured === 'true');
+        const mapped = mapReviewsToTestimonials(liveFeatured);
+        console.log('[CAVEMAN] Successfully loaded featured reviews:', mapped.length);
+        setDynamicTestimonials(mapped);
+      })
+      .catch(err => {
+        console.error('[CAVEMAN] Failed to fetch featured reviews:', err);
+      });
+  }, []);
+
+  const displayTestimonials = dynamicTestimonials;
+
+  const handlePrev = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === 0 ? displayTestimonials.length - 1 : prev - 1) : 0));
+  const handleNext = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === displayTestimonials.length - 1 ? 0 : prev + 1) : 0));
   const { isAuthenticated, role } = useAuth();
 
   const handleBookNowClick = () => {
@@ -785,53 +787,58 @@ const LandingPage = () => {
         </Box>
 
         {/* ===================== TESTIMONIALS ===================== */}
-        <Box id="testimonials" sx={{ position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#0d264a', pt: { xs: 8, lg: 10 }, pb: { xs: 8, lg: 10 }, mt: 0, mb: 0, px: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', overflow: 'hidden' }}>
-          <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 10 }}>
-            <Box sx={{ textAlign: 'center', mb: 6 }}>
-              <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#23406e', color: 'white', borderRadius: '999px', px: 2.5, py: 0.8, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 1.5 }}>CLIENT STORIES</Box>
-              <Typography sx={{ fontSize: { xs: '1.75rem', sm: '2.2rem', lg: '2rem' }, fontWeight: 900, color: 'white', mb: 1, lineHeight: 1.2 }}>Trusted by Thousands of Filipino Homeowners</Typography>
-              <Typography sx={{ color: 'rgba(191, 219, 254, 1)', fontSize: { xs: '0.85rem', sm: '1rem', lg: '0.9rem' }, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}>Real reviews from verified clients across Metro Manila. We let our work do the talking.</Typography>
-            </Box>
+        {displayTestimonials.length > 0 && (
+          <Box id="testimonials" sx={{ position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#0d264a', pt: { xs: 8, lg: 10 }, pb: { xs: 8, lg: 10 }, mt: 0, mb: 0, px: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', overflow: 'hidden' }}>
+            <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 10 }}>
+              <Box sx={{ textAlign: 'center', mb: 6 }}>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#23406e', color: 'white', borderRadius: '999px', px: 2.5, py: 0.8, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 1.5 }}>CLIENT STORIES</Box>
+                <Typography sx={{ fontSize: { xs: '1.75rem', sm: '2.2rem', lg: '2rem' }, fontWeight: 900, color: 'white', mb: 1, lineHeight: 1.2 }}>Trusted by Thousands of Filipino Homeowners</Typography>
+                <Typography sx={{ color: 'rgba(191, 219, 254, 1)', fontSize: { xs: '0.85rem', sm: '1rem', lg: '0.9rem' }, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}>Real reviews from verified clients across Metro Manila. We let our work do the talking.</Typography>
+              </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
-              <Box sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 8px 32px rgba(16,53,95,0.18)', p: { xs: 2.5, sm: 4, lg: 3 }, width: { xs: '90vw', sm: '540px', lg: '500px' }, maxWidth: '500px', height: { xs: '280px', sm: '220px' }, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', mb: 1.5, position: 'relative' }}>
-                <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1.5, mb: 1 }}>
-                  <Box sx={{ width: 48, height: 48, borderRadius: '50%', background: testimonials[testimonialIdx].avatarBg, color: testimonials[testimonialIdx].avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.1rem', flexShrink: 0 }}>{testimonials[testimonialIdx].initials}</Box>
-                  <Box sx={{ textAlign: 'left', flex: 1, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1 }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 900, color: '#10355f', fontSize: '1rem', mb: 0 }}>{testimonials[testimonialIdx].name}</Typography>
-                      <Typography sx={{ color: '#42526e', fontSize: '0.85rem', fontWeight: 400 }}>{testimonials[testimonialIdx].role}</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
+                <Box sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 8px 32px rgba(16,53,95,0.18)', p: { xs: 2.5, sm: 4, lg: 3 }, width: { xs: '90vw', sm: '540px', lg: '500px' }, maxWidth: '500px', height: { xs: '290px', sm: '240px' }, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', mb: 1.5, position: 'relative' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                    <Box sx={{ width: 48, height: 48, borderRadius: '50%', background: displayTestimonials[testimonialIdx]?.avatarBg, color: displayTestimonials[testimonialIdx]?.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.1rem', flexShrink: 0 }}>{displayTestimonials[testimonialIdx]?.initials}</Box>
+                    <Box sx={{ textAlign: 'left', flex: 1 }}>
+                      <Typography sx={{ fontWeight: 900, color: '#10355f', fontSize: '1.1rem', mb: 0.5 }}>{displayTestimonials[testimonialIdx]?.customer_name}</Typography>
+                      <Box sx={{ display: 'flex', gap: 0.2, color: '#fbbf24' }}>
+                        {Array.from({ length: displayTestimonials[testimonialIdx]?.rating || 5 }).map((_, i) => (
+                          <StarIcon key={i} sx={{ fontSize: '1rem' }} />
+                        ))}
+                      </Box>
                     </Box>
-                    <Box sx={{ bgcolor: testimonials[testimonialIdx].highlightColor, color: testimonials[testimonialIdx].highlightText, borderRadius: '999px', px: 1.5, py: 0.4, fontWeight: 700, fontSize: '0.85rem', textAlign: 'center' }}>{testimonials[testimonialIdx].highlight}</Box>
+                    <Box sx={{ display: { xs: 'none', lg: 'block' }, position: 'absolute', top: 16, right: 20 }}>
+                      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><text x="0" y="24" fontSize="32" fill="#eaf2fc">"</text></svg>
+                    </Box>
                   </Box>
-                  <Box sx={{ display: { xs: 'none', lg: 'block' }, position: 'absolute', top: 16, right: 20 }}>
-                    <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><text x="0" y="24" fontSize="32" fill="#eaf2fc">"</text></svg>
-                  </Box>
+                  <Typography sx={{ color: '#222', fontSize: '1.02rem', fontWeight: 500, mt: 2, mb: 1, lineHeight: 1.6, textAlign: 'left', fontStyle: 'italic' }}>
+                    "{displayTestimonials[testimonialIdx]?.feedback}"
+                  </Typography>
                 </Box>
-                <Typography sx={{ color: '#222', fontSize: '1rem', fontWeight: 500, mt: 1.5, mb: 1, lineHeight: 1.6, textAlign: 'left' }}>{testimonials[testimonialIdx].text}</Typography>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
+                  <Button onClick={handlePrev} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg></Button>
+                  <Box sx={{ display: 'flex', gap: 0.8 }}>{displayTestimonials.map((_, idx) => (<Box key={idx} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'white', opacity: testimonialIdx === idx ? 0.8 : 0.4 }} />))}</Box>
+                  <Button onClick={handleNext} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg></Button>
+                </Box>
               </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-                <Button onClick={handlePrev} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg></Button>
-                <Box sx={{ display: 'flex', gap: 0.8 }}>{testimonials.map((_, idx) => (<Box key={idx} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'white', opacity: testimonialIdx === idx ? 0.8 : 0.4 }} />))}</Box>
-                <Button onClick={handleNext} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg></Button>
-              </Box>
-            </Box>
-
-            {/* Mini testimonial cards — desktop only (lg+) */}
-            <Box sx={{ display: { xs: 'none', lg: 'flex' }, flexDirection: 'row', gap: 2, justifyContent: 'center', alignItems: 'center', mt: 3, width: '100%', maxWidth: '1000px', mx: 'auto' }}>
-              {testimonials.map((t, idx) => (
-                <Box key={t.initials} sx={{ bgcolor: 'rgba(255,255,255,0.10)', borderRadius: 2, p: 1.5, minWidth: 200, maxWidth: 240, color: 'white', fontWeight: 700, boxShadow: '0 2px 8px rgba(16,53,95,0.10)', border: testimonialIdx === idx ? '2px solid #eaf2fc' : '2px solid transparent', display: 'flex', flexDirection: 'column', gap: 0.8, opacity: testimonialIdx === idx ? 1 : 0.7, transition: 'border 0.2s, opacity 0.2s' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: t.avatarBg, color: t.avatarText, fontWeight: 900, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t.initials}</Box>
-                    <Typography sx={{ fontWeight: 700, color: 'white', fontSize: '0.85rem' }}>{t.name}</Typography>
+              {/* Mini testimonial cards — desktop only (lg+) */}
+              <Box sx={{ display: { xs: 'none', lg: 'flex' }, flexDirection: 'row', gap: 2, justifyContent: 'center', alignItems: 'center', mt: 3, width: '100%', maxWidth: '1000px', mx: 'auto' }}>
+                {displayTestimonials.map((t, idx) => (
+                  <Box key={t.id || t.initials} sx={{ bgcolor: 'rgba(255,255,255,0.10)', borderRadius: 2, p: 1.5, minWidth: 200, maxWidth: 240, color: 'white', fontWeight: 700, boxShadow: '0 2px 8px rgba(16,53,95,0.10)', border: testimonialIdx === idx ? '2px solid #eaf2fc' : '2px solid transparent', display: 'flex', flexDirection: 'column', gap: 0.8, opacity: testimonialIdx === idx ? 1 : 0.7, transition: 'border 0.2s, opacity 0.2s', cursor: 'pointer' }} onClick={() => setTestimonialIdx(idx)}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: t.avatarBg, color: t.avatarText, fontWeight: 900, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t.initials}</Box>
+                      <Typography sx={{ fontWeight: 700, color: 'white', fontSize: '0.85rem' }}>{t.customer_name}</Typography>
+                    </Box>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.8rem', mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.feedback}</Typography>
                   </Box>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.8rem', mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.mini}</Typography>
-                </Box>
-              ))}
-            </Box>
-          </Container>
-        </Box>
+                ))}
+              </Box>
+            </Container>
+          </Box>
+        )}
 
         {/* ===================== CONTACT SECTION ===================== */}
         <Box id="contact-us" sx={{ position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#f8fafc', py: { xs: 8, sm: 10, lg: 0 }, minHeight: { lg: '100vh' }, display: 'flex', alignItems: 'center', borderTop: '1px solid #e2e8f0', overflow: 'hidden' }}>

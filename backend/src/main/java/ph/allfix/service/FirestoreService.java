@@ -55,19 +55,37 @@ public class FirestoreService {
 
     public List<Map<String, Object>> getAll(String collection) throws ExecutionException, InterruptedException {
         return firestore().collection(collection).get().get().getDocuments().stream()
-                .map(DocumentSnapshot::getData)
+                .map(doc -> {
+                    Map<String, Object> data = doc.getData();
+                    if (data != null && !data.containsKey("id")) {
+                        data.put("id", doc.getId());
+                    }
+                    return data;
+                })
                 .collect(Collectors.toList());
     }
 
     public List<Map<String, Object>> getWhere(String collection, String field, Object value) throws ExecutionException, InterruptedException {
         return firestore().collection(collection).whereEqualTo(field, value).get().get().getDocuments().stream()
-                .map(DocumentSnapshot::getData)
+                .map(doc -> {
+                    Map<String, Object> data = doc.getData();
+                    if (data != null && !data.containsKey("id")) {
+                        data.put("id", doc.getId());
+                    }
+                    return data;
+                })
                 .collect(Collectors.toList());
     }
 
     public List<Map<String, Object>> getWhereNot(String collection, String field, Object value) throws ExecutionException, InterruptedException {
         return firestore().collection(collection).whereNotEqualTo(field, value).get().get().getDocuments().stream()
-                .map(DocumentSnapshot::getData)
+                .map(doc -> {
+                    Map<String, Object> data = doc.getData();
+                    if (data != null && !data.containsKey("id")) {
+                        data.put("id", doc.getId());
+                    }
+                    return data;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -77,7 +95,13 @@ public class FirestoreService {
             query = query.whereEqualTo(entry.getKey(), entry.getValue());
         }
         return query.get().get().getDocuments().stream()
-                .map(DocumentSnapshot::getData)
+                .map(doc -> {
+                    Map<String, Object> data = doc.getData();
+                    if (data != null && !data.containsKey("id")) {
+                        data.put("id", doc.getId());
+                    }
+                    return data;
+                })
                 .collect(Collectors.toList());
     }
 

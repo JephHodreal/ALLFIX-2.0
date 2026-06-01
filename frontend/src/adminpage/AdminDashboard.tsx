@@ -1888,7 +1888,124 @@ function CalendarPage() {
   );
 }
 
-function ReviewsPage() { return <PlaceholderPage title="Reviews" description="Monitor and manage customer reviews and ratings." icon={<TrendingUp className="w-8 h-8" />} />; }
+function ReviewsPage() {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReviews = () => {
+    setLoading(true);
+    api.get('/api/reviews')
+      .then(res => {
+        const sorted = (res.data || []).sort((a: any, b: any) => {
+          const dateA = a.created_at?.seconds ? a.created_at.seconds * 1000 : new Date(a.created_at || 0).getTime();
+          const dateB = b.created_at?.seconds ? b.created_at.seconds * 1000 : new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+        setReviews(sorted);
+      })
+      .catch(err => console.error("Failed to fetch reviews", err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const handleToggleFeatured = async (review: any) => {
+    const newStatus = !review.featured;
+    console.log('[CAVEMAN] Admin toggling featured status for review:', review.id, 'to:', newStatus);
+    try {
+      await api.patch(`/api/reviews/${review.id}/featured`, { featured: newStatus });
+      setReviews(prev => prev.map(r => r.id === review.id ? { ...r, featured: newStatus } : r));
+    } catch (err) {
+      console.error("Failed to update featured status", err);
+      alert("Failed to update featured status");
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex gap-0.5 text-yellow-400">
+        {[1, 2, 3, 4, 5].map(star => (
+          <Star key={star} className={`w-4 h-4 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200 dark:text-slate-800'}`} />
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Customer Reviews & Testimonials</h2>
+        <p className="text-sm text-slate-500">Monitor ratings, customer feedback, and select reviews to feature on the website's Client Stories.</p>
+      </div>
+
+      <DataTable
+        columns={[
+          { key: 'customer_name', label: 'Customer', sortable: true },
+          { 
+            key: 'rating', 
+            label: 'Rating', 
+            sortable: true,
+            render: (item: any) => renderStars(item.rating || 0)
+          },
+          { 
+            key: 'feedback', 
+            label: 'Feedback Review', 
+            render: (item: any) => (
+              <p className="text-sm max-w-xs xl:max-w-md truncate whitespace-normal leading-relaxed text-slate-600 dark:text-slate-350">
+                "{item.feedback}"
+              </p>
+            )
+          },
+          { key: 'service_type', label: 'Service', sortable: true },
+          { key: 'vendor_name', label: 'Vendor Partner', sortable: true },
+          {
+            key: 'created_at',
+            label: 'Submitted Date',
+            sortable: true,
+            render: (item: any) => {
+              if (!item.created_at) return '—';
+              const date = item.created_at.seconds ? new Date(item.created_at.seconds * 1000) : new Date(item.created_at);
+              return isNaN(date.getTime()) ? '—' : date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          },
+          {
+            key: 'featured',
+            label: 'Client Story (Featured)',
+            render: (item: any) => (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleFeatured(item);
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  item.featured 
+                    ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400' 
+                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-transparent hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {item.featured ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Featured
+                  </>
+                ) : (
+                  'Feature Story'
+                )}
+              </button>
+            )
+          }
+        ]}
+        data={reviews}
+        loading={loading}
+        searchPlaceholder="Search reviews..."
+        emptyTitle="No reviews yet"
+        emptyDescription="Customer reviews will appear here once bookings are completed."
+      />
+    </div>
+  );
+}
 function VendorsManagementPage() { return <PlaceholderPage title="Vendors Management" description="Manage vendor partnerships, contracts, and performance." icon={<Building2 className="w-8 h-8" />} />; }
 function AdminServiceCard({ service, onServiceClick, onEditClick }: { service: any; onServiceClick: (svc: any) => void; onEditClick: (svc: any) => void }) {
   const [hovered, setHovered] = useState(false);

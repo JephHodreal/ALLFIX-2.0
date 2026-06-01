@@ -1180,6 +1180,138 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   );
 }
 
+// ─── Rating & Review Section for Completed Bookings ────────────────────────
+function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; profile: any; onReviewSubmitted: (updatedBooking: any) => void }) {
+  const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  if (booking.reviewed) {
+    return (
+      <Card className="p-6 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl shadow-sm space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-emerald-800 dark:text-emerald-300">Thank You For Your Review!</h4>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">Your feedback helps us keep AllFix premium and reliable.</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[CAVEMAN] Submitting rating and review for booking:', booking.id);
+    setError('');
+    
+    if (!feedback.trim()) {
+      setError('Please write a brief feedback review.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const reviewPayload = {
+        booking_id: booking.id,
+        customer_id: profile?.id,
+        customer_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Valued Customer',
+        vendor_id: booking.vendor_id || null,
+        vendor_name: booking.vendor_name || 'AllFix Partner',
+        service_type: booking.sub_service || booking.service_type || 'General Service',
+        rating: rating,
+        feedback: feedback.trim(),
+        featured: false
+      };
+
+      await api.post('/api/reviews', reviewPayload);
+      console.log('[CAVEMAN] Review submitted successfully!');
+      
+      onReviewSubmitted({
+        ...booking,
+        reviewed: true
+      });
+      alert('Thank you! Your rating and review have been submitted successfully.');
+    } catch (err: any) {
+      console.error('[CAVEMAN] Review submission failed:', err);
+      setError(err.response?.data?.message || 'Failed to submit review. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="p-6 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-md space-y-6">
+      <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+        <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center text-yellow-500">
+          <Star className="w-5 h-5 fill-yellow-500" />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold text-slate-900 dark:text-white">Rate & Review AllFix</h4>
+          <p className="text-xs text-slate-500">Share your experience to help others choose the best services.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmitReview} className="space-y-4">
+        <div>
+          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2">Overall Rating *</label>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map((star) => {
+              const active = hoverRating !== null ? star <= hoverRating : star <= rating;
+              return (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(null)}
+                  className="p-1 transition-transform active:scale-95 text-yellow-450 hover:text-yellow-500"
+                >
+                  <Star className={`w-8 h-8 ${active ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Your Feedback Review *</label>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="Write your review about the technician, work quality, or overall service..."
+            rows={4}
+            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy resize-none placeholder:text-slate-400"
+          />
+        </div>
+
+        {error && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <Button
+            type="submit"
+            variant="success"
+            className="bg-brand-green hover:bg-emerald-600 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg shadow-brand-green/20"
+            loading={submitting}
+            disabled={!feedback.trim()}
+          >
+            Submit Review
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
 // ─── My Bookings Tab ────────────────────────────────────────────────────────
 function MyBookingsTab() {
   const { profile } = useAuth();
@@ -1313,7 +1445,7 @@ function MyBookingsTab() {
         {/* Two-column info layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Service Information */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
@@ -1327,7 +1459,7 @@ function MyBookingsTab() {
               {selectedBooking.description && (
                 <div className="grid grid-cols-3 gap-2">
                   <span className="text-slate-400 font-medium">Description:</span>
-                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic">"{selectedBooking.description}"</span>
+                  <span className="col-span-2 text-slate-600 dark:text-slate-350 italic">"{selectedBooking.description}"</span>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-2">
@@ -1345,14 +1477,14 @@ function MyBookingsTab() {
               {selectedBooking.personnel_id && (
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <span className="text-slate-400 font-medium">Personnel:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">Assigned</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold font-semibold">Assigned</span>
                 </div>
               )}
             </div>
           </Card>
 
           {/* Payment Information */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
@@ -1365,7 +1497,7 @@ function MyBookingsTab() {
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-900 dark:text-white font-black">Total:</span>
-                <span className="col-span-2 text-lg font-black text-brand-green">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+                <span className="col-span-2 text-lg font-black text-brand-green font-semibold">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
@@ -1386,7 +1518,7 @@ function MyBookingsTab() {
                 </span>
               </div>
               {hasRefundInfo && (
-                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-300">
+                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-300">
                   <p className="font-extrabold uppercase tracking-wide">Refund Information</p>
                   {selectedBooking.refund_amount && <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>}
                   {selectedBooking.refund_method && <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>}
@@ -1411,6 +1543,18 @@ function MyBookingsTab() {
               Cancel Booking
             </Button>
           </div>
+        )}
+
+        {/* Completed Rating and Review section */}
+        {selectedBooking.status === 'completed' && (
+          <ReviewSection 
+            booking={selectedBooking} 
+            profile={profile} 
+            onReviewSubmitted={(updatedBooking) => {
+              setSelectedBooking(updatedBooking);
+              setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+            }}
+          />
         )}
 
         {/* Cancel Confirmation Dialog */}
