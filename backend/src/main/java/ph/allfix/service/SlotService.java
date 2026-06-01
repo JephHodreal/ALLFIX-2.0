@@ -1,6 +1,7 @@
 package ph.allfix.service;
 
 import org.springframework.stereotype.Service;
+import com.google.cloud.firestore.*;
 import java.util.*;
 
 @Service
@@ -10,6 +11,86 @@ public class SlotService {
 
     public SlotService(FirestoreService firestoreService) {
         this.firestoreService = firestoreService;
+    }
+
+    public void restoreSlotForCancelledBooking(String bookingId) {
+        System.out.println("[CAVEMAN] SlotService.restoreSlotForCancelledBooking: bookingId=" + bookingId);
+        try {
+            Firestore db = firestoreService.firestore();
+            DocumentReference bookingRef = db.collection("bookings").document(bookingId);
+
+            db.runTransaction(transaction -> {
+                System.out.println("[CAVEMAN] Inside restoreSlot Transaction for bookingId=" + bookingId);
+                DocumentSnapshot bookingSnapshot = transaction.get(bookingRef).get();
+                if (!bookingSnapshot.exists()) {
+                    System.out.println("[CAVEMAN] Transaction: Booking snapshot does not exist for ID=" + bookingId);
+                    return null;
+                }
+
+                String status = bookingSnapshot.getString("status");
+                Boolean slotDecremented = bookingSnapshot.getBoolean("slot_decremented");
+                String slotId = bookingSnapshot.getString("slot_id");
+                Boolean slotRestored = bookingSnapshot.getBoolean("slot_restored");
+
+                System.out.println("[CAVEMAN] Transaction booking details: status=" + status 
+                    + ", slot_decremented=" + slotDecremented 
+                    + ", slot_id=" + slotId 
+                    + ", slot_restored=" + slotRestored);
+
+                if ("cancelled".equalsIgnoreCase(status) 
+                        && Boolean.TRUE.equals(slotDecremented) 
+                        && slotId != null 
+                        && !slotId.trim().isEmpty() 
+                        && !Boolean.TRUE.equals(slotRestored)) {
+
+                    System.out.println("[CAVEMAN] Transaction: Conditions met! Proceeding to restore slot: slotId=" + slotId);
+                    DocumentReference slotRef = db.collection("vendor_slots").document(slotId);
+                    DocumentSnapshot slotSnapshot = transaction.get(slotRef).get();
+
+                    if (slotSnapshot.exists()) {
+                        Long currentAvailable = slotSnapshot.getLong("available_slots");
+                        if (currentAvailable == null) {
+                            currentAvailable = slotSnapshot.getLong("total_slots");
+                        }
+                        if (currentAvailable == null) {
+                            currentAvailable = 0L;
+                        }
+
+                        Long quantity = bookingSnapshot.getLong("quantity");
+                        long incrementAmount = (quantity != null && quantity > 0) ? quantity : 1L;
+                        long newAvailable = currentAvailable + incrementAmount;
+
+                        System.out.println("[CAVEMAN] Transaction: Incrementing slotId=" + slotId 
+                            + " available_slots from " + currentAvailable + " -> " + newAvailable 
+                            + " (increment amount = " + incrementAmount + ")");
+
+                        // Update slot
+                        transaction.update(slotRef, "available_slots", newAvailable);
+
+                        // Update booking
+                        transaction.update(bookingRef, 
+                            "slot_decremented", false,
+                            "slot_restored", true
+                        );
+                        System.out.println("[CAVEMAN] Transaction: Successfully restored slot and updated booking!");
+                    } else {
+                        System.out.println("[CAVEMAN] Transaction ERROR: Slot snapshot does not exist for slotId=" + slotId);
+                    }
+                } else {
+                    System.out.println("[CAVEMAN] Transaction: Slot restoration skipped. Conditions not satisfied: " 
+                        + "statusIsCancelled=" + "cancelled".equalsIgnoreCase(status) 
+                        + ", slotDecremented=" + Boolean.TRUE.equals(slotDecremented) 
+                        + ", hasSlotId=" + (slotId != null && !slotId.trim().isEmpty()) 
+                        + ", slotAlreadyRestored=" + Boolean.TRUE.equals(slotRestored));
+                }
+                return null;
+            }).get();
+
+            System.out.println("[CAVEMAN] SlotService.restoreSlotForCancelledBooking complete for bookingId=" + bookingId);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] ERROR: Failed to restore slot for bookingId=" + bookingId + " - " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public List<Map<String, Object>> getVendorSlots(String vendorId) throws Exception {

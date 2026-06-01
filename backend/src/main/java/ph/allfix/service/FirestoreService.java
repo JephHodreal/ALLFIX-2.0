@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Service
 public class FirestoreService {
 
-    private Firestore firestore() {
+    public Firestore firestore() {
         if (FirebaseApp.getApps().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,

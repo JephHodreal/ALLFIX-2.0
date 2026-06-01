@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -2137,6 +2137,278 @@ function VouchersTab() {
   );
 }
 
+function RefundsTab() {
+  const { profile } = useAuth();
+  const [refunds, setRefunds] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'Processed' | 'pending' | 'rejected'>('all');
+  const [selectedRefund, setSelectedRefund] = useState<any | null>(null);
+
+  const fetchRefunds = async () => {
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const res = await api.get(`/api/refunds/customer/${profile.id}`);
+      setRefunds(res.data || []);
+    } catch (err: any) {
+      console.error('[CAVEMAN] Error fetching refunds:', err);
+      setError('Failed to load refund transactions. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRefunds();
+    // Poll every 15 seconds for updates
+    const interval = setInterval(fetchRefunds, 15000);
+    return () => clearInterval(interval);
+  }, [profile]);
+
+  const filteredRefunds = refunds.filter(r => {
+    if (filter === 'all') return true;
+    return r.status?.toLowerCase() === filter.toLowerCase();
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <RefreshCcw className="w-7 h-7 text-brand-navy dark:text-brand-green" />
+            Refund Center
+          </h2>
+          <p className="text-sm text-slate-500">Track the status of your cancellations and automatic GCash refund transactions.</p>
+        </div>
+
+        {/* Toggle Filters */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
+          {(['all', 'Processed', 'pending', 'rejected'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 capitalize ${
+                filter === status
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              {status === 'all' ? 'All Transactions' : status === 'Processed' ? 'Completed' : status}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p className="text-sm font-semibold">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-4 border-brand-navy dark:border-brand-green border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : filteredRefunds.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center text-center p-12 border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 dark:text-slate-600 mb-4">
+            <RefreshCcw className="w-8 h-8" />
+          </div>
+          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No refund records found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1">
+            {filter === 'all'
+              ? "You don't have any refund transactions yet."
+              : `You don't have any ${filter} refunds right now.`}
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRefunds.map((r) => {
+            const isProcessed = r.status?.toLowerCase() === 'processed';
+            const isPending = r.status?.toLowerCase() === 'pending';
+            const isRejected = r.status?.toLowerCase() === 'rejected';
+
+            // Format date helper
+            let dateStr = '—';
+            if (r.processed_at) {
+              try {
+                const date = r.processed_at.seconds 
+                  ? new Date(r.processed_at.seconds * 1000) 
+                  : new Date(r.processed_at);
+                dateStr = date.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            } else if (r.created_at) {
+              try {
+                const date = r.created_at.seconds 
+                  ? new Date(r.created_at.seconds * 1000) 
+                  : new Date(r.created_at);
+                dateStr = date.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                });
+              } catch (e) {}
+            }
+
+            return (
+              <div
+                key={r.id}
+                onClick={() => setSelectedRefund(r)}
+                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer shadow-md group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-slate-50 dark:from-slate-800/20 to-transparent pointer-events-none rounded-tr-3xl"></div>
+
+                <div className="space-y-4">
+                  {/* Status Badge */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                      isProcessed 
+                        ? 'bg-brand-green/10 text-brand-green border-brand-green/20' 
+                        : isPending
+                        ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                        : 'bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border-red-200/20'
+                    }`}>
+                      {isProcessed ? 'Completed' : r.status || 'Pending'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">{dateStr}</span>
+                  </div>
+
+                  {/* Refund Amount */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Refund Amount</p>
+                    <h3 className="text-2xl font-black text-slate-955 dark:text-white mt-0.5">
+                      ₱{Number(r.refund_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                  </div>
+
+                  {/* Additional details */}
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Refund Method</p>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                        {r.refund_method || r.payment_method || 'GCash'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">GCash Ref No.</p>
+                      <p className="text-xs font-mono font-bold text-slate-850 dark:text-slate-200 truncate mt-0.5">
+                        {r.reference_number || r.payment_reference || '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between text-brand-navy dark:text-brand-green group-hover:translate-x-1 transition-transform duration-300">
+                  <span className="text-xs font-black">View Transaction Invoice</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Invoice / Transaction Details Modal */}
+      {selectedRefund && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-3xl p-6 sm:p-8 max-w-lg w-full relative space-y-6"
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedRefund(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-450 dark:text-slate-500 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Invoice Header */}
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 bg-brand-navy/5 text-brand-navy dark:text-brand-green rounded-full flex items-center justify-center mx-auto">
+                <Receipt className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Transaction Invoice</h3>
+              <p className="text-xs text-slate-450 dark:text-slate-500">Refund reference document and transaction details</p>
+            </div>
+
+            {/* Invoice Breakdown */}
+            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/80 space-y-3.5">
+              <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Refund Transaction ID</span>
+                <span className="font-mono font-bold text-slate-850 dark:text-slate-250"><code>{selectedRefund.id}</code></span>
+              </div>
+              <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Booking ID Link</span>
+                <span className="font-mono font-bold text-slate-850 dark:text-slate-250"><code>{selectedRefund.booking_id || '—'}</code></span>
+              </div>
+              <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Payment Channel</span>
+                <span className="font-bold text-slate-850 dark:text-slate-250">{selectedRefund.refund_method || selectedRefund.payment_method || 'GCash'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Receiver Mobile No.</span>
+                <span className="font-bold text-slate-850 dark:text-slate-250">{selectedRefund.receiver_gcash_number || selectedRefund.account_number || '—'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">GCash Reference No.</span>
+                <span className="font-mono font-black text-brand-navy dark:text-brand-green">{selectedRefund.reference_number || selectedRefund.payment_reference || '—'}</span>
+              </div>
+              <div className="flex justify-between items-start text-xs py-1.5 border-b border-slate-150/40 dark:border-slate-800/40">
+                <span className="font-bold text-slate-400 uppercase tracking-wider mt-0.5">Cancellation Reason</span>
+                <span className="font-semibold text-slate-850 dark:text-slate-250 text-right max-w-[200px] leading-relaxed">{selectedRefund.reason || 'Customer-initiated cancellation'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs py-1.5">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Processing Status</span>
+                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                  selectedRefund.status?.toLowerCase() === 'processed'
+                    ? 'bg-brand-green/10 text-brand-green border-brand-green/20'
+                    : selectedRefund.status?.toLowerCase() === 'pending'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                    : 'bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border-red-200/20'
+                }`}>
+                  {selectedRefund.status?.toLowerCase() === 'processed' ? 'Completed' : selectedRefund.status || 'Pending'}
+                </span>
+              </div>
+            </div>
+
+            {/* Total Amount Block */}
+            <div className="flex justify-between items-center px-4 py-3 bg-brand-navy text-white dark:bg-slate-950 dark:border dark:border-slate-800 rounded-2xl">
+              <span className="text-xs font-black uppercase tracking-widest text-white/70">Total Amount Refunded</span>
+              <span className="text-xl font-black text-brand-green">
+                ₱{Number(selectedRefund.refund_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {/* Action buttons */}
+            <button
+              onClick={() => setSelectedRefund(null)}
+              className="w-full py-3.5 text-sm font-black rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white transition-colors"
+            >
+              Close Invoice
+            </button>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -2918,6 +3190,7 @@ export default function CustomerApp() {
             <Route path="bookings" element={<MyBookingsTab />} />
             <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="vouchers" element={<VouchersTab />} />
+            <Route path="refunds" element={<RefundsTab />} />
 
             <Route path="profile" element={<ProfileTab />} />
           </Routes>

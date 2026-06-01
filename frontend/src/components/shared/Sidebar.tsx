@@ -63,6 +63,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
         { label: 'Bookings', path: '/customer/bookings', icon: <ClipboardList className="w-5 h-5" /> },
         { label: 'Cart', path: '/customer/cart', icon: <ShoppingCart className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/customer/vouchers', icon: <Ticket className="w-5 h-5" /> },
+        { label: 'Refunds', path: '/customer/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
         { label: 'Profile', path: '/customer/profile', icon: <User className="w-5 h-5" /> },
       ],
     },

@@ -104,6 +104,13 @@ public class BookingService {
         updates.put("cancellation_requested", true);
         firestoreService.update("bookings", bookingId, updates);
 
+        // Restore slot back to vendor slots
+        try {
+            slotService.restoreSlotForCancelledBooking(bookingId);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in requestCancellation: " + e.getMessage());
+        }
+
         // Notify customer
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) {
@@ -164,6 +171,13 @@ public class BookingService {
         bookingUpdates.put("refund_status", "Processed");
         
         firestoreService.update("bookings", bookingId, bookingUpdates);
+
+        // Restore slot back to vendor slots
+        try {
+            slotService.restoreSlotForCancelledBooking(bookingId);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in cancelWithRefund: " + e.getMessage());
+        }
 
         // 3. Notify the customer and vendor
         String customerId = (String) booking.get("customer_id");

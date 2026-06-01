@@ -14,12 +14,14 @@ public class RefundService {
     private final NotificationService notificationService;
     private final JavaMailSender mailSender;
     private final Environment env;
+    private final SlotService slotService;
 
-    public RefundService(FirestoreService firestoreService, NotificationService notificationService, JavaMailSender mailSender, Environment env) {
+    public RefundService(FirestoreService firestoreService, NotificationService notificationService, JavaMailSender mailSender, Environment env, SlotService slotService) {
         this.firestoreService = firestoreService;
         this.notificationService = notificationService;
         this.mailSender = mailSender;
         this.env = env;
+        this.slotService = slotService;
     }
 
     public String createRefund(Map<String, Object> data) throws Exception {
@@ -95,6 +97,13 @@ public class RefundService {
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
             System.out.println("[CAVEMAN] RefundService.approveRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
+            
+            // Restore slot back to vendor slots
+            try {
+                slotService.restoreSlotForCancelledBooking(bookingId);
+            } catch (Exception e) {
+                System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in approveRefund: " + e.getMessage());
+            }
         } else {
             System.out.println("[CAVEMAN] RefundService.approveRefund WARNING: No bookingId linked to refund ID: " + refundId);
         }
@@ -161,6 +170,13 @@ public class RefundService {
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
             System.out.println("[CAVEMAN] RefundService.createDirectRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
+            
+            // Restore slot back to vendor slots
+            try {
+                slotService.restoreSlotForCancelledBooking(bookingId);
+            } catch (Exception e) {
+                System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in createDirectRefund: " + e.getMessage());
+            }
         }
         
         String customerId = (String) data.get("customer_id");
