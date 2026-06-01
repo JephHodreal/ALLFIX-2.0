@@ -16,6 +16,10 @@ public class SlotService {
         return firestoreService.getWhere("vendor_slots", "vendor_id", vendorId);
     }
 
+    public List<Map<String, Object>> getAllSlots() throws Exception {
+        return firestoreService.getAll("vendor_slots");
+    }
+
     public String createSlot(Map<String, Object> data) throws Exception {
         return firestoreService.create("vendor_slots", data);
     }

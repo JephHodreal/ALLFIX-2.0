@@ -15,6 +15,11 @@ public class SlotController {
         this.slotService = slotService;
     }
 
+    @GetMapping
+    public ResponseEntity<List<Map<String, Object>>> getAllSlots() throws Exception {
+        return ResponseEntity.ok(slotService.getAllSlots());
+    }
+
     @GetMapping("/vendor/{id}")
     public ResponseEntity<List<Map<String, Object>>> getVendorSlots(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(slotService.getVendorSlots(id));

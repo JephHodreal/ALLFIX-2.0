@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, DollarSign, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, DollarSign, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -1518,7 +1518,375 @@ function PlaceholderPage({ title, description, icon }: { title: string; descript
   );
 }
 
-function CalendarPage() { return <PlaceholderPage title="Calendar" description="View and manage schedules, appointments, and important dates." icon={<ClipboardList className="w-8 h-8" />} />; }
+function CalendarPage() {
+  const [slots, setSlots] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [slotsRes, vendorsRes] = await Promise.all([
+        api.get('/api/slots').catch(() => ({ data: [] })),
+        api.get('/api/vendors').catch(() => ({ data: [] }))
+      ]);
+      setSlots(slotsRes.data || []);
+      setVendors(vendorsRes.data || []);
+    } catch (err) {
+      console.error('Failed to fetch calendar data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatLocalYYYYMMDD = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getSlotsForDate = (day: number) => {
+    const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateStr = formatLocalYYYYMMDD(checkDate);
+    return slots.filter(s => s.slot_date === dateStr);
+  };
+
+  const getTotalAvailableForDate = (day: number) => {
+    const dateSlots = getSlotsForDate(day);
+    return dateSlots.reduce((sum, s) => {
+      const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+      return sum + Math.max(0, Number(avail));
+    }, 0);
+  };
+
+  const getVendorName = (vendorId: string) => {
+    const vendor = vendors.find(v => v.id === vendorId);
+    return vendor ? (vendor.company_name || vendor.name) : 'Unknown Vendor';
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const daysInMonth = getDaysInMonth(currentMonth);
+  const firstDay = getFirstDayOfMonth(currentMonth);
+  const days = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Get active slots for the clicked date
+  const selectedDateStr = selectedDate ? formatLocalYYYYMMDD(selectedDate) : '';
+  const activeSlotsForSelectedDate = slots.filter(s => s.slot_date === selectedDateStr);
+
+  return (
+    <div className="space-y-6">
+      {/* Calendar Card */}
+      <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl animate-in fade-in duration-200">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green text-xl font-bold shadow-sm shadow-brand-green/10">
+                <CalendarDays className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{monthName}</h2>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">All registered slots across all vendors</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
+              <button 
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+                title="Previous Month"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setCurrentMonth(new Date())}
+                className="px-3 py-1.5 rounded-lg text-xs font-black hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+              >
+                Today
+              </button>
+              <button 
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+                title="Next Month"
+              >
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-2.5 mb-3">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => {
+              const isWeekend = index === 0 || index === 6;
+              return (
+                <div 
+                  key={d} 
+                  className={`text-center text-[10px] font-black uppercase tracking-wider py-2 rounded-lg ${
+                    isWeekend 
+                      ? 'text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-slate-900/10' 
+                      : 'text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'
+                  }`}
+                >
+                  {d}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-2.5">
+            {days.map((day, i) => {
+              if (!day) {
+                return (
+                  <div 
+                    key={`empty-${i}`} 
+                    className="aspect-square bg-transparent rounded-2xl border border-transparent"
+                  />
+                );
+              }
+
+              const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+              const isToday = dateObj.toDateString() === today.toDateString();
+              const dateSlots = getSlotsForDate(day);
+              const totalAvailable = getTotalAvailableForDate(day);
+              const hasSlots = dateSlots.length > 0;
+
+              return (
+                <motion.div
+                  key={`day-${day}`}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    setSelectedDate(dateObj);
+                    setShowModal(true);
+                  }}
+                  className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${
+                    hasSlots
+                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 border-emerald-400/20 text-white shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20'
+                      : isToday
+                        ? 'bg-white dark:bg-slate-950 border-brand-green border-2 text-slate-900 dark:text-white shadow-sm font-bold'
+                        : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <span className={`text-sm font-black ${hasSlots ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+                      {day}
+                    </span>
+                    {isToday && !hasSlots && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
+                    )}
+                  </div>
+
+                  {hasSlots && (
+                    <div className="mt-auto">
+                      <div className="text-[10px] font-black bg-white/20 dark:bg-black/20 text-white rounded-md px-1 py-0.5 inline-block backdrop-blur-sm max-w-full truncate">
+                        {totalAvailable} slot{totalAvailable !== 1 ? 's' : ''}
+                      </div>
+                      <div className="text-[8px] text-white/80 font-bold mt-0.5 hidden sm:block truncate">
+                        {dateSlots.length} vendor{dateSlots.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Global Calendar Status Overview */}
+      <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl p-6">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-10 h-10 rounded-xl bg-brand-navy/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
+            <ClipboardList className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active System Slots</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Real-time occupancy and capacity metrics</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="py-12 flex flex-col items-center justify-center space-y-3">
+            <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-green rounded-full animate-spin" />
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Fetching slot details...</p>
+          </div>
+        ) : slots.length === 0 ? (
+          <EmptyState title="No active slots" description="Vendors have not configured any slots yet." icon={<CalendarDays className="w-6 h-6 text-slate-400" />} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-1">
+            {slots.map((s, i) => {
+              const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+              const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
+              const safeAvail = Math.max(0, avail);
+              const safeTotal = Math.max(0, total);
+              const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
+              const vName = getVendorName(s.vendor_id);
+
+              return (
+                <div key={i} className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1">
+                      <span className="text-xs bg-brand-navy/10 text-brand-navy dark:bg-brand-green/20 dark:text-brand-green px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wider">{vName}</span>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">{s.service_type} - {s.sub_service || 'General'}</h4>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{s.slot_date} at {s.time_from} - {s.time_to}</span>
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
+                      safeAvail > 0 
+                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40' 
+                        : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40'
+                    }`}>
+                      {safeAvail}/{safeTotal}
+                    </span>
+                  </div>
+
+                  <div className="mt-3.5">
+                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          percentAvail > 50 
+                            ? 'bg-emerald-500' 
+                            : percentAvail > 20 
+                              ? 'bg-amber-500' 
+                              : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${percentAvail}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Date Details Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="w-full max-w-lg"
+            >
+              <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl overflow-hidden">
+                <div className="p-6 space-y-5">
+                  <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-navy/10 flex items-center justify-center text-brand-navy">
+                        <CalendarDays className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">Vendor Slots</h3>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">For {selectedDate?.toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowModal(false)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                    {activeSlotsForSelectedDate.length === 0 ? (
+                      <div className="text-center py-10 space-y-3">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No slots registered for this date.</p>
+                      </div>
+                    ) : (
+                      activeSlotsForSelectedDate.map((s, idx) => {
+                        const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+                        const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
+                        const safeAvail = Math.max(0, avail);
+                        const safeTotal = Math.max(0, total);
+                        const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
+                        const vName = getVendorName(s.vendor_id);
+
+                        return (
+                          <div key={idx} className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="space-y-1">
+                                <span className="text-xs bg-brand-navy/10 text-brand-navy dark:bg-brand-green/20 dark:text-brand-green px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wider">{vName}</span>
+                                <h4 className="text-sm font-black text-slate-800 dark:text-slate-200">{s.service_type} - {s.sub_service || 'General'}</h4>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-bold">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{s.time_from} - {s.time_to}</span>
+                                </div>
+                              </div>
+                              <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
+                                safeAvail > 0 
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40' 
+                                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40'
+                              }`}>
+                                {safeAvail}/{safeTotal}
+                              </span>
+                            </div>
+
+                            <div className="mt-3.5">
+                              <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    percentAvail > 50 
+                                      ? 'bg-emerald-500' 
+                                      : percentAvail > 20 
+                                        ? 'bg-amber-500' 
+                                        : 'bg-rose-500'
+                                  }`}
+                                  style={{ width: `${percentAvail}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button 
+                      variant="ghost" 
+                      className="px-6 font-bold" 
+                      onClick={() => setShowModal(false)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function ReviewsPage() { return <PlaceholderPage title="Reviews" description="Monitor and manage customer reviews and ratings." icon={<TrendingUp className="w-8 h-8" />} />; }
 function VendorsManagementPage() { return <PlaceholderPage title="Vendors Management" description="Manage vendor partnerships, contracts, and performance." icon={<Building2 className="w-8 h-8" />} />; }
