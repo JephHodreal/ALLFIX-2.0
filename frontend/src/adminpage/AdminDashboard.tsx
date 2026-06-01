@@ -3352,20 +3352,15 @@ function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   
   // Modal toggles
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   const [selectedPayout, setSelectedPayout] = useState<any | null>(null);
   
   // Form elements
-  const [vendorId, setVendorId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [month, setMonth] = useState('');
   const [payoutDate, setPayoutDate] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
-  const [status, setStatus] = useState('Pending');
   
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -3374,7 +3369,6 @@ function PayoutsPage() {
   // Filters state
   const [searchVendor, setSearchVendor] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -3426,127 +3420,72 @@ function PayoutsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleCreatePayout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const setPayoutFormFields = (p: any) => {
+    setSelectedPayout(p);
     
-    if (!vendorId) {
-      setError('Please select a vendor.');
-      return;
-    }
-    if (!amount || Number(amount) <= 0) {
-      setError('Please enter a valid payout amount.');
-      return;
-    }
-    if (!month.trim()) {
-      setError('Please specify the month (e.g., June 2026).');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const selectedVendor = vendors.find(v => v.id === vendorId);
-      const payload = {
-        vendor_id: vendorId,
-        vendor_name: selectedVendor ? (selectedVendor.company_name || selectedVendor.name) : 'Unknown Vendor',
-        amount: Number(amount),
-        month: month.trim(),
-        check_number: checkNumber.trim() || '—',
-        attachment: attachmentUrl,
-        status: status,
-        payout_date: payoutDate ? new Date(payoutDate) : new Date()
-      };
-
-      console.log('[CAVEMAN] PayoutsPage: Creating payout payload:', payload);
-      await api.post('/api/admin/payouts', payload);
-      setShowCreateModal(false);
-      
-      // Reset form
-      setVendorId('');
-      setAmount('');
-      setMonth('');
-      setPayoutDate('');
-      setCheckNumber('');
-      setAttachmentUrl('');
-      setStatus('Pending');
-
-      loadData();
-    } catch (err: any) {
-      console.error('[CAVEMAN] PayoutsPage: Save failed', err);
-      setError(err?.response?.data?.message || 'Failed to create payout.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEditClick = (payout: any) => {
-    setSelectedPayout(payout);
-    setVendorId(payout.vendor_id);
-    setAmount(String(payout.amount));
-    setMonth(payout.month);
-    
-    // Formatting date
     let rawDate = '';
-    if (payout.payout_date) {
-      if (payout.payout_date.seconds) {
-        rawDate = new Date(payout.payout_date.seconds * 1000).toISOString().split('T')[0];
+    if (p.payout_date) {
+      if (p.payout_date.seconds) {
+        rawDate = new Date(p.payout_date.seconds * 1000).toISOString().split('T')[0];
       } else {
-        const parsed = new Date(payout.payout_date);
+        const parsed = new Date(p.payout_date);
         if (!isNaN(parsed.getTime())) {
           rawDate = parsed.toISOString().split('T')[0];
         }
       }
+    } else {
+      rawDate = new Date().toISOString().split('T')[0];
     }
     setPayoutDate(rawDate);
-    setCheckNumber(payout.check_number !== '—' ? payout.check_number : '');
-    setAttachmentUrl(payout.attachment || '');
-    setStatus(payout.status || 'Pending');
-    
+    setCheckNumber(p.check_number && p.check_number !== '—' ? p.check_number : '');
+    setAttachmentUrl(p.attachment || '');
     setError('');
-    setShowEditModal(true);
   };
 
-  const handleUpdatePayout = async (e: React.FormEvent) => {
+  const handleProcessPayoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    if (!amount || Number(amount) <= 0) {
-      setError('Please enter a valid payout amount.');
+    if (!payoutDate) {
+      setError('Please select a payout date.');
       return;
     }
-    if (!month.trim()) {
-      setError('Please specify the month.');
+    if (!checkNumber.trim()) {
+      setError('Please enter a Reference Number.');
+      return;
+    }
+    if (!attachmentUrl) {
+      setError('Please upload a proof of payment.');
       return;
     }
 
     setSaving(true);
     try {
-      const selectedVendor = vendors.find(v => v.id === vendorId);
       const payload = {
-        vendor_id: vendorId,
-        vendor_name: selectedVendor ? (selectedVendor.company_name || selectedVendor.name) : 'Unknown Vendor',
-        amount: Number(amount),
-        month: month.trim(),
-        check_number: checkNumber.trim() || '—',
+        vendor_id: selectedPayout.vendor_id,
+        vendor_name: selectedPayout.vendor_name,
+        amount: Number(selectedPayout.amount),
+        month: selectedPayout.month,
+        check_number: checkNumber.trim(),
         attachment: attachmentUrl,
-        status: status,
-        payout_date: payoutDate ? new Date(payoutDate) : new Date()
+        payout_date: new Date(payoutDate),
+        status: 'Paid'
       };
 
-      console.log('[CAVEMAN] PayoutsPage: Updating payout ID', selectedPayout.id, payload);
+      console.log('[CAVEMAN] PayoutsPage: Processing payout ID:', selectedPayout.id, 'with payload:', payload);
       await api.put(`/api/admin/payouts/${selectedPayout.id}`, payload);
-      setShowEditModal(false);
+      setShowPayoutModal(false);
       loadData();
     } catch (err: any) {
-      console.error('[CAVEMAN] PayoutsPage: Update failed', err);
-      setError(err?.response?.data?.message || 'Failed to update payout.');
+      console.error('[CAVEMAN] PayoutsPage: Process payout failed', err);
+      setError(err?.response?.data?.message || 'Failed to process payout.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeletePayout = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this payout schedule record?')) {
+    if (window.confirm('Are you sure you want to delete this payout record?')) {
       try {
         console.log('[CAVEMAN] PayoutsPage: Deleting payout ID', id);
         await api.delete(`/api/admin/payouts/${id}`);
@@ -3554,16 +3493,6 @@ function PayoutsPage() {
       } catch (err) {
         console.error('[CAVEMAN] PayoutsPage: Delete failed', err);
       }
-    }
-  };
-
-  const handleQuickStatusChange = async (id: string, newStatus: string) => {
-    try {
-      console.log('[CAVEMAN] PayoutsPage: Quick updating status payout ID', id, 'to', newStatus);
-      await api.patch(`/api/admin/payouts/${id}/status`, { status: newStatus });
-      setPayouts(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
-    } catch (err) {
-      console.error('[CAVEMAN] PayoutsPage: Status update failed', err);
     }
   };
 
@@ -3596,17 +3525,10 @@ function PayoutsPage() {
       const m = (p.month || '').toLowerCase();
       if (!m.includes(filterMonth.toLowerCase())) return false;
     }
-    if (filterStatus.trim()) {
-      const s = (p.status || '').toLowerCase();
-      if (s !== filterStatus.toLowerCase()) return false;
-    }
     return true;
   });
 
-  // Calculate payout statistics
   const totalPayouts = filteredPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const pendingPayouts = filteredPayouts.filter(p => p.status === 'Pending').reduce((sum, p) => sum + (p.amount || 0), 0);
-  const paidPayouts = filteredPayouts.filter(p => p.status === 'Paid').reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -3618,41 +3540,24 @@ function PayoutsPage() {
             <span>Payout Management</span>
           </h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Log, assign, and track GCash or Bank payout logs and receipts for service providers.
+            Track GCash or Bank payout logs and receipts for service providers.
           </p>
         </div>
-        <Button 
-          onClick={() => {
-            setVendorId('');
-            setAmount('');
-            setMonth('');
-            setPayoutDate(new Date().toISOString().split('T')[0]);
-            setCheckNumber('');
-            setAttachmentUrl('');
-            setStatus('Pending');
-            setError('');
-            setShowCreateModal(true);
-          }}
-          icon={<Plus className="w-4 h-4" />}
-          className="bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-brand-green dark:text-slate-900 font-bold self-start sm:self-auto shadow-sm"
-        >
-          Record Payout
-        </Button>
       </div>
 
-      {/* Payout Stats Bar */}
+      {/* Stats Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Payouts Logged" value={formatCurrency(totalPayouts)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
-        <StatCard title="Paid Payouts" value={formatCurrency(paidPayouts)} icon={<CheckCircle2 className="w-5 h-5" />} color="green" />
-        <StatCard title="Pending Review" value={formatCurrency(pendingPayouts)} icon={<Clock className="w-5 h-5" />} color="yellow" />
+        <StatCard title="Total Payout Volume" value={formatCurrency(totalPayouts)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
+        <StatCard title="Total Payout Records" value={filteredPayouts.length} icon={<ClipboardList className="w-5 h-5" />} color="green" />
+        <StatCard title="Average Payout" value={formatCurrency(filteredPayouts.length ? totalPayouts / filteredPayouts.length : 0)} icon={<Receipt className="w-5 h-5" />} color="yellow" />
       </div>
 
       {/* Filters Bar */}
       <Card className="p-5 border border-slate-200 dark:border-slate-800">
         <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5" /> Filter Payout Schedules
+          <Filter className="w-3.5 h-3.5" /> Filter Payouts
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
@@ -3673,24 +3578,11 @@ function PayoutsPage() {
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
             />
           </div>
-          <div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-805 dark:text-white"
-            >
-              <option value="">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Processing">Processing</option>
-              <option value="Paid">Paid</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </div>
         </div>
-        {(searchVendor || filterMonth || filterStatus) && (
+        {(searchVendor || filterMonth) && (
           <div className="mt-3 flex justify-end">
             <button 
-              onClick={() => { setSearchVendor(''); setFilterMonth(''); setFilterStatus(''); }}
+              onClick={() => { setSearchVendor(''); setFilterMonth(''); }}
               className="text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors"
             >
               Reset Filters
@@ -3699,7 +3591,7 @@ function PayoutsPage() {
         )}
       </Card>
 
-      {/* Main Payouts Table / Mobile Cards */}
+      {/* Main Table / Mobile Cards */}
       <Card className="border border-slate-200 dark:border-slate-800">
         <div className="p-6">
           {loading ? (
@@ -3716,18 +3608,16 @@ function PayoutsPage() {
             />
           ) : (
             <>
-              {/* Desktop view table */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold text-xs uppercase tracking-wider">
-                      <th className="py-4 px-4">Date of Payout</th>
                       <th className="py-4 px-4">Vendor Partner</th>
-                      <th className="py-4 px-4 text-right">Amount</th>
                       <th className="py-4 px-4 text-center">Month Of</th>
-                      <th className="py-4 px-4 text-center">Check/Ref No</th>
-                      <th className="py-4 px-4 text-center">Attachment</th>
-                      <th className="py-4 px-4 text-center">Status</th>
+                      <th className="py-4 px-4 text-right">Payout Amount</th>
+                      <th className="py-4 px-4 text-center">Ref Number</th>
+                      <th className="py-4 px-4 text-center">Payout Date</th>
                       <th className="py-4 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -3737,77 +3627,47 @@ function PayoutsPage() {
                         key={p.id}
                         className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
                       >
-                        <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-355">
-                          {formatDate(p.payout_date)}
-                        </td>
                         <td className="py-4 px-4">
-                          <span className="font-bold text-slate-900 dark:text-white">{p.vendor_name}</span>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="font-extrabold text-brand-green">{formatCurrency(p.amount)}</span>
+                          <span className="font-bold text-slate-850 dark:text-white">{p.vendor_name}</span>
                         </td>
                         <td className="py-4 px-4 text-center font-semibold text-slate-600 dark:text-slate-400">
                           {p.month}
                         </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className="font-extrabold text-brand-green">{formatCurrency(p.amount)}</span>
+                        </td>
                         <td className="py-4 px-4 text-center font-mono text-xs font-semibold text-slate-850 dark:text-slate-300">
                           {p.check_number || '—'}
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          {p.attachment ? (
-                            <a 
-                              href={p.attachment} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              className="text-xs font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center justify-center gap-1"
-                            >
-                              <FileText className="w-3.5 h-3.5" /> View Proof
-                            </a>
-                          ) : (
-                            <span className="text-slate-400 italic text-xs">No document</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <select
-                            value={p.status}
-                            onChange={(e) => handleQuickStatusChange(p.id, e.target.value)}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase inline-block border focus:outline-none cursor-pointer ${
-                              p.status === 'Paid'
-                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                : p.status === 'Processing'
-                                ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                                : p.status === 'Cancelled'
-                                ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                            }`}
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
+                        <td className="py-4 px-4 text-center font-semibold text-slate-700 dark:text-slate-355">
+                          {formatDate(p.payout_date)}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="flex justify-center gap-2">
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
-                              icon={<Eye className="w-3.5 h-3.5" />}
-                              className="text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 p-1"
-                            >{""}</Button>
+                              onClick={() => { setPayoutFormFields(p); setShowPayoutModal(true); }}
+                              icon={<CreditCard className="w-4 h-4" />}
+                              className="inline-flex text-brand-navy dark:text-brand-green hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
+                            >
+                              Payout
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleEditClick(p)}
-                              icon={<Edit className="w-3.5 h-3.5" />}
-                              className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 p-1"
-                            >{""}</Button>
+                              onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                              icon={<Eye className="w-4 h-4" />}
+                              className="inline-flex text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
+                            >
+                              View Details
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleDeletePayout(p.id)}
-                              icon={<Trash2 className="w-3.5 h-3.5" />}
-                              className="text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1"
+                              icon={<Trash2 className="w-4 h-4" />}
+                              className="inline-flex text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg p-1.5"
                             >{""}</Button>
                           </div>
                         </td>
@@ -3818,99 +3678,53 @@ function PayoutsPage() {
               </div>
 
               {/* Mobile / Tablet cards list view */}
-              <div className="block md:hidden space-y-4">
+              <div className="block sm:hidden space-y-4">
                 {filteredPayouts.map((p) => (
                   <div 
                     key={p.id}
-                    className="p-4 rounded-2xl border border-slate-150 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-800/25 space-y-3"
+                    className="p-4 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/25 space-y-3"
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Month: {p.month}</span>
                         <h5 className="font-bold text-slate-905 dark:text-white text-sm">{p.vendor_name}</h5>
                       </div>
-                      
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase ${
-                        p.status === 'Paid'
-                          ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                          : p.status === 'Processing'
-                          ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                          : p.status === 'Cancelled'
-                          ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                          : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                      }`}>
-                        {p.status}
-                      </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-105 dark:border-slate-800/80 py-2.5">
                       <div>
-                        <p className="text-slate-400 font-semibold mb-0.5">Date of Payout</p>
-                        <p className="font-bold text-slate-700 dark:text-slate-350">{formatDate(p.payout_date)}</p>
+                        <p className="text-slate-400 font-semibold mb-0.5">Payout Date</p>
+                        <p className="font-bold text-slate-705 dark:text-slate-355">{formatDate(p.payout_date)}</p>
                       </div>
                       <div>
                         <p className="text-slate-400 font-semibold mb-0.5">Payout Amount</p>
                         <p className="font-extrabold text-brand-green text-sm">{formatCurrency(p.amount)}</p>
                       </div>
-                      <div className="mt-1">
-                        <p className="text-slate-400 font-semibold mb-0.5">Check / Ref No</p>
+                      <div className="mt-1 col-span-2">
+                        <p className="text-slate-400 font-semibold mb-0.5">Ref No</p>
                         <p className="font-mono font-bold text-slate-800 dark:text-slate-300">{p.check_number || '—'}</p>
-                      </div>
-                      <div className="mt-1">
-                        <p className="text-slate-400 font-semibold mb-0.5">Supporting proof</p>
-                        {p.attachment ? (
-                          <a 
-                            href={p.attachment} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1 mt-0.5"
-                          >
-                            <FileText className="w-3 h-3" /> View Attachment
-                          </a>
-                        ) : (
-                          <p className="text-slate-400 italic">No document uploaded</p>
-                        )}
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center pt-1">
-                      {/* Inline status select for mobile */}
-                      <div>
-                        <select 
-                          value={p.status} 
-                          onChange={(e) => handleQuickStatusChange(p.id, e.target.value)}
-                          className="text-[10px] font-bold bg-white dark:bg-slate-805 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-700 dark:text-slate-300"
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Processing">Processing</option>
-                          <option value="Paid">Paid</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
-                          variant="ghost" 
-                          size="sm" 
-                          icon={<Eye className="w-4 h-4" />}
-                          className="text-slate-550 dark:text-slate-400 p-1"
-                        >{""}</Button>
-                        <Button 
-                          onClick={() => handleEditClick(p)}
-                          variant="ghost" 
-                          size="sm" 
-                          icon={<Edit className="w-4 h-4" />}
-                          className="text-orange-500 p-1"
-                        >{""}</Button>
-                        <Button 
-                          onClick={() => handleDeletePayout(p.id)}
-                          variant="ghost" 
-                          size="sm" 
-                          icon={<Trash2 className="w-4 h-4" />}
-                          className="text-rose-500 p-1"
-                        >{""}</Button>
-                      </div>
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        onClick={() => { setPayoutFormFields(p); setShowPayoutModal(true); }}
+                        variant="ghost" 
+                        size="sm" 
+                        icon={<CreditCard className="w-4 h-4" />}
+                        className="text-brand-navy dark:text-brand-green font-bold text-xs"
+                      >
+                        Payout
+                      </Button>
+                      <Button 
+                        onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                        variant="ghost" 
+                        size="sm" 
+                        icon={<Eye className="w-4 h-4" />}
+                        className="text-slate-550 dark:text-slate-400 font-bold text-xs"
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -3920,10 +3734,10 @@ function PayoutsPage() {
         </div>
       </Card>
 
-      {/* Record Payout Modal */}
+      {/* Payout Form Modal (button-triggered form) */}
       <AnimatePresence>
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowCreateModal(false)}>
+        {showPayoutModal && selectedPayout && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowPayoutModal(false)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
@@ -3931,15 +3745,15 @@ function PayoutsPage() {
               className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <form onSubmit={handleCreatePayout}>
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
+              <form onSubmit={handleProcessPayoutSubmit}>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855/50 flex justify-between items-center">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Vendor Payout</h3>
-                    <p className="text-xs text-slate-400 font-bold">Log financial payout transfers and check sheets</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Process Vendor Payout</h3>
+                    <p className="text-xs text-slate-400 font-bold">Log transfer reference details for {selectedPayout.vendor_name}</p>
                   </div>
                   <button 
                     type="button"
-                    onClick={() => setShowCreateModal(false)} 
+                    onClick={() => setShowPayoutModal(false)} 
                     className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400"
                   >
                     <X className="w-5 h-5" />
@@ -3954,247 +3768,47 @@ function PayoutsPage() {
                 )}
 
                 <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                  {/* Vendor Dropdown */}
+                  {/* Payout Date */}
                   <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Select Vendor Partner *</label>
-                    <select
-                      value={vendorId}
-                      onChange={(e) => setVendorId(e.target.value)}
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date *</label>
+                    <input
+                      type="date"
+                      value={payoutDate}
+                      onChange={(e) => setPayoutDate(e.target.value)}
                       required
+                      placeholder="Select payout date..."
                       className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                    >
-                      <option value="">Choose partner...</option>
-                      {vendors.map(v => (
-                        <option key={v.id} value={v.id}>{v.company_name || v.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Amount and Month */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Amount (₱) *</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 8500"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">For The Month Of *</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. June 2026"
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        required
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Date and Check Number */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date</label>
-                      <input
-                        type="date"
-                        value={payoutDate}
-                        onChange={(e) => setPayoutDate(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Check / GCash Ref No</label>
-                      <input
-                        type="text"
-                        placeholder="Ref/Check number"
-                        value={checkNumber}
-                        onChange={(e) => setCheckNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-805 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Status</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Processing">Processing</option>
-                      <option value="Paid">Paid</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </div>
-
-                  {/* Supporting proof document file upload */}
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof / Receipt</label>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="file" 
-                        accept="image/*,.pdf" 
-                        onChange={handleUploadFile}
-                        id="payout-file-create"
-                        className="hidden"
-                        disabled={uploading}
-                      />
-                      <label 
-                        htmlFor="payout-file-create"
-                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
-                      </label>
-                      <span className="text-xs text-slate-400 truncate max-w-[200px]">
-                        {attachmentUrl ? '✓ File loaded' : 'No document chosen'}
-                      </span>
-                    </div>
-                    {attachmentUrl && (
-                      <div className="mt-2 text-xs font-semibold text-emerald-500 flex items-center gap-1 animate-pulse">
-                        <Check className="w-3 h-3" /> Supporting file attached successfully!
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex gap-3">
-                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Record Payout</Button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Edit Payout Modal */}
-      <AnimatePresence>
-        {showEditModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowEditModal(false)}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <form onSubmit={handleUpdatePayout}>
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Payout Details</h3>
-                    <p className="text-xs text-slate-400 font-bold">Update check sheets and attachments</p>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setShowEditModal(false)} 
-                    className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {error && (
-                  <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex gap-2 items-center animate-fadeIn">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
-
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                  {/* Vendor Name (Disabled) */}
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Vendor Partner</label>
-                    <input 
-                      type="text" 
-                      value={vendors.find(v => v.id === vendorId)?.company_name || 'Vendor'} 
-                      disabled 
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 dark:text-slate-400 text-sm font-semibold cursor-not-allowed"
                     />
                   </div>
 
-                  {/* Amount and Month */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Amount (₱) *</label>
-                      <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">For The Month Of *</label>
-                      <input
-                        type="text"
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        required
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Date and Check Number */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date</label>
-                      <input
-                        type="date"
-                        value={payoutDate}
-                        onChange={(e) => setPayoutDate(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Check / GCash Ref No</label>
-                      <input
-                        type="text"
-                        value={checkNumber}
-                        onChange={(e) => setCheckNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Status */}
+                  {/* Reference Number */}
                   <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Status</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Processing">Processing</option>
-                      <option value="Paid">Paid</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Reference Number *</label>
+                    <input
+                      type="text"
+                      value={checkNumber}
+                      onChange={(e) => setCheckNumber(e.target.value)}
+                      required
+                      placeholder="Enter GCash or Bank Reference Number..."
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
                   </div>
 
                   {/* Supporting proof document file upload */}
                   <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof / Receipt</label>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof *</label>
                     <div className="flex items-center gap-3">
                       <input 
                         type="file" 
                         accept="image/*,.pdf" 
                         onChange={handleUploadFile}
-                        id="payout-file-edit"
+                        id="payout-file-process"
                         className="hidden"
                         disabled={uploading}
                       />
                       <label 
-                        htmlFor="payout-file-edit"
-                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                        htmlFor="payout-file-process"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
                       >
                         <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
                       </label>
@@ -4211,8 +3825,8 @@ function PayoutsPage() {
                 </div>
 
                 <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex gap-3">
-                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)}>Cancel</Button>
-                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Save Changes</Button>
+                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowPayoutModal(false)}>Cancel</Button>
+                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Payout</Button>
                 </div>
               </form>
             </motion.div>
@@ -4231,14 +3845,14 @@ function PayoutsPage() {
               className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855/50 flex justify-between items-center">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payout Details</span>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{selectedPayout.vendor_name}</h3>
                 </div>
                 <button 
                   onClick={() => setShowDetailsModal(false)} 
-                  className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-450"
+                  className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-455"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -4262,24 +3876,9 @@ function PayoutsPage() {
                     <p className="font-black text-brand-green text-lg mt-0.5">{formatCurrency(selectedPayout.amount)}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Check / GCash Ref No</span>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Reference Number</span>
                     <p className="font-bold text-slate-800 dark:text-white mt-0.5 font-mono">{selectedPayout.check_number || '—'}</p>
                   </div>
-                </div>
-
-                <div>
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Status</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase inline-block border ${
-                    selectedPayout.status === 'Paid'
-                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                      : selectedPayout.status === 'Processing'
-                      ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse'
-                      : selectedPayout.status === 'Cancelled'
-                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                      : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                  }`}>
-                    {selectedPayout.status}
-                  </span>
                 </div>
 
                 <div>
@@ -4296,7 +3895,7 @@ function PayoutsPage() {
                       </a>
                       
                       {selectedPayout.attachment.match(/\.(jpeg|jpg|gif|png|webp)/i) || !selectedPayout.attachment.includes('.') ? (
-                        <div className="w-full h-48 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-55 dark:bg-slate-900">
+                        <div className="w-full h-48 border border-slate-205 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-55 dark:bg-slate-900">
                           <img src={selectedPayout.attachment} alt="Receipt proof" className="w-full h-full object-contain" />
                         </div>
                       ) : null}
