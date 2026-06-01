@@ -1,6 +1,6 @@
 import React from 'react';
 import { CssBaseline } from '@mui/material'
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -31,6 +31,7 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register-admin" element={<AdminRegisterPage />} />
       <Route path="/register-vendor" element={<VendorRegisterPage />} />
+      <Route path="/vendor-apply" element={<Navigate to="/register-vendor" replace />} />
       <Route path="/verify-email" element={<EmailVerificationPage />} />
       <Route path="/about" element={<AboutUsPage />} /> 
       <Route path="/privacy" element={<PrivacyPage />} /> 

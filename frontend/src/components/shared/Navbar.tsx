@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     { label: 'Why AllFix', href: '#why-allfix' },
     { label: 'Service Area', href: '#service-area' },
     { label: 'Testimonials', href: '#testimonials' },
-    { label: 'Become Our Partner', href: '/vendor-apply' },
+    { label: 'Become Our Partner', href: '/register-vendor' },
   ];
 
   const handleNavClick = (href: string) => {
