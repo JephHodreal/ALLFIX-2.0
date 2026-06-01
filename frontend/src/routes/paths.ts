@@ -3,6 +3,7 @@ export const ROUTES = {
   login: '/login',
   register: '/register',
   adminRegister: '/register-admin',
+  vendorRegister: '/register-vendor',
   verifyEmail: '/verify-email',
   // Role dashboards
   admin: '/admin',

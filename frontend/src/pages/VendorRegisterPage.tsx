@@ -11,12 +11,12 @@ import LampButton from '../components/shared/LampButton';
 
 interface FormData {
   firstName: string; lastName: string; username: string; email: string; password: string; confirmPassword: string;
-  phone: string; role: 'customer';
+  phone: string; role: 'vendor';
   // Address
   city: string; cityCode: string;
   barangay: string; barangayCode: string; unitHouseNo: string; street: string; postalCode: string;
-  // Vendor
-  companyName: string; contactPerson: string;
+  // Vendor-specific
+  companyName: string;
   termsAccepted: boolean;
 }
 
@@ -33,17 +33,17 @@ interface SelectedService {
 
 const initialFormData: FormData = {
   firstName: '', lastName: '', username: '', email: '', password: '', confirmPassword: '',
-  phone: '', role: 'customer' as const,
+  phone: '', role: 'vendor' as const,
   city: '', cityCode: '',
   barangay: '', barangayCode: '', unitHouseNo: '', street: '', postalCode: '',
-  companyName: '', contactPerson: '',
+  companyName: '',
   termsAccepted: false,
 };
 
 const LOCATION_API = import.meta.env.VITE_LOCATION_API || 'https://psgc.gitlab.io/api';
-const steps = ['Basic Info', 'Address', 'Contact & Role'];
+const steps = ['Basic Info', 'Address', 'Company & Services', 'Contact'];
 
-export default function RegisterPage() {
+export default function VendorRegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const prefillData = location.state?.prefillData;
@@ -71,6 +71,11 @@ export default function RegisterPage() {
   const [servicesCatalog, setServicesCatalog] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
 
+  // [CAVEMAN] Log mounting
+  useEffect(() => {
+    console.log("[CAVEMAN] Vendor Register page loaded! Initial state:", initialFormData);
+  }, []);
+
   useEffect(() => {
     setLoadingCatalog(true);
     fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/services`)
@@ -90,11 +95,13 @@ export default function RegisterPage() {
             }))
           }));
           setServicesCatalog(formatted);
+          console.log("[CAVEMAN] Successfully loaded services catalog. Found " + formatted.length + " services.");
         } else {
           throw new Error('Empty database services');
         }
       })
       .catch(() => {
+        console.log("[CAVEMAN] Failed to load database services. Loading fallback services catalog.");
         const fallback = VENDOR_SERVICES.map(svc => ({
           name: svc.name,
           description: svc.description,
@@ -115,6 +122,7 @@ export default function RegisterPage() {
   const hideTooltip = () => setActiveTooltip({ ...activeTooltip, show: false });
 
   const toggleService = (serviceName: string) => {
+    console.log("[CAVEMAN] Toggle service:", serviceName);
     const exists = selectedServices.find(s => s.service === serviceName);
     if (exists) {
       setSelectedServices(selectedServices.filter(s => s.service !== serviceName));
@@ -126,6 +134,7 @@ export default function RegisterPage() {
   };
 
   const toggleSubService = (serviceName: string, subServiceName: string) => {
+    console.log("[CAVEMAN] Toggle subservice:", serviceName, "->", subServiceName);
     setSelectedServices(selectedServices.map(s => {
       if (s.service === serviceName) {
         const hasSub = s.sub_services.includes(subServiceName);
@@ -148,24 +157,10 @@ export default function RegisterPage() {
     }));
   };
 
-  const toggleWorkType = (serviceName: string, subServiceName: string, workTypeName: string) => {
-    setSelectedServices(selectedServices.map(s => {
-      if (s.service === serviceName) {
-        const currentWts = s.work_types || [];
-        const exists = currentWts.some((wt: any) => wt.name === workTypeName && wt.subService === subServiceName);
-        const updatedWts = exists
-          ? currentWts.filter((wt: any) => !(wt.name === workTypeName && wt.subService === subServiceName))
-          : [...currentWts, { name: workTypeName, subService: subServiceName, price: '0.00', status: 'approved' }];
-        return {
-          ...s,
-          work_types: updatedWts
-        };
-      }
-      return s;
-    }));
-  };
-
   const update = (key: keyof FormData, value: string | boolean) => {
+    if (key === 'companyName') {
+      console.log("[CAVEMAN] Company name changed:", value);
+    }
     // Strip spaces from specific fields
     let processedValue = value;
     if (typeof value === 'string' && ['username', 'email', 'password', 'confirmPassword', 'phone'].includes(key)) {
@@ -183,37 +178,38 @@ export default function RegisterPage() {
   };
 
   const checkUsername = async (username: string) => {
-  if (!username || username.length < 3) {
-    setUsernameError('Min 3 chars');
-    return;
-  }
-  setUsernameCheckLoading(true);
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/check-username?username=${encodeURIComponent(username)}`);
-    
-    // If endpoint is protected or unavailable, skip the check and let registration handle it
-    if (!res.ok) {
-      setUsernameValid(true);
-      setUsernameError('');
+    if (!username || username.length < 3) {
+      setUsernameError('Min 3 chars');
       return;
     }
+    setUsernameCheckLoading(true);
+    console.log("[CAVEMAN] Verifying username availability for:", username);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/check-username?username=${encodeURIComponent(username)}`);
+      
+      // If endpoint is protected or unavailable, skip the check and let registration handle it
+      if (!res.ok) {
+        setUsernameValid(true);
+        setUsernameError('');
+        return;
+      }
 
-    const data = await res.json();
-    if (data.available) {
+      const data = await res.json();
+      if (data.available) {
+        setUsernameValid(true);
+        setUsernameError('');
+      } else {
+        setUsernameError('Username taken');
+        setUsernameValid(false);
+      }
+    } catch {
+      // Network error — don't block the user
       setUsernameValid(true);
       setUsernameError('');
-    } else {
-      setUsernameError('Username taken');
-      setUsernameValid(false);
+    } finally {
+      setUsernameCheckLoading(false);
     }
-  } catch {
-    // Network error — don't block the user
-    setUsernameValid(true);
-    setUsernameError('');
-  } finally {
-    setUsernameCheckLoading(false);
-  }
-};
+  };
 
   // Check username if prepopulated
   useEffect(() => {
@@ -252,6 +248,7 @@ export default function RegisterPage() {
   const passwordStrength = useCallback((pw: string) => {
     let s = 0;
     if (pw.length >= 8) s++; if (/[A-Z]/.test(pw)) s++; if (/[0-9]/.test(pw)) s++; if (/[^A-Za-z0-9]/.test(pw)) s++;
+    console.log("[CAVEMAN] Checked password strength. Score:", s);
     return s;
   }, []);
 
@@ -260,30 +257,64 @@ export default function RegisterPage() {
   };
 
   const canNext = () => {
-    if (step === 0) return form.firstName && form.lastName && form.username && usernameValid && form.email && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password);
-    if (step === 1) return form.cityCode && form.barangayCode && form.unitHouseNo && form.street;
-    if (step === 2) {
-      return form.phone && isPhoneValid(form.phone) && form.termsAccepted;
+    let ok = false;
+    if (step === 0) {
+      ok = !!(form.firstName && form.lastName && form.username && usernameValid && form.email && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password));
+    } else if (step === 1) {
+      ok = !!(form.cityCode && form.barangayCode && form.unitHouseNo && form.street);
+    } else if (step === 2) {
+      const hasCompanyName = !!form.companyName.trim();
+      const hasServices = selectedServices.length > 0;
+      const allHaveSubs = selectedServices.every(s => s.sub_services && s.sub_services.length > 0);
+      ok = hasCompanyName && hasServices && allHaveSubs;
+    } else if (step === 3) {
+      ok = !!(form.phone && isPhoneValid(form.phone) && form.termsAccepted);
     }
-    return false;
+    console.log("[CAVEMAN] Checking step validity. Step:", step, "canNext:", ok);
+    return ok;
   };
 
   const handleSubmit = async () => {
+    console.log("[CAVEMAN] handleSubmit vendor registration triggered!");
     setError(''); setLoading(true);
     try {
       const user = await registerUser(form.email, form.password);
+      
+      // Prepare services payload
+      const servicesPayload = selectedServices.map(s => ({
+        service: s.service,
+        sub_services: s.sub_services,
+        work_types: s.work_types || []
+      }));
+      
+      const firstServiceName = servicesPayload.length > 0 ? servicesPayload[0].service : '';
+
       // Save profile locally; will be written to Firestore after email verification
       const profile: any = {
-        uid: user.uid, email: form.email, username: form.username, role: form.role,
-        first_name: form.firstName, last_name: form.lastName, phone: form.phone,
-        unit_house_no: form.unitHouseNo, street: form.street, barangay: form.barangay,
-        city: form.city, region: 'National Capital Region',
+        uid: user.uid,
+        email: form.email,
+        username: form.username,
+        role: 'vendor',
+        first_name: form.firstName,
+        last_name: form.lastName,
+        phone: form.phone,
+        unit_house_no: form.unitHouseNo,
+        street: form.street,
+        barangay: form.barangay,
+        city: form.city,
+        region: 'National Capital Region',
         postal_code: form.postalCode,
+        company_name: form.companyName,
+        services: servicesPayload,
+        service_type: firstServiceName
       };
 
+      console.log("[CAVEMAN] Submitting Vendor registration profile:", profile);
       localStorage.setItem('pendingRegistration', JSON.stringify({ sentAt: Date.now(), profile }));
+      console.log("[CAVEMAN] Registration successful. Redirecting to verify email.");
       navigate(ROUTES.verifyEmail);
     } catch (err: any) {
+      console.log("[CAVEMAN] Registration error:", err.message);
       const firebaseCode: string | undefined = err?.code;
       if (firebaseCode === 'auth/email-already-in-use') {
         setError('Email already registered.');
@@ -314,8 +345,8 @@ export default function RegisterPage() {
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="text-center relative z-10">
           <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-20 h-20 object-contain mx-auto mb-8" />
-          <h2 className="text-3xl font-bold text-white mb-4">Create your account</h2>
-          <p className="text-white/70 max-w-sm">Join AllFix.ph and start managing your property services today.</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Partner with AllFix</h2>
+          <p className="text-white/70 max-w-sm">Join AllFix.ph as a Vendor Partner and scale your service business today.</p>
           {/* Step indicator */}
           <div className="mt-12 flex items-center justify-center gap-4">
             {steps.map((s, i) => (
@@ -333,7 +364,7 @@ export default function RegisterPage() {
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-lg animate-fade-in">
           <div className="flex justify-end mb-4 lg:mb-6">
             <LampButton />
           </div>
@@ -349,7 +380,7 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-            {step === 0 ? 'Basic Information' : step === 1 ? 'Your Address' : 'Contact'}
+            {step === 0 ? 'Basic Information' : step === 1 ? 'Business Location' : step === 2 ? 'Company Details' : 'Contact Person'}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Step {step + 1} of {steps.length}</p>
 
@@ -435,6 +466,140 @@ export default function RegisterPage() {
               )}
 
               {step === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        value={form.companyName} 
+                        onChange={(e) => update('companyName', e.target.value)} 
+                        className="input-base pl-10" 
+                        placeholder="e.g. FixIt Pro Solutions Co." 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Services You Offer <span className="text-slate-400 text-xs font-normal">(Select all that apply)</span>
+                    </label>
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50 p-4 space-y-3 max-h-[300px] overflow-y-auto">
+                      {loadingCatalog ? (
+                        <p className="text-sm text-slate-400 animate-pulse">Loading service catalog...</p>
+                      ) : servicesCatalog.length === 0 ? (
+                        <p className="text-sm text-slate-400">No services available.</p>
+                      ) : (
+                        servicesCatalog.map((svc) => {
+                          const isSvcSelected = selectedServices.some(s => s.service === svc.name);
+                          const isExpanded = expandedService === svc.name;
+                          
+                          return (
+                            <div key={svc.name} className="border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden">
+                              {/* Service Header Row */}
+                              <button
+                                type="button"
+                                onClick={() => toggleService(svc.name)}
+                                className={`w-full flex items-center justify-between p-3 text-left transition-colors ${
+                                  isSvcSelected 
+                                    ? 'bg-brand-green/10 dark:bg-brand-green/5 text-slate-900 dark:text-white' 
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                    isSvcSelected 
+                                      ? 'border-brand-green bg-brand-green text-white' 
+                                      : 'border-slate-300 dark:border-slate-600 bg-transparent'
+                                  }`}>
+                                    {isSvcSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-sm">{svc.name}</span>
+                                    {svc.description && (
+                                      <p className="text-xs text-slate-400 line-clamp-1">{svc.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="text-xs text-slate-400 font-medium">
+                                  {isExpanded ? 'Collapse' : 'Expand'}
+                                </span>
+                              </button>
+
+                              {/* Sub-services selection (rendered when service is selected and expanded) */}
+                              <AnimatePresence>
+                                {isSvcSelected && isExpanded && svc.sub && svc.sub.length > 0 && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 p-3 pl-8 space-y-2"
+                                  >
+                                    <p className="text-xs font-medium text-slate-400 mb-2">Select sub-services:</p>
+                                    {svc.sub.map((sub: any) => {
+                                      const subSvcSelected = selectedServices.find(s => s.service === svc.name)?.sub_services.includes(sub.name);
+                                      return (
+                                        <div 
+                                          key={sub.name} 
+                                          className="py-1.5 group border-b border-slate-100/50 dark:border-slate-800/30 last:border-0"
+                                        >
+                                          <label className="flex items-start gap-2.5 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={!!subSvcSelected}
+                                              onChange={() => toggleSubService(svc.name, sub.name)}
+                                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-green focus:ring-brand-green bg-transparent"
+                                            />
+                                            <div
+                                              onMouseEnter={(e) => sub.description && handleMouseMove(e, sub.description)}
+                                              onMouseLeave={hideTooltip}
+                                            >
+                                              <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                                                {sub.name}
+                                              </span>
+                                              {sub.description && (
+                                                <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{sub.description}</p>
+                                              )}
+                                            </div>
+                                          </label>
+                                          
+                                          {subSvcSelected && sub.workTypes && sub.workTypes.length > 0 && (
+                                            <div 
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="mt-2 ml-6 pl-3 pr-2 py-2 bg-slate-100/50 dark:bg-slate-800/40 rounded-lg border border-slate-200/50 dark:border-slate-700/50"
+                                            >
+                                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
+                                                Available Work Types (Reference Only)
+                                              </span>
+                                              <div className="flex flex-wrap gap-1.5">
+                                                {sub.workTypes.map((wt: string) => (
+                                                  <span 
+                                                    key={wt} 
+                                                    className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/80 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 border border-slate-300/40 dark:border-slate-700/40 transition-colors"
+                                                  >
+                                                    {wt}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
                 <div className="space-y-4">
                   <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -456,7 +621,7 @@ export default function RegisterPage() {
             {step > 0 ? (
               <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
             ) : <div />}
-            {step < 2 ? (
+            {step < 3 ? (
               <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
             ) : (
               <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Account</Button>
@@ -465,10 +630,6 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
-          </p>
-          <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
-            Are you a service provider?{' '}
-            <Link to={ROUTES.vendorRegister} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Register as a Vendor</Link>
           </p>
         </div>
       </div>
