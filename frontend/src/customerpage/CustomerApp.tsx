@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -10,6 +10,8 @@ import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
+
+
 
 // --- Mui components & icons ---
 import { Box, Grid } from '@mui/material';
@@ -1495,6 +1497,22 @@ function MyBookingsTab() {
                 <span className="text-slate-400 font-medium">Quantity:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
               </div>
+              {/* Voucher Discount Info */}
+              {selectedBooking.discount_amount > 0 && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400 font-medium">Subtotal:</span>
+                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Voucher:</span>
+                    <span className="col-span-2 flex items-center gap-2">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded-lg bg-brand-green/10 text-brand-green border border-brand-green/20 font-bold">{selectedBooking.voucher_code}</span>
+                      <span className="text-brand-green font-bold text-xs">-₱{Number(selectedBooking.discount_amount).toFixed(2)}</span>
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-900 dark:text-white font-black">Total:</span>
                 <span className="col-span-2 text-lg font-black text-brand-green font-semibold">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
@@ -1919,6 +1937,206 @@ function ProfileTab() {
   );
 }
 
+// ─── Vouchers Tab ────────────────────────────────────────────────────────────
+function VouchersTab() {
+  const { profile } = useAuth();
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'unused' | 'used' | 'expired'>('unused');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchVouchers = async () => {
+      try {
+        setError(null);
+        const res = await api.get(`/api/vouchers/customer/${profile.id}`);
+        const fetched = res.data || [];
+        // Filter out temp_deleted vouchers (belt-and-suspenders; backend already filters)
+        const active = fetched.filter((v: any) => v.temp_delete !== 1);
+        setVouchers(active);
+      } catch (err: any) {
+        console.error('[CAVEMAN] Error fetching vouchers:', err);
+        setError('Failed to fetch vouchers. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    setLoading(true);
+    fetchVouchers();
+
+    // Poll every 15 seconds for near-realtime updates
+    const interval = setInterval(fetchVouchers, 15000);
+    return () => clearInterval(interval);
+  }, [profile]);
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const filteredVouchers = vouchers.filter(v => v.status === filter);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Ticket className="w-7 h-7 text-brand-navy dark:text-brand-green" />
+            My Vouchers
+          </h2>
+          <p className="text-sm text-slate-500">View and manage all your discount vouchers assigned by AllFix administrators.</p>
+        </div>
+        
+        {/* Toggle Filters */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
+          <button
+            onClick={() => setFilter('unused')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              filter === 'unused'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setFilter('used')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              filter === 'used'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Redeemed
+          </button>
+          <button
+            onClick={() => setFilter('expired')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              filter === 'expired'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Expired
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p className="text-sm font-semibold">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-4 border-brand-navy dark:border-brand-green border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : filteredVouchers.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center text-center p-12 border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 dark:text-slate-600 mb-4">
+            <Ticket className="w-8 h-8" />
+          </div>
+          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No vouchers available.</h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1">
+            {filter === 'unused'
+              ? "You don't have any active discount vouchers right now. Keep booking services for a chance to receive special promos!"
+              : filter === 'used'
+              ? "You haven't used any vouchers yet."
+              : "You don't have any expired vouchers."}
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredVouchers.map((v) => {
+            const isUnused = v.status === 'unused';
+            const isExpired = v.status === 'expired';
+            return (
+              <div
+                key={v.id}
+                className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
+                  isUnused
+                    ? 'bg-gradient-to-br from-brand-navy via-slate-900 to-slate-950 border-brand-navy/30 dark:border-slate-850 hover:shadow-2xl hover:scale-[1.01] text-white shadow-xl'
+                    : isExpired
+                    ? 'bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 text-slate-400 dark:text-slate-500 opacity-60'
+                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 opacity-75'
+                }`}
+              >
+                {/* Left & Right punch holes for the "ticket" look */}
+                <div className="absolute top-1/2 -left-3 w-6 h-6 rounded-full bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-800 -translate-y-1/2 z-10"></div>
+                <div className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-surface-light dark:bg-surface-dark border-l border-slate-200 dark:border-slate-800 -translate-y-1/2 z-10"></div>
+
+                <div className="p-6 flex flex-col justify-between h-full min-h-[180px]">
+                  <div>
+                    {/* Header: Badge & Status */}
+                    <div className="flex justify-between items-center mb-3">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                        isUnused 
+                          ? 'bg-brand-green/20 text-brand-green border border-brand-green/30' 
+                          : isExpired
+                          ? 'bg-red-100 dark:bg-red-950/40 text-red-650 dark:text-red-400 border border-red-200/20'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}>
+                        {isUnused ? 'Available' : isExpired ? 'Expired' : 'Redeemed'}
+                      </span>
+                      {isUnused && (
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-brand-green" /> Available
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Discount Value */}
+                    <h3 className={`text-3xl font-black ${isUnused ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                      {v.discount_type === 'percentage' ? `${v.discount_value}%` : `₱${v.discount_value}`} OFF
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
+                      Applicable for any service booking in checkout.
+                    </p>
+                  </div>
+
+                  {/* Dashed Separator Line */}
+                  <div className="border-t-2 border-dashed border-slate-250/20 dark:border-slate-800/60 my-5 relative"></div>
+
+                  {/* Footer: Voucher Code Copy Button */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Voucher Code</p>
+                      <p className={`font-mono font-black text-base tracking-wider truncate mt-0.5 ${
+                        isUnused ? 'text-brand-green' : 'text-slate-455 line-through'
+                      }`}>
+                        {v.code}
+                      </p>
+                    </div>
+
+                    {isUnused && (
+                      <button
+                        onClick={() => handleCopy(v.code)}
+                        className="px-4 py-2 text-xs font-black rounded-xl bg-brand-green hover:bg-[#00d070] text-slate-950 transition-colors shadow-lg shadow-brand-green/10 flex items-center gap-1"
+                      >
+                        {copiedCode === v.code ? 'Copied!' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1951,49 +2169,95 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
   const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [appliedVoucherId, setAppliedVoucherId] = useState('');
+  const [voucherValidationMsg, setVoucherValidationMsg] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
+  const [voucherValidating, setVoucherValidating] = useState(false);
 
   // Calculate Cart Subtotals
   const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
   const finalAmount = Math.max(0, totalAmount - appliedDiscount);
 
-  // Fetch available vouchers for this customer
+  // Fetch available vouchers for this customer (for quick-select pills)
   useEffect(() => {
     if (isOpen && profile?.id) {
-      api.get('/api/vouchers')
-        .then(res => {
-          const myVouchers = (res.data || []).filter(
-            (v: any) => v.customer_id === profile.id && v.status === 'unused'
-          );
-          setAvailableVouchers(myVouchers);
-        })
-        .catch(err => console.error('[CAVEMAN] Failed to load customer vouchers', err));
+      const fetchCheckoutVouchers = async () => {
+        try {
+          const res = await api.get(`/api/vouchers/customer/${profile.id}`);
+          const fetched = res.data || [];
+          // Only show unused, non-deleted vouchers for checkout
+          const active = fetched.filter((v: any) => v.status === 'unused' && v.temp_delete !== 1);
+          setAvailableVouchers(active);
+        } catch (err: any) {
+          console.error('[CAVEMAN] Failed to load customer vouchers for checkout', err);
+        }
+      };
+      fetchCheckoutVouchers();
     }
   }, [isOpen, profile]);
 
-  // Validate and auto-apply voucher when typed or selected
+  // [CAVEMAN] Validate voucher code via backend /api/vouchers/validate with debounce
   useEffect(() => {
     if (!voucherCode.trim()) {
+      console.log('[CAVEMAN] Voucher code cleared, resetting validation state.');
       setAppliedDiscount(0);
       setAppliedVoucherId('');
+      setVoucherValidationMsg({ type: '', message: '' });
+      setVoucherValidating(false);
       return;
     }
-    const match = availableVouchers.find(
-      v => v.code.toUpperCase() === voucherCode.toUpperCase().trim()
-    );
-    if (match) {
-      let discount = 0;
-      if (match.discount_type === 'percentage') {
-        discount = (totalAmount * match.discount_value) / 100;
-      } else {
-        discount = match.discount_value;
-      }
-      setAppliedDiscount(discount);
-      setAppliedVoucherId(match.id);
-    } else {
-      setAppliedDiscount(0);
-      setAppliedVoucherId('');
+
+    if (!profile?.id) {
+      console.log('[CAVEMAN] No profile ID available, skipping voucher validation.');
+      return;
     }
-  }, [voucherCode, availableVouchers, totalAmount]);
+
+    setVoucherValidating(true);
+    console.log(`[CAVEMAN] Voucher validation debounce started for code='${voucherCode.trim()}'`);
+
+    const debounceTimer = setTimeout(async () => {
+      const trimmedCode = voucherCode.trim();
+      console.log(`[CAVEMAN] Calling /api/vouchers/validate?code=${trimmedCode}&customerId=${profile.id}`);
+
+      try {
+        const res = await api.get('/api/vouchers/validate', {
+          params: { code: trimmedCode, customerId: profile.id }
+        });
+        const data = res.data;
+        console.log('[CAVEMAN] Voucher validate response:', JSON.stringify(data));
+
+        if (data.valid) {
+          // Voucher is valid and assigned to this customer
+          let discount = 0;
+          if (data.discount_type === 'percentage') {
+            discount = (totalAmount * Number(data.discount_value)) / 100;
+          } else {
+            discount = Number(data.discount_value);
+          }
+          setAppliedDiscount(discount);
+          setAppliedVoucherId(data.voucher_id);
+          setVoucherValidationMsg({ type: 'success', message: data.message || 'Voucher applied successfully!' });
+          console.log(`[CAVEMAN] Voucher VALID: discount=${discount}, voucherId=${data.voucher_id}`);
+        } else {
+          // Voucher validation failed (code not found, customer mismatch, already used)
+          setAppliedDiscount(0);
+          setAppliedVoucherId('');
+          setVoucherValidationMsg({ type: 'error', message: data.message || 'Invalid voucher code.' });
+          console.log(`[CAVEMAN] Voucher INVALID: message='${data.message}'`);
+        }
+      } catch (err: any) {
+        console.error('[CAVEMAN] Voucher validation API error:', err);
+        setAppliedDiscount(0);
+        setAppliedVoucherId('');
+        setVoucherValidationMsg({ type: 'error', message: 'Failed to validate voucher. Please try again.' });
+      } finally {
+        setVoucherValidating(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      clearTimeout(debounceTimer);
+      setVoucherValidating(false);
+    };
+  }, [voucherCode, profile?.id, totalAmount]);
 
   // Prefill Address from Profile if available
   useEffect(() => {
@@ -2053,8 +2317,17 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
       const bookingsCreated = [];
 
+      // Distribute voucher discount proportionally across cart items
+      const hasDiscount = appliedDiscount > 0 && appliedVoucherId;
       for (const item of cart) {
-        const bookingData = {
+        let itemDiscount = 0;
+        if (hasDiscount) {
+          // Proportional share: (item.total / totalAmount) * appliedDiscount
+          itemDiscount = totalAmount > 0 ? Math.round(((item.total / totalAmount) * appliedDiscount) * 100) / 100 : 0;
+        }
+        const discountedTotal = Math.max(0, item.total - itemDiscount);
+
+        const bookingData: any = {
           customer_id: profile?.id || 'guest',
           customer_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Customer',
           vendor_id: item.vendorId,
@@ -2066,7 +2339,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
           scheduled_time: item.scheduledTime,
           price: item.price,
           quantity: item.quantity,
-          total_price: item.total,
+          total_price: hasDiscount ? discountedTotal : item.total,
           address: fullAddress,
           service_address: fullAddress,
           unit_house_no: unitNo,
@@ -2076,6 +2349,13 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
           voucher_code: voucherCode || null,
           slot_id: item.slotId || null
         };
+
+        // Attach discount metadata if voucher was applied
+        if (hasDiscount) {
+          bookingData.original_price = item.total;
+          bookingData.discount_amount = itemDiscount;
+          bookingData.voucher_id = appliedVoucherId;
+        }
 
         console.log("[CAVEMAN] Sending booking request to backend:", bookingData);
         const res = await api.post('/api/bookings', bookingData);
@@ -2450,15 +2730,52 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Voucher Code (Optional)</label>
-                      <input
-                        type="text"
-                        value={voucherCode}
-                        onChange={(e) => setVoucherCode(e.target.value)}
-                        placeholder="Voucher Code (Optional)"
-                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 mb-2"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={voucherCode}
+                          onChange={(e) => setVoucherCode(e.target.value)}
+                          placeholder="Enter voucher code"
+                          className={`w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 placeholder:text-slate-400 ${
+                            voucherValidationMsg.type === 'success'
+                              ? 'border-brand-green focus:ring-brand-green'
+                              : voucherValidationMsg.type === 'error'
+                              ? 'border-brand-red focus:ring-brand-red'
+                              : 'border-slate-200 dark:border-slate-700 focus:ring-brand-navy'
+                          }`}
+                        />
+                        {voucherValidating && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="w-4 h-4 border-2 border-slate-300 border-t-brand-navy rounded-full animate-spin" />
+                          </div>
+                        )}
+                        {!voucherValidating && voucherValidationMsg.type === 'success' && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <CheckCircle2 className="w-4 h-4 text-brand-green" />
+                          </div>
+                        )}
+                        {!voucherValidating && voucherValidationMsg.type === 'error' && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <AlertCircle className="w-4 h-4 text-brand-red" />
+                          </div>
+                        )}
+                      </div>
+                      {/* [CAVEMAN] Voucher validation message display */}
+                      {voucherValidationMsg.message && !voucherValidating && (
+                        <p className={`text-xs font-semibold mt-1.5 ${
+                          voucherValidationMsg.type === 'success' ? 'text-brand-green' : 'text-brand-red'
+                        }`}>
+                          {voucherValidationMsg.message}
+                          {voucherValidationMsg.type === 'success' && appliedDiscount > 0 && (
+                            <span className="ml-1 font-black">(-₱{appliedDiscount.toFixed(2)} discount)</span>
+                          )}
+                        </p>
+                      )}
+                      {voucherValidating && (
+                        <p className="text-xs text-slate-400 mt-1.5 font-medium">Validating voucher code...</p>
+                      )}
                       {availableVouchers.length > 0 && (
-                        <div className="space-y-1.5 p-3 rounded-2xl bg-brand-navy/5 dark:bg-brand-navy/20 border border-brand-navy/10">
+                        <div className="space-y-1.5 p-3 rounded-2xl bg-brand-navy/5 dark:bg-brand-navy/20 border border-brand-navy/10 mt-2">
                           <p className="text-[10px] font-black uppercase tracking-wider text-brand-navy dark:text-brand-green">Your Available Vouchers</p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {availableVouchers.map(v => (
@@ -2600,6 +2917,7 @@ export default function CustomerApp() {
             <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="bookings" element={<MyBookingsTab />} />
             <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
+            <Route path="vouchers" element={<VouchersTab />} />
 
             <Route path="profile" element={<ProfileTab />} />
           </Routes>

@@ -198,6 +198,24 @@ function PersonnelBookings() {
                   {selectedBooking.quantity || 1}
                 </span>
               </div>
+              {/* Voucher Discount Info */}
+              {selectedBooking.discount_amount > 0 && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400 font-medium">Subtotal:</span>
+                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">
+                      ₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Voucher:</span>
+                    <span className="col-span-2 flex items-center gap-2">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded-lg bg-brand-green/10 text-brand-green border border-brand-green/20 font-bold">{selectedBooking.voucher_code}</span>
+                      <span className="text-brand-green font-bold text-xs">-₱{Number(selectedBooking.discount_amount).toFixed(2)}</span>
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-900 dark:text-white font-black">Total:</span>
                 <span className="col-span-2 text-lg font-black text-brand-green">
