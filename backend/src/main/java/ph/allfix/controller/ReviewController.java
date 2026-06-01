@@ -96,7 +96,21 @@ public class ReviewController {
 
     @GetMapping("/featured")
     public ResponseEntity<List<Map<String, Object>>> getFeatured() throws Exception {
-        return ResponseEntity.ok(firestoreService.getWhere("reviews", "featured", true));
+        System.out.println("[CAVEMAN] Fetching featured reviews from Firestore...");
+        List<Map<String, Object>> featuredBools = firestoreService.getWhere("reviews", "featured", true);
+        List<Map<String, Object>> featuredStrings = firestoreService.getWhere("reviews", "featured", "true");
+        
+        List<Map<String, Object>> allFeatured = new ArrayList<>();
+        if (featuredBools != null) allFeatured.addAll(featuredBools);
+        if (featuredStrings != null) {
+            for (Map<String, Object> r : featuredStrings) {
+                if (allFeatured.stream().noneMatch(existing -> existing.get("id").equals(r.get("id")))) {
+                    allFeatured.add(r);
+                }
+            }
+        }
+        System.out.println("[CAVEMAN] Found " + allFeatured.size() + " featured reviews.");
+        return ResponseEntity.ok(allFeatured);
     }
 
     @GetMapping("/vendor/{id}")
@@ -106,7 +120,14 @@ public class ReviewController {
 
     @PatchMapping("/{id}/featured")
     public ResponseEntity<?> updateFeatured(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
-        boolean featured = (boolean) body.get("featured");
+        Object val = body.get("featured");
+        boolean featured = false;
+        if (val instanceof Boolean) {
+            featured = (Boolean) val;
+        } else if (val instanceof String) {
+            featured = Boolean.parseBoolean((String) val);
+        }
+        System.out.println("[CAVEMAN] Admin updating featured status for review: " + id + " to: " + featured);
         firestoreService.updateField("reviews", id, "featured", featured);
         return ResponseEntity.ok(Map.of("message", "Featured status updated", "featured", featured));
     }

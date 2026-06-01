@@ -264,21 +264,45 @@ const LandingPage = () => {
   };
 
   useEffect(() => {
-    console.log('[CAVEMAN] Fetching featured reviews from database for Client Stories...');
-    api.get('/api/reviews/featured')
-      .then(res => {
-        // Double-check featured status to be absolutely bulletproof
-        const liveFeatured = (res.data || []).filter((r: any) => r.featured === true || r.featured === 'true');
-        const mapped = mapReviewsToTestimonials(liveFeatured);
-        console.log('[CAVEMAN] Successfully loaded featured reviews:', mapped.length);
-        setDynamicTestimonials(mapped);
-      })
-      .catch(err => {
-        console.error('[CAVEMAN] Failed to fetch featured reviews:', err);
-      });
+    const fetchFeatured = () => {
+      console.log('[CAVEMAN] Fetching/polling featured reviews from database for Client Stories...');
+      api.get('/api/reviews/featured')
+        .then(res => {
+          // Double-check featured status to be absolutely bulletproof
+          const liveFeatured = (res.data || []).filter((r: any) => r.featured === true || r.featured === 'true');
+          const mapped = mapReviewsToTestimonials(liveFeatured);
+          
+          setDynamicTestimonials(prev => {
+            const prevIds = prev.map(p => p.id).join(',');
+            const newIds = mapped.map(m => m.id).join(',');
+            if (prevIds !== newIds) {
+              console.log('[CAVEMAN] Successfully loaded featured reviews and updated state:', mapped.length);
+              return mapped;
+            }
+            return prev;
+          });
+        })
+        .catch(err => {
+          console.error('[CAVEMAN] Failed to fetch featured reviews:', err);
+        });
+    };
+
+    fetchFeatured();
+    const interval = setInterval(fetchFeatured, 5000);
+    return () => {
+      console.log('[CAVEMAN] Cleaning up featured reviews polling interval');
+      clearInterval(interval);
+    };
   }, []);
 
   const displayTestimonials = dynamicTestimonials;
+
+  useEffect(() => {
+    if (displayTestimonials.length > 0 && testimonialIdx >= displayTestimonials.length) {
+      console.log(`[CAVEMAN] testimonialIdx ${testimonialIdx} out of bounds (length ${displayTestimonials.length}), resetting to 0`);
+      setTestimonialIdx(0);
+    }
+  }, [displayTestimonials.length, testimonialIdx]);
 
   const handlePrev = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === 0 ? displayTestimonials.length - 1 : prev - 1) : 0));
   const handleNext = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === displayTestimonials.length - 1 ? 0 : prev + 1) : 0));
