@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, CalendarDays, Star, ClipboardList,
   CreditCard, RefreshCcw, LifeBuoy, Settings, LogOut, ChevronLeft, ChevronRight,
   Home, Wrench, UserCog, Building2, ShoppingCart, User, MapPin, ChevronDown,
-  Eye, BarChart3, History, Truck, BookOpen, DollarSign, Receipt,
+  Eye, BarChart3, History, Truck, BookOpen, Receipt,
   Ticket, Tag, Package, UserCheck
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
@@ -49,7 +49,6 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       title: 'Finance & Promos',
       items: [
         { label: 'Transactions', path: '/admin/transactions', icon: <Receipt className="w-5 h-5" /> },
-        { label: 'Accounting', path: '/admin/accounting', icon: <DollarSign className="w-5 h-5" /> },
         { label: 'Payouts', path: '/admin/payouts', icon: <CreditCard className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/admin/vouchers', icon: <Ticket className="w-5 h-5" /> },
         { label: 'Assigned Vouchers', path: '/admin/assigned-vouchers', icon: <Tag className="w-5 h-5" /> },

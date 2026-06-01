@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, DollarSign, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -2812,7 +2812,7 @@ function ServicesManagementPage() {
   );
 }
 function TransactionsPage() { return <PlaceholderPage title="Transactions" description="View all financial transactions across the platform." icon={<CreditCard className="w-8 h-8" />} />; }
-function AccountingPage() { return <PlaceholderPage title="Accounting" description="Financial reports, ledgers, and accounting overview." icon={<DollarSign className="w-8 h-8" />} />; }
+
 function PayoutsPage() { return <PlaceholderPage title="Payouts" description="Manage vendor and personnel payout schedules and history." icon={<CreditCard className="w-8 h-8" />} />; }
 
 function VouchersPage() {
@@ -3186,7 +3186,7 @@ export default function AdminDashboard() {
             <Route path="services" element={<ServicesManagementPage />} />
             {/* Finance & Promos */}
             <Route path="transactions" element={<TransactionsPage />} />
-            <Route path="accounting" element={<AccountingPage />} />
+
             <Route path="payouts" element={<PayoutsPage />} />
 
             <Route path="vouchers" element={<VouchersPage />} />
