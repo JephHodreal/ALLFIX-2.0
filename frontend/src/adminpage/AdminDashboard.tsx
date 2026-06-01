@@ -2799,8 +2799,350 @@ function TransactionsPage() { return <PlaceholderPage title="Transactions" descr
 function AccountingPage() { return <PlaceholderPage title="Accounting" description="Financial reports, ledgers, and accounting overview." icon={<DollarSign className="w-8 h-8" />} />; }
 function PayoutsPage() { return <PlaceholderPage title="Payouts" description="Manage vendor and personnel payout schedules and history." icon={<CreditCard className="w-8 h-8" />} />; }
 
-function VouchersPage() { return <PlaceholderPage title="Vouchers" description="Create and manage promotional vouchers and discount codes." icon={<CreditCard className="w-8 h-8" />} />; }
-function AssignedVouchersPage() { return <PlaceholderPage title="Assigned Vouchers" description="Track vouchers assigned to specific customers or campaigns." icon={<CreditCard className="w-8 h-8" />} />; }
+function VouchersPage() {
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Form fields
+  const [code, setCode] = useState('');
+  const [discountType, setDiscountType] = useState('percentage');
+  const [discountValue, setDiscountValue] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+
+  const loadVouchers = () => {
+    setLoading(true);
+    api.get('/api/vouchers')
+      .then(res => {
+        setVouchers(res.data || []);
+      })
+      .catch(err => {
+        console.error('Failed to load vouchers', err);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadVouchers();
+    // Load active customers
+    api.get('/api/customers')
+      .then(res => {
+        // Only display records from Customer collection where temp_delete = 0 (active customers)
+        const active = (res.data || []).filter((c: any) => c.temp_delete === 0 || !c.hasOwnProperty('temp_delete'));
+        setCustomers(active);
+      })
+      .catch(err => {
+        console.error('Failed to load customers', err);
+      });
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this voucher?')) {
+      try {
+        await api.delete(`/api/vouchers/${id}`);
+        setVouchers(prev => prev.filter(v => v.id !== id));
+      } catch (err) {
+        console.error('Failed to delete voucher', err);
+      }
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!code.trim()) {
+      setError('Voucher code is required.');
+      return;
+    }
+    if (!discountValue || Number(discountValue) <= 0) {
+      setError('Please enter a valid discount value greater than 0.');
+      return;
+    }
+    if (!selectedCustomerId) {
+      setError('Please select a customer to assign this voucher.');
+      return;
+    }
+
+    const selectedCust = customers.find(c => c.id === selectedCustomerId);
+    if (!selectedCust) {
+      setError('Selected customer is invalid.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        code: code.trim().toUpperCase(),
+        discountType,
+        discountValue: Number(discountValue),
+        customerId: selectedCustomerId,
+        customerName: `${selectedCust.first_name || ''} ${selectedCust.last_name || ''}`.trim() || selectedCust.email
+      };
+
+      await api.post('/api/vouchers', payload);
+      setShowCreateModal(false);
+      
+      // Reset form
+      setCode('');
+      setDiscountType('percentage');
+      setDiscountValue('');
+      setSelectedCustomerId('');
+      
+      loadVouchers();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to create voucher.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Promotional Vouchers</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Create, assign, and manage promotional discount vouchers for active customers.
+          </p>
+        </div>
+        <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
+          Create Voucher
+        </Button>
+      </div>
+
+      <Card>
+        <div className="p-6">
+          <DataTable
+            columns={[
+              { key: 'code', label: 'Voucher Code', sortable: true, render: (item: any) => (
+                <span className="font-mono bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg text-sm font-bold text-brand-navy dark:text-brand-green border border-slate-200 dark:border-slate-700/60 uppercase">
+                  {item.code}
+                </span>
+              )},
+              { key: 'discount_type', label: 'Type', render: (item: any) => (
+                <span className="capitalize font-semibold text-slate-700 dark:text-slate-350 text-xs">
+                  {item.discount_type}
+                </span>
+              )},
+              { key: 'discount_value', label: 'Value', render: (item: any) => (
+                <span className="font-extrabold text-sm text-brand-green">
+                  {item.discount_type === 'percentage' ? `${item.discount_value}%` : `₱${item.discount_value}`}
+                </span>
+              )},
+              { key: 'customer_name', label: 'Assigned Customer', sortable: true, render: (item: any) => (
+                <div className="flex flex-col">
+                  <span className="font-bold text-slate-800 dark:text-white text-xs">{item.customer_name}</span>
+                  <span className="text-[10px] text-slate-450 font-medium">ID: {item.customer_id}</span>
+                </div>
+              )},
+              { key: 'status', label: 'Status', render: (item: any) => (
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase inline-block ${
+                  item.status === 'used'
+                    ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                }`}>
+                  {item.status || 'unused'}
+                </span>
+              )},
+              {
+                key: 'actions', label: 'Actions', render: (item: any) => (
+                  <div className="flex gap-2">
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(item.id)} icon={<Trash2 className="w-4 h-4" />}>
+                      Delete
+                    </Button>
+                  </div>
+                )
+              }
+            ]}
+            data={vouchers}
+            loading={loading}
+            searchPlaceholder="Search vouchers..."
+            emptyTitle="No Vouchers Created"
+            emptyDescription="Click 'Create Voucher' to get started."
+          />
+        </div>
+      </Card>
+
+      {/* Create Voucher Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <Card>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create & Assign Voucher</h3>
+                      <p className="text-xs text-slate-400 font-bold">Configure promotional benefits for active accounts</p>
+                    </div>
+                    <button onClick={() => setShowCreateModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {error && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-2 items-center">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleCreate} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Voucher Code *</label>
+                      <input
+                        type="text"
+                        value={code}
+                        onChange={e => setCode(e.target.value.toUpperCase())}
+                        placeholder="e.g. SAVINGS10"
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm font-bold uppercase focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        required
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Discount Type</label>
+                        <select
+                          value={discountType}
+                          onChange={e => setDiscountType(e.target.value)}
+                          className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                          disabled={saving}
+                        >
+                          <option value="percentage">Percentage (%)</option>
+                          <option value="fixed">Fixed Amount (PHP)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                          {discountType === 'percentage' ? 'Percentage (%)' : 'Amount (₱)'} *
+                        </label>
+                        <input
+                          type="number"
+                          value={discountValue}
+                          onChange={e => setDiscountValue(e.target.value)}
+                          placeholder={discountType === 'percentage' ? '10' : '100'}
+                          className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                          required
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Assign to Customer *</label>
+                      <select
+                        value={selectedCustomerId}
+                        onChange={e => setSelectedCustomerId(e.target.value)}
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        required
+                        disabled={saving}
+                      >
+                        <option value="">Select an active customer...</option>
+                        {customers.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {`${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email} ({c.email})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-1 font-semibold">Only active customers (temp_delete = 0) are listed.</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <Button variant="ghost" className="flex-1" onClick={() => setShowCreateModal(false)} type="button" disabled={saving}>
+                        Cancel
+                      </Button>
+                      <Button variant="success" className="flex-1" type="submit" loading={saving}>
+                        Create & Assign
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function AssignedVouchersPage() {
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadVouchers = () => {
+    setLoading(true);
+    api.get('/api/vouchers')
+      .then(res => {
+        setVouchers(res.data || []);
+      })
+      .catch(err => {
+        console.error('Failed to load vouchers', err);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadVouchers();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Assigned Vouchers Tracker</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Monitor and track the usage of vouchers assigned to specific customer accounts.
+        </p>
+      </div>
+
+      <Card>
+        <div className="p-6">
+          <DataTable
+            columns={[
+              { key: 'customer_name', label: 'Customer Account', sortable: true, render: (item: any) => (
+                <div className="flex flex-col">
+                  <span className="font-bold text-slate-800 dark:text-white text-xs">{item.customer_name}</span>
+                  <span className="text-[10px] text-slate-450 font-medium">Customer ID: {item.customer_id}</span>
+                </div>
+              )},
+              { key: 'code', label: 'Assigned Voucher Code', render: (item: any) => (
+                <span className="font-mono bg-blue-500/10 dark:bg-blue-500/20 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 uppercase border border-blue-500/10">
+                  {item.code}
+                </span>
+              )},
+              { key: 'benefit', label: 'Discount Benefit', render: (item: any) => (
+                <span className="font-extrabold text-xs text-brand-green">
+                  {item.discount_type === 'percentage' ? `${item.discount_value}% Off` : `₱${item.discount_value} Off`}
+                </span>
+              )},
+              { key: 'status', label: 'Redemption Status', sortable: true, render: (item: any) => (
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase inline-block ${
+                  item.status === 'used'
+                    ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 animate-pulse'
+                }`}>
+                  {item.status || 'unused'}
+                </span>
+              )}
+            ]}
+            data={vouchers}
+            loading={loading}
+            searchPlaceholder="Search assigned vouchers..."
+            emptyTitle="No Assigned Vouchers"
+            emptyDescription="Assign a voucher code to a customer in the Vouchers section to begin tracking."
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {

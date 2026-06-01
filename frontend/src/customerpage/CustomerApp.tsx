@@ -1947,8 +1947,53 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
   const [referenceNumber, setReferenceNumber] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
 
+  // Voucher States
+  const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
+  const [appliedDiscount, setAppliedDiscount] = useState(0);
+  const [appliedVoucherId, setAppliedVoucherId] = useState('');
+
   // Calculate Cart Subtotals
   const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
+  const finalAmount = Math.max(0, totalAmount - appliedDiscount);
+
+  // Fetch available vouchers for this customer
+  useEffect(() => {
+    if (isOpen && profile?.id) {
+      api.get('/api/vouchers')
+        .then(res => {
+          const myVouchers = (res.data || []).filter(
+            (v: any) => v.customer_id === profile.id && v.status === 'unused'
+          );
+          setAvailableVouchers(myVouchers);
+        })
+        .catch(err => console.error('[CAVEMAN] Failed to load customer vouchers', err));
+    }
+  }, [isOpen, profile]);
+
+  // Validate and auto-apply voucher when typed or selected
+  useEffect(() => {
+    if (!voucherCode.trim()) {
+      setAppliedDiscount(0);
+      setAppliedVoucherId('');
+      return;
+    }
+    const match = availableVouchers.find(
+      v => v.code.toUpperCase() === voucherCode.toUpperCase().trim()
+    );
+    if (match) {
+      let discount = 0;
+      if (match.discount_type === 'percentage') {
+        discount = (totalAmount * match.discount_value) / 100;
+      } else {
+        discount = match.discount_value;
+      }
+      setAppliedDiscount(discount);
+      setAppliedVoucherId(match.id);
+    } else {
+      setAppliedDiscount(0);
+      setAppliedVoucherId('');
+    }
+  }, [voucherCode, availableVouchers, totalAmount]);
 
   // Prefill Address from Profile if available
   useEffect(() => {
@@ -2040,6 +2085,11 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
         });
       }
 
+      if (appliedVoucherId) {
+        console.log(`[CAVEMAN] Redeeming voucher ID: ${appliedVoucherId}`);
+        await api.patch(`/api/vouchers/${appliedVoucherId}/use`);
+      }
+
       console.log(`[CAVEMAN] Booking creation successful! Total bookings created: ${bookingsCreated.length}`);
       onSuccess(bookingsCreated);
       onClose();
@@ -2117,7 +2167,16 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                   📋 Show Booking Summary ({cart.length})
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold text-brand-green">₱{totalAmount}</span>
+                  <span className="text-sm font-extrabold text-brand-green">
+                    {appliedDiscount > 0 ? (
+                      <span className="flex items-center gap-1">
+                        <span className="line-through text-slate-400 text-[10px]">₱{totalAmount}</span>
+                        <span>₱{finalAmount}</span>
+                      </span>
+                    ) : (
+                      `₱${totalAmount}`
+                    )}
+                  </span>
                   <span className="text-slate-455 text-[10px] transition-transform duration-300">{summaryExpanded ? '▲' : '▼'}</span>
                 </div>
               </div>
@@ -2157,7 +2216,16 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
             <div className="hidden lg:block pt-4 mt-4 border-t border-slate-200 dark:border-slate-700/80">
               <div className="flex justify-between items-center">
                 <span className="text-xs md:text-sm font-bold text-slate-455 uppercase tracking-widest">Total Amount</span>
-                <span className="text-xl font-black text-brand-green">₱{totalAmount}</span>
+                <span className="text-xl font-black text-brand-green">
+                  {appliedDiscount > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <span className="line-through text-slate-400 text-sm">₱{totalAmount}</span>
+                      <span>₱{finalAmount}</span>
+                    </span>
+                  ) : (
+                    `₱${totalAmount}`
+                  )}
+                </span>
               </div>
             </div>
 
@@ -2360,7 +2428,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-455 text-xs sm:text-sm font-black">₱</span>
                         <input
                           type="text"
-                          value={totalAmount}
+                          value={finalAmount}
                           disabled
                           placeholder="Amount Paid (PHP)"
                           className="w-full pl-9 pr-4 py-2.5 sm:py-3 bg-slate-55 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm font-black focus:outline-none cursor-not-allowed"
@@ -2387,8 +2455,31 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                         value={voucherCode}
                         onChange={(e) => setVoucherCode(e.target.value)}
                         placeholder="Voucher Code (Optional)"
-                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 mb-2"
                       />
+                      {availableVouchers.length > 0 && (
+                        <div className="space-y-1.5 p-3 rounded-2xl bg-brand-navy/5 dark:bg-brand-navy/20 border border-brand-navy/10">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-brand-navy dark:text-brand-green">Your Available Vouchers</p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {availableVouchers.map(v => (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => {
+                                  setVoucherCode(v.code);
+                                }}
+                                className={`text-[10px] px-2.5 py-1 rounded-xl font-bold border transition-all ${
+                                  voucherCode.toUpperCase().trim() === v.code.toUpperCase()
+                                    ? 'bg-brand-green text-slate-900 border-brand-green'
+                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm'
+                                }`}
+                              >
+                                {v.code} ({v.discount_type === 'percentage' ? `${v.discount_value}%` : `₱${v.discount_value}`} Off)
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
