@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -2811,9 +2811,1512 @@ function ServicesManagementPage() {
     </div>
   );
 }
-function TransactionsPage() { return <PlaceholderPage title="Transactions" description="View all financial transactions across the platform." icon={<CreditCard className="w-8 h-8" />} />; }
+function TransactionsPage() {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Settings state
+  const [systemFeePercentage, setSystemFeePercentage] = useState<number>(10);
+  const [updatingFee, setUpdatingFee] = useState(false);
+  const [feeSuccess, setFeeSuccess] = useState(false);
+  
+  // Filters state
+  const [searchVendor, setSearchVendor] = useState('');
+  const [searchService, setSearchService] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  // Modal state
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  
+  // Personnel state for resolving assigned staff details
+  const [personnelList, setPersonnelList] = useState<any[]>([]);
 
-function PayoutsPage() { return <PlaceholderPage title="Payouts" description="Manage vendor and personnel payout schedules and history." icon={<CreditCard className="w-8 h-8" />} />; }
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      console.log('[CAVEMAN] TransactionsPage: loadData - Fetching transactions, settings, and personnel');
+      const [txRes, feeRes, personnelRes] = await Promise.all([
+        api.get('/api/admin/transactions'),
+        api.get('/api/admin/settings/system-fee'),
+        api.get('/api/personnel').catch(() => ({ data: [] }))
+      ]);
+      setTransactions(txRes.data || []);
+      if (feeRes.data && feeRes.data.percentage !== undefined) {
+        setSystemFeePercentage(feeRes.data.percentage);
+      }
+      setPersonnelList(personnelRes.data || []);
+      console.log('[CAVEMAN] TransactionsPage: loadData - Success. Loaded', txRes.data?.length, 'transactions');
+    } catch (err) {
+      console.error('[CAVEMAN] TransactionsPage: Failed to load data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleUpdateSystemFee = async () => {
+    setUpdatingFee(true);
+    setFeeSuccess(false);
+    try {
+      console.log('[CAVEMAN] TransactionsPage: Updating system fee to', systemFeePercentage);
+      const res = await api.post('/api/admin/settings/system-fee', { percentage: systemFeePercentage });
+      if (res.data.success || res.status === 200) {
+        setFeeSuccess(true);
+        setTimeout(() => setFeeSuccess(false), 3000);
+        // Reload transactions to recalculate with the new fee if historical fallback is triggered
+        const txRes = await api.get('/api/admin/transactions');
+        setTransactions(txRes.data || []);
+      }
+    } catch (err) {
+      console.error('[CAVEMAN] TransactionsPage: Failed to update system fee', err);
+    } finally {
+      setUpdatingFee(false);
+    }
+  };
+
+  const getPersonnelDetails = (pId: string) => {
+    if (!pId) return null;
+    return personnelList.find(p => p.id === pId || p.uid === pId);
+  };
+
+  const formatDate = (dateVal: any) => {
+    if (!dateVal) return '—';
+    if (dateVal.seconds) {
+      return new Date(dateVal.seconds * 1000).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+    }
+    const parsed = new Date(dateVal);
+    if (isNaN(parsed.getTime())) return String(dateVal);
+    return parsed.toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+  };
+
+  const formatCurrency = (val: any) => {
+    const num = Number(val);
+    return isNaN(num) ? '₱0.00' : `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Filter transactions
+  const filteredTransactions = transactions.filter(tx => {
+    if (searchVendor.trim()) {
+      const vName = (tx.vendor_name || '').toLowerCase();
+      if (!vName.includes(searchVendor.toLowerCase())) return false;
+    }
+    if (searchService.trim()) {
+      const sType = (tx.service_type || '').toLowerCase();
+      const subSvc = (tx.sub_service || '').toLowerCase();
+      const term = searchService.toLowerCase();
+      if (!sType.includes(term) && !subSvc.includes(term)) return false;
+    }
+    const txDate = tx.completed_at ? 
+      (tx.completed_at.seconds ? new Date(tx.completed_at.seconds * 1000) : new Date(tx.completed_at)) : null;
+    if (startDate && txDate) {
+      const start = new Date(startDate);
+      start.setHours(0,0,0,0);
+      if (txDate < start) return false;
+    }
+    if (endDate && txDate) {
+      const end = new Date(endDate);
+      end.setHours(23,59,59,999);
+      if (txDate > end) return false;
+    }
+    return true;
+  });
+
+  // Calculate analytics totals
+  const totalVolume = filteredTransactions.reduce((sum, tx) => sum + (tx.total_payment || 0), 0);
+  const totalFees = filteredTransactions.reduce((sum, tx) => sum + (tx.system_fee || 0), 0);
+  const totalEarnings = filteredTransactions.reduce((sum, tx) => sum + (tx.vendor_earnings || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Receipt className="w-6 h-6 text-brand-navy dark:text-brand-green" />
+            <span>Admin Transactions</span>
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Track completed services, system fee deductions, and service partner earnings.
+          </p>
+        </div>
+      </div>
+
+      {/* Settings Panel & Premium Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* System Fee Config */}
+        <Card className="lg:col-span-1 p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between animate-fadeIn">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+              <Wrench className="w-4 h-4 text-brand-navy dark:text-brand-green" />
+              <span>System Fee Configuration</span>
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal mb-4">
+              Set the commission fee percentage automatically applied on bookings.
+            </p>
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex-1">
+                <input 
+                  type="number" 
+                  value={systemFeePercentage} 
+                  onChange={(e) => setSystemFeePercentage(Math.max(0, Math.min(100, Number(e.target.value))))} 
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white pr-8 focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  disabled={updatingFee}
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">%</span>
+              </div>
+              <Button 
+                onClick={handleUpdateSystemFee} 
+                variant="success" 
+                loading={updatingFee}
+                className="whitespace-nowrap font-bold"
+              >
+                Apply Fee
+              </Button>
+            </div>
+            {feeSuccess && (
+              <p className="text-xs text-emerald-500 font-bold mt-2 flex items-center gap-1 animate-pulse">
+                <Check className="w-3.5 h-3.5" /> Updated system fee settings successfully!
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Dynamic Financial Overview */}
+        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <StatCard title="Completed Jobs" value={filteredTransactions.length} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
+          <StatCard title="Transactions Volume" value={formatCurrency(totalVolume)} icon={<TrendingUp className="w-5 h-5" />} color="green" />
+          <StatCard title="Fees Collected" value={formatCurrency(totalFees)} icon={<Receipt className="w-5 h-5" />} color="yellow" />
+          <div className="col-span-2 sm:col-span-1">
+            <StatCard title="Vendor Earnings" value={formatCurrency(totalEarnings)} icon={<DollarSign className="w-5 h-5" />} color="red" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Options */}
+      <Card className="p-5 border border-slate-200 dark:border-slate-800">
+        <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-2">
+          <Filter className="w-3.5 h-3.5" /> Filter Transactions
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Search Vendor Name..."
+              value={searchVendor}
+              onChange={(e) => setSearchVendor(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Search Service Category..."
+              value={searchService}
+              onChange={(e) => setSearchService(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+        </div>
+        {(searchVendor || searchService || startDate || endDate) && (
+          <div className="mt-3 flex justify-end">
+            <button 
+              onClick={() => { setSearchVendor(''); setSearchService(''); setStartDate(''); setEndDate(''); }}
+              className="text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+      </Card>
+
+      {/* Main Transactions List (Responsive: Desktop Table / Mobile Cards) */}
+      <Card className="border border-slate-200 dark:border-slate-800">
+        <div className="p-6">
+          {loading ? (
+            <div className="space-y-4">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="skeleton h-12 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <EmptyState 
+              title="No Completed Transactions Found" 
+              description="No bookings have been completed within the given search criteria yet." 
+              icon={<Receipt className="w-8 h-8 text-slate-400" />} 
+            />
+          ) : (
+            <>
+              {/* Desktop / Tablet Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold text-xs uppercase tracking-wider">
+                      <th className="py-4 px-4">Service</th>
+                      <th className="py-4 px-4">Vendor</th>
+                      <th className="py-4 px-4 text-right">Total Payment</th>
+                      <th className="py-4 px-4 text-right">System Fee</th>
+                      <th className="py-4 px-4 text-center">Date Completed</th>
+                      <th className="py-4 px-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((tx) => (
+                      <tr 
+                        key={tx.id} 
+                        className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-850 dark:text-white">{tx.sub_service || tx.service_type}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{tx.service_type}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">{tx.vendor_name || '—'}</span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className="font-extrabold text-brand-green">{formatCurrency(tx.total_payment)}</span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-bold text-brand-navy dark:text-brand-green">{formatCurrency(tx.system_fee)}</span>
+                            <span className="text-[9px] text-slate-400 font-semibold">({tx.system_fee_percentage}%)</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-xs font-semibold text-slate-650 dark:text-slate-400">{formatDate(tx.completed_at)}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setSelectedTx(tx)}
+                            icon={<Eye className="w-4 h-4" />}
+                            className="inline-flex text-brand-navy dark:text-brand-green hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5"
+                          >
+                            View Details
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View (Vertical stacked cards optimized for touch screens) */}
+              <div className="block sm:hidden space-y-4">
+                {filteredTransactions.map((tx) => (
+                  <div 
+                    key={tx.id}
+                    className="p-4 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/25 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{tx.service_type}</span>
+                        <h5 className="font-bold text-slate-905 dark:text-white text-sm">{tx.sub_service || tx.service_type}</h5>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-450 dark:text-slate-500">{formatDate(tx.completed_at)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
+                      <div>
+                        <p className="text-slate-400 font-semibold mb-0.5">Vendor Partner</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-300 truncate">{tx.vendor_name || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold mb-0.5">Total Payment</p>
+                        <p className="font-extrabold text-brand-green text-sm">{formatCurrency(tx.total_payment)}</p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">System Fee Deduction</p>
+                        <p className="font-bold text-brand-navy dark:text-brand-green">
+                          {formatCurrency(tx.system_fee)} <span className="text-[9px] text-slate-400">({tx.system_fee_percentage}%)</span>
+                        </p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">Vendor Net Earnings</p>
+                        <p className="font-bold text-emerald-500">{formatCurrency(tx.vendor_earnings)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={() => setSelectedTx(tx)}
+                        variant="ghost" 
+                        size="sm" 
+                        icon={<Eye className="w-4 h-4" />}
+                        className="text-brand-navy dark:text-brand-green font-bold text-xs"
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      {/* Transaction Details Modal */}
+      <AnimatePresence>
+        {selectedTx && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setSelectedTx(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-850/50">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Details</span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">Booking Ref: #{selectedTx.id}</h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedTx(null)} 
+                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-450 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-slate-650 dark:text-slate-400">
+                
+                {/* Section 1: Booking & Partner Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Service Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Wrench className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Service Description
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Service Type:</span> {selectedTx.service_type}</p>
+                      <p><span className="font-semibold">Sub-service:</span> {selectedTx.sub_service || '—'}</p>
+                      <p><span className="font-semibold">Preferred Schedule:</span> 📅 {selectedTx.scheduled_date} at ⏰ {selectedTx.scheduled_time}</p>
+                      <p><span className="font-semibold">Address:</span> {selectedTx.address || selectedTx.service_address || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Users className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Customer Details
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Name:</span> {selectedTx.customer_name || '—'}</p>
+                      <p><span className="font-semibold">User Account:</span> {selectedTx.customer_id || '—'}</p>
+                      <p><span className="font-semibold">GCash Number:</span> {selectedTx.payment_reference ? selectedTx.payment_reference.substring(0, 11) : '—'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Partner & Personnel */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Vendor Info */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <Building2 className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Vendor Partner
+                    </h5>
+                    <div className="space-y-1">
+                      <p><span className="font-semibold">Company:</span> {selectedTx.vendor_name || '—'}</p>
+                      <p><span className="font-semibold">Vendor ID:</span> {selectedTx.vendor_id || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Assigned Personnel */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center gap-1.5 font-bold">
+                      <User className="w-3.5 h-3.5 text-brand-navy dark:text-brand-green" /> Service Personnel Assigned
+                    </h5>
+                    {selectedTx.personnel_id ? (
+                      (() => {
+                        const staff = getPersonnelDetails(selectedTx.personnel_id);
+                        return (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">Staff Name:</span> {staff ? `${staff.first_name || ''} ${staff.last_name || ''}`.trim() : 'Unknown Personnel'}</p>
+                            <p><span className="font-semibold">Username:</span> {staff?.username || '—'}</p>
+                            <p><span className="font-semibold">Phone:</span> {staff?.phone || '—'}</p>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-xs italic text-slate-450 font-bold">No dedicated personnel was assigned to this booking.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 3: Financial Payment Breakdown */}
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-150 dark:border-slate-800/60">
+                  <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-1.5 font-bold">
+                    Financial Summary Breakdown
+                  </h5>
+                  
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    {/* Item price / qty */}
+                    <div className="flex justify-between font-medium">
+                      <span>Unit Price (₱{selectedTx.price || '0.00'} × {selectedTx.quantity || 1})</span>
+                      <span className="text-slate-800 dark:text-slate-250 font-bold">
+                        {formatCurrency((selectedTx.price || 0) * (selectedTx.quantity || 1))}
+                      </span>
+                    </div>
+
+                    {/* Discount details */}
+                    {selectedTx.discount_amount > 0 && (
+                      <div className="flex justify-between font-medium text-brand-green">
+                        <span className="flex items-center gap-1.5">
+                          Voucher Discounted ({selectedTx.voucher_code})
+                        </span>
+                        <span className="font-bold">-{formatCurrency(selectedTx.discount_amount)}</span>
+                      </div>
+                    )}
+
+                    {/* Total payment */}
+                    <div className="flex justify-between font-bold border-t border-dashed border-slate-250 dark:border-slate-700 pt-2.5 text-sm">
+                      <span className="text-slate-900 dark:text-white">Customer Total Payment</span>
+                      <span className="text-brand-green text-base">{formatCurrency(selectedTx.total_payment)}</span>
+                    </div>
+
+                    {/* System Fee percentage and deduction */}
+                    <div className="flex justify-between font-bold text-rose-500 pt-1">
+                      <span>Platform Fee Deducted ({selectedTx.system_fee_percentage}%)</span>
+                      <span>-{formatCurrency(selectedTx.system_fee)}</span>
+                    </div>
+
+                    {/* Vendor Net earnings */}
+                    <div className="flex justify-between font-black text-emerald-500 border-t border-slate-200 dark:border-slate-700 pt-2.5 text-base sm:text-lg bg-emerald-500/5 dark:bg-emerald-500/10 p-2 rounded-xl">
+                      <span>Vendor Partner Earnings</span>
+                      <span>{formatCurrency(selectedTx.vendor_earnings)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date completed tracking */}
+                <div className="text-right text-[11px] text-slate-450 font-bold">
+                  Payment Confirmed Ref: {selectedTx.payment_reference || 'GCASH'} • Date Logged: {formatDate(selectedTx.completed_at)}
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end">
+                <Button onClick={() => setSelectedTx(null)} variant="ghost" className="font-bold">Close details</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PayoutsPage() {
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Modal toggles
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  const [selectedPayout, setSelectedPayout] = useState<any | null>(null);
+  
+  // Form elements
+  const [vendorId, setVendorId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [month, setMonth] = useState('');
+  const [payoutDate, setPayoutDate] = useState('');
+  const [checkNumber, setCheckNumber] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [status, setStatus] = useState('Pending');
+  
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Filters state
+  const [searchVendor, setSearchVendor] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      console.log('[CAVEMAN] PayoutsPage: loadData - Loading payouts and vendors');
+      const [payoutsRes, vendorsRes] = await Promise.all([
+        api.get('/api/admin/payouts'),
+        api.get('/api/vendors').catch(() => ({ data: [] }))
+      ]);
+      setPayouts(payoutsRes.data || []);
+      setVendors(vendorsRes.data || []);
+      console.log('[CAVEMAN] PayoutsPage: loadData - Loaded', payoutsRes.data?.length, 'payouts');
+    } catch (err) {
+      console.error('[CAVEMAN] PayoutsPage: Failed to load data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError('');
+    console.log('[CAVEMAN] PayoutsPage: Uploading supporting document:', file.name);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await api.post('/api/upload/image', {
+          image: base64,
+          folder: 'payouts'
+        });
+        setAttachmentUrl(res.data.url);
+        console.log('[CAVEMAN] PayoutsPage: Upload success. URL:', res.data.url);
+      } catch (err: any) {
+        console.error('[CAVEMAN] PayoutsPage: Upload failed', err);
+        setError('Failed to upload attachment. Please try again.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreatePayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!vendorId) {
+      setError('Please select a vendor.');
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      setError('Please enter a valid payout amount.');
+      return;
+    }
+    if (!month.trim()) {
+      setError('Please specify the month (e.g., June 2026).');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const selectedVendor = vendors.find(v => v.id === vendorId);
+      const payload = {
+        vendor_id: vendorId,
+        vendor_name: selectedVendor ? (selectedVendor.company_name || selectedVendor.name) : 'Unknown Vendor',
+        amount: Number(amount),
+        month: month.trim(),
+        check_number: checkNumber.trim() || '—',
+        attachment: attachmentUrl,
+        status: status,
+        payout_date: payoutDate ? new Date(payoutDate) : new Date()
+      };
+
+      console.log('[CAVEMAN] PayoutsPage: Creating payout payload:', payload);
+      await api.post('/api/admin/payouts', payload);
+      setShowCreateModal(false);
+      
+      // Reset form
+      setVendorId('');
+      setAmount('');
+      setMonth('');
+      setPayoutDate('');
+      setCheckNumber('');
+      setAttachmentUrl('');
+      setStatus('Pending');
+
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] PayoutsPage: Save failed', err);
+      setError(err?.response?.data?.message || 'Failed to create payout.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditClick = (payout: any) => {
+    setSelectedPayout(payout);
+    setVendorId(payout.vendor_id);
+    setAmount(String(payout.amount));
+    setMonth(payout.month);
+    
+    // Formatting date
+    let rawDate = '';
+    if (payout.payout_date) {
+      if (payout.payout_date.seconds) {
+        rawDate = new Date(payout.payout_date.seconds * 1000).toISOString().split('T')[0];
+      } else {
+        const parsed = new Date(payout.payout_date);
+        if (!isNaN(parsed.getTime())) {
+          rawDate = parsed.toISOString().split('T')[0];
+        }
+      }
+    }
+    setPayoutDate(rawDate);
+    setCheckNumber(payout.check_number !== '—' ? payout.check_number : '');
+    setAttachmentUrl(payout.attachment || '');
+    setStatus(payout.status || 'Pending');
+    
+    setError('');
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!amount || Number(amount) <= 0) {
+      setError('Please enter a valid payout amount.');
+      return;
+    }
+    if (!month.trim()) {
+      setError('Please specify the month.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const selectedVendor = vendors.find(v => v.id === vendorId);
+      const payload = {
+        vendor_id: vendorId,
+        vendor_name: selectedVendor ? (selectedVendor.company_name || selectedVendor.name) : 'Unknown Vendor',
+        amount: Number(amount),
+        month: month.trim(),
+        check_number: checkNumber.trim() || '—',
+        attachment: attachmentUrl,
+        status: status,
+        payout_date: payoutDate ? new Date(payoutDate) : new Date()
+      };
+
+      console.log('[CAVEMAN] PayoutsPage: Updating payout ID', selectedPayout.id, payload);
+      await api.put(`/api/admin/payouts/${selectedPayout.id}`, payload);
+      setShowEditModal(false);
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] PayoutsPage: Update failed', err);
+      setError(err?.response?.data?.message || 'Failed to update payout.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePayout = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this payout schedule record?')) {
+      try {
+        console.log('[CAVEMAN] PayoutsPage: Deleting payout ID', id);
+        await api.delete(`/api/admin/payouts/${id}`);
+        setPayouts(prev => prev.filter(p => p.id !== id));
+      } catch (err) {
+        console.error('[CAVEMAN] PayoutsPage: Delete failed', err);
+      }
+    }
+  };
+
+  const handleQuickStatusChange = async (id: string, newStatus: string) => {
+    try {
+      console.log('[CAVEMAN] PayoutsPage: Quick updating status payout ID', id, 'to', newStatus);
+      await api.patch(`/api/admin/payouts/${id}/status`, { status: newStatus });
+      setPayouts(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+    } catch (err) {
+      console.error('[CAVEMAN] PayoutsPage: Status update failed', err);
+    }
+  };
+
+  const formatDate = (dateVal: any) => {
+    if (!dateVal) return '—';
+    if (dateVal.seconds) {
+      return new Date(dateVal.seconds * 1000).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+    }
+    const parsed = new Date(dateVal);
+    if (isNaN(parsed.getTime())) return String(dateVal);
+    return parsed.toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+  };
+
+  const formatCurrency = (val: any) => {
+    const num = Number(val);
+    return isNaN(num) ? '₱0.00' : `₱${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Filter payouts
+  const filteredPayouts = payouts.filter(p => {
+    if (searchVendor.trim()) {
+      const vName = (p.vendor_name || '').toLowerCase();
+      if (!vName.includes(searchVendor.toLowerCase())) return false;
+    }
+    if (filterMonth.trim()) {
+      const m = (p.month || '').toLowerCase();
+      if (!m.includes(filterMonth.toLowerCase())) return false;
+    }
+    if (filterStatus.trim()) {
+      const s = (p.status || '').toLowerCase();
+      if (s !== filterStatus.toLowerCase()) return false;
+    }
+    return true;
+  });
+
+  // Calculate payout statistics
+  const totalPayouts = filteredPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const pendingPayouts = filteredPayouts.filter(p => p.status === 'Pending').reduce((sum, p) => sum + (p.amount || 0), 0);
+  const paidPayouts = filteredPayouts.filter(p => p.status === 'Paid').reduce((sum, p) => sum + (p.amount || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <CreditCard className="w-6 h-6 text-brand-navy dark:text-brand-green" />
+            <span>Payout Management</span>
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Log, assign, and track GCash or Bank payout logs and receipts for service providers.
+          </p>
+        </div>
+        <Button 
+          onClick={() => {
+            setVendorId('');
+            setAmount('');
+            setMonth('');
+            setPayoutDate(new Date().toISOString().split('T')[0]);
+            setCheckNumber('');
+            setAttachmentUrl('');
+            setStatus('Pending');
+            setError('');
+            setShowCreateModal(true);
+          }}
+          icon={<Plus className="w-4 h-4" />}
+          className="bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-brand-green dark:text-slate-900 font-bold self-start sm:self-auto shadow-sm"
+        >
+          Record Payout
+        </Button>
+      </div>
+
+      {/* Payout Stats Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Total Payouts Logged" value={formatCurrency(totalPayouts)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
+        <StatCard title="Paid Payouts" value={formatCurrency(paidPayouts)} icon={<CheckCircle2 className="w-5 h-5" />} color="green" />
+        <StatCard title="Pending Review" value={formatCurrency(pendingPayouts)} icon={<Clock className="w-5 h-5" />} color="yellow" />
+      </div>
+
+      {/* Filters Bar */}
+      <Card className="p-5 border border-slate-200 dark:border-slate-800">
+        <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-2">
+          <Filter className="w-3.5 h-3.5" /> Filter Payout Schedules
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Search Vendor Name..."
+              value={searchVendor}
+              onChange={(e) => setSearchVendor(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Filter Month (e.g. June 2026)..."
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy text-slate-805 dark:text-white"
+            >
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
+              <option value="Paid">Paid</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        {(searchVendor || filterMonth || filterStatus) && (
+          <div className="mt-3 flex justify-end">
+            <button 
+              onClick={() => { setSearchVendor(''); setFilterMonth(''); setFilterStatus(''); }}
+              className="text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+      </Card>
+
+      {/* Main Payouts Table / Mobile Cards */}
+      <Card className="border border-slate-200 dark:border-slate-800">
+        <div className="p-6">
+          {loading ? (
+            <div className="space-y-4">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="skeleton h-12 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredPayouts.length === 0 ? (
+            <EmptyState 
+              title="No Payout Logs Found" 
+              description="No payout transactions match your selected search filters." 
+              icon={<CreditCard className="w-8 h-8 text-slate-400" />} 
+            />
+          ) : (
+            <>
+              {/* Desktop view table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold text-xs uppercase tracking-wider">
+                      <th className="py-4 px-4">Date of Payout</th>
+                      <th className="py-4 px-4">Vendor Partner</th>
+                      <th className="py-4 px-4 text-right">Amount</th>
+                      <th className="py-4 px-4 text-center">Month Of</th>
+                      <th className="py-4 px-4 text-center">Check/Ref No</th>
+                      <th className="py-4 px-4 text-center">Attachment</th>
+                      <th className="py-4 px-4 text-center">Status</th>
+                      <th className="py-4 px-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPayouts.map((p) => (
+                      <tr 
+                        key={p.id}
+                        className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                      >
+                        <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-355">
+                          {formatDate(p.payout_date)}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="font-bold text-slate-900 dark:text-white">{p.vendor_name}</span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className="font-extrabold text-brand-green">{formatCurrency(p.amount)}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center font-semibold text-slate-600 dark:text-slate-400">
+                          {p.month}
+                        </td>
+                        <td className="py-4 px-4 text-center font-mono text-xs font-semibold text-slate-850 dark:text-slate-300">
+                          {p.check_number || '—'}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          {p.attachment ? (
+                            <a 
+                              href={p.attachment} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="text-xs font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center justify-center gap-1"
+                            >
+                              <FileText className="w-3.5 h-3.5" /> View Proof
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">No document</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <select
+                            value={p.status}
+                            onChange={(e) => handleQuickStatusChange(p.id, e.target.value)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase inline-block border focus:outline-none cursor-pointer ${
+                              p.status === 'Paid'
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                : p.status === 'Processing'
+                                ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                : p.status === 'Cancelled'
+                                ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                            }`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                              icon={<Eye className="w-3.5 h-3.5" />}
+                              className="text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 p-1"
+                            >{""}</Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditClick(p)}
+                              icon={<Edit className="w-3.5 h-3.5" />}
+                              className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 p-1"
+                            >{""}</Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeletePayout(p.id)}
+                              icon={<Trash2 className="w-3.5 h-3.5" />}
+                              className="text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1"
+                            >{""}</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile / Tablet cards list view */}
+              <div className="block md:hidden space-y-4">
+                {filteredPayouts.map((p) => (
+                  <div 
+                    key={p.id}
+                    className="p-4 rounded-2xl border border-slate-150 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-800/25 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Month: {p.month}</span>
+                        <h5 className="font-bold text-slate-905 dark:text-white text-sm">{p.vendor_name}</h5>
+                      </div>
+                      
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase ${
+                        p.status === 'Paid'
+                          ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          : p.status === 'Processing'
+                          ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                          : p.status === 'Cancelled'
+                          ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                          : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
+                      <div>
+                        <p className="text-slate-400 font-semibold mb-0.5">Date of Payout</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-350">{formatDate(p.payout_date)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold mb-0.5">Payout Amount</p>
+                        <p className="font-extrabold text-brand-green text-sm">{formatCurrency(p.amount)}</p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">Check / Ref No</p>
+                        <p className="font-mono font-bold text-slate-800 dark:text-slate-300">{p.check_number || '—'}</p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-slate-400 font-semibold mb-0.5">Supporting proof</p>
+                        {p.attachment ? (
+                          <a 
+                            href={p.attachment} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1 mt-0.5"
+                          >
+                            <FileText className="w-3 h-3" /> View Attachment
+                          </a>
+                        ) : (
+                          <p className="text-slate-400 italic">No document uploaded</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1">
+                      {/* Inline status select for mobile */}
+                      <div>
+                        <select 
+                          value={p.status} 
+                          onChange={(e) => handleQuickStatusChange(p.id, e.target.value)}
+                          className="text-[10px] font-bold bg-white dark:bg-slate-805 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Processing">Processing</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => { setSelectedPayout(p); setShowDetailsModal(true); }}
+                          variant="ghost" 
+                          size="sm" 
+                          icon={<Eye className="w-4 h-4" />}
+                          className="text-slate-550 dark:text-slate-400 p-1"
+                        >{""}</Button>
+                        <Button 
+                          onClick={() => handleEditClick(p)}
+                          variant="ghost" 
+                          size="sm" 
+                          icon={<Edit className="w-4 h-4" />}
+                          className="text-orange-500 p-1"
+                        >{""}</Button>
+                        <Button 
+                          onClick={() => handleDeletePayout(p.id)}
+                          variant="ghost" 
+                          size="sm" 
+                          icon={<Trash2 className="w-4 h-4" />}
+                          className="text-rose-500 p-1"
+                        >{""}</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      {/* Record Payout Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowCreateModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <form onSubmit={handleCreatePayout}>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Vendor Payout</h3>
+                    <p className="text-xs text-slate-400 font-bold">Log financial payout transfers and check sheets</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowCreateModal(false)} 
+                    className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex gap-2 items-center animate-fadeIn">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                  {/* Vendor Dropdown */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Select Vendor Partner *</label>
+                    <select
+                      value={vendorId}
+                      onChange={(e) => setVendorId(e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Choose partner...</option>
+                      {vendors.map(v => (
+                        <option key={v.id} value={v.id}>{v.company_name || v.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Amount and Month */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Amount (₱) *</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 8500"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">For The Month Of *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. June 2026"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date and Check Number */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date</label>
+                      <input
+                        type="date"
+                        value={payoutDate}
+                        onChange={(e) => setPayoutDate(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Check / GCash Ref No</label>
+                      <input
+                        type="text"
+                        placeholder="Ref/Check number"
+                        value={checkNumber}
+                        onChange={(e) => setCheckNumber(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-805 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Processing">Processing</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Supporting proof document file upload */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof / Receipt</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf" 
+                        onChange={handleUploadFile}
+                        id="payout-file-create"
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                      <label 
+                        htmlFor="payout-file-create"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
+                      </label>
+                      <span className="text-xs text-slate-400 truncate max-w-[200px]">
+                        {attachmentUrl ? '✓ File loaded' : 'No document chosen'}
+                      </span>
+                    </div>
+                    {attachmentUrl && (
+                      <div className="mt-2 text-xs font-semibold text-emerald-500 flex items-center gap-1 animate-pulse">
+                        <Check className="w-3 h-3" /> Supporting file attached successfully!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex gap-3">
+                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Record Payout</Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Payout Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowEditModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <form onSubmit={handleUpdatePayout}>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Payout Details</h3>
+                    <p className="text-xs text-slate-400 font-bold">Update check sheets and attachments</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowEditModal(false)} 
+                    className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex gap-2 items-center animate-fadeIn">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                  {/* Vendor Name (Disabled) */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Vendor Partner</label>
+                    <input 
+                      type="text" 
+                      value={vendors.find(v => v.id === vendorId)?.company_name || 'Vendor'} 
+                      disabled 
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 dark:text-slate-400 text-sm font-semibold cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Amount and Month */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Amount (₱) *</label>
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">For The Month Of *</label>
+                      <input
+                        type="text"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-850 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date and Check Number */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Date</label>
+                      <input
+                        type="date"
+                        value={payoutDate}
+                        onChange={(e) => setPayoutDate(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Check / GCash Ref No</label>
+                      <input
+                        type="text"
+                        value={checkNumber}
+                        onChange={(e) => setCheckNumber(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Payout Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Processing">Processing</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Supporting proof document file upload */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof / Receipt</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf" 
+                        onChange={handleUploadFile}
+                        id="payout-file-edit"
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                      <label 
+                        htmlFor="payout-file-edit"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
+                      </label>
+                      <span className="text-xs text-slate-400 truncate max-w-[200px]">
+                        {attachmentUrl ? '✓ File loaded' : 'No document chosen'}
+                      </span>
+                    </div>
+                    {attachmentUrl && (
+                      <div className="mt-2 text-xs font-semibold text-emerald-500 flex items-center gap-1 animate-pulse">
+                        <Check className="w-3 h-3" /> Supporting file attached successfully!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex gap-3">
+                  <Button type="button" variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)}>Cancel</Button>
+                  <Button type="submit" variant="success" className="flex-1 font-bold shadow-sm" loading={saving}>Save Changes</Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payout Details Modal */}
+      <AnimatePresence>
+        {showDetailsModal && selectedPayout && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setShowDetailsModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payout Details</span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{selectedPayout.vendor_name}</h3>
+                </div>
+                <button 
+                  onClick={() => setShowDetailsModal(false)} 
+                  className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-450"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 text-sm text-slate-650 dark:text-slate-400">
+                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">For Month Of</span>
+                    <p className="font-bold text-slate-800 dark:text-white text-base mt-0.5">{selectedPayout.month}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Payout Date</span>
+                    <p className="font-bold text-slate-800 dark:text-white text-base mt-0.5">{formatDate(selectedPayout.payout_date)}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Payout Amount</span>
+                    <p className="font-black text-brand-green text-lg mt-0.5">{formatCurrency(selectedPayout.amount)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Check / GCash Ref No</span>
+                    <p className="font-bold text-slate-800 dark:text-white mt-0.5 font-mono">{selectedPayout.check_number || '—'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Status</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase inline-block border ${
+                    selectedPayout.status === 'Paid'
+                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                      : selectedPayout.status === 'Processing'
+                      ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse'
+                      : selectedPayout.status === 'Cancelled'
+                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                      : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                  }`}>
+                    {selectedPayout.status}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Supporting Receipt/Proof Document</span>
+                  {selectedPayout.attachment ? (
+                    <div className="space-y-3">
+                      <a 
+                        href={selectedPayout.attachment} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-sm font-extrabold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1.5"
+                      >
+                        <FileText className="w-4 h-4" /> Open Supporting Receipt Document
+                      </a>
+                      
+                      {selectedPayout.attachment.match(/\.(jpeg|jpg|gif|png|webp)/i) || !selectedPayout.attachment.includes('.') ? (
+                        <div className="w-full h-48 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-55 dark:bg-slate-900">
+                          <img src={selectedPayout.attachment} alt="Receipt proof" className="w-full h-full object-contain" />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-slate-400 italic font-semibold">No supporting transfer proof document was logged.</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end">
+                <Button onClick={() => setShowDetailsModal(false)} variant="ghost" className="font-bold">Close details</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function VouchersPage() {
   const [vouchers, setVouchers] = useState<any[]>([]);

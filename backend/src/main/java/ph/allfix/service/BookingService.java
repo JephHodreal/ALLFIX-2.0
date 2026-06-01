@@ -84,11 +84,43 @@ public class BookingService {
     }
 
     public void completeBooking(String bookingId) throws Exception {
-        firestoreService.updateField("bookings", bookingId, "status", "completed");
+        System.out.println("[CAVEMAN] BookingService.completeBooking: completing bookingId=" + bookingId);
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
+
+        // Fetch current system fee percentage
+        double percentage = 10.0; // Default
+        try {
+            Map<String, Object> setting = firestoreService.getById("settings", "system_fee");
+            if (setting != null && setting.get("percentage") != null) {
+                percentage = ((Number) setting.get("percentage")).doubleValue();
+                System.out.println("[CAVEMAN] BookingService.completeBooking: fetched configured system fee percentage: " + percentage + "%");
+            } else {
+                System.out.println("[CAVEMAN] BookingService.completeBooking: system fee setting not found, using default 10.0%");
+            }
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error fetching system fee setting, using default 10%: " + e.getMessage());
+        }
+
+        double price = booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() : 0.0;
+        double quantity = booking.get("quantity") != null ? ((Number) booking.get("quantity")).doubleValue() : 1.0;
+        double totalPrice = booking.get("total_price") != null ? ((Number) booking.get("total_price")).doubleValue() : (price * quantity);
         
+        double systemFee = price * quantity * (percentage / 100.0);
+        double vendorEarnings = totalPrice - systemFee;
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "completed");
+        updates.put("completed_at", new Date());
+        updates.put("system_fee_percentage", percentage);
+        updates.put("system_fee", systemFee);
+        updates.put("vendor_earnings", vendorEarnings);
+        
+        firestoreService.update("bookings", bookingId, updates);
+        System.out.println("[CAVEMAN] BookingService.completeBooking: booking status set to completed, systemFee=" + systemFee + ", vendorEarnings=" + vendorEarnings);
+
         handleSlotDecrementForBooking(bookingId);
 
-        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) notificationService.notify(customerId, "customer", "Your booking has been completed! Please leave a review.");
     }
