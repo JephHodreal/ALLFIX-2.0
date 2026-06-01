@@ -222,10 +222,6 @@ export default function LoginPage() {
             Don't have an account?{' '}
             <Link to={ROUTES.register} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Create one</Link>
           </p>
-          <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
-            Are you a service provider?{' '}
-            <Link to={ROUTES.vendorRegister} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Register as a Vendor</Link>
-          </p>
         </motion.div>
       </div>
     </div>
