@@ -3770,10 +3770,9 @@ function PayoutsPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard title="Pending Payout Volume" value={formatCurrency(totalVolume)} icon={<TrendingUp className="w-5 h-5" />} color="navy" />
         <StatCard title="Eligible Payout Jobs" value={totalRecords} icon={<ClipboardList className="w-5 h-5" />} color="green" />
-        <StatCard title="Average Pending Payout" value={formatCurrency(avgPayout)} icon={<Receipt className="w-5 h-5" />} color="yellow" />
       </div>
 
       {/* Filters Bar */}
@@ -3901,15 +3900,6 @@ function PayoutsPage() {
                             >
                               Payout
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setSelectedTx(tx)}
-                              icon={<Eye className="w-4 h-4" />}
-                              className="inline-flex text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
-                            >
-                              View Details
-                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -3963,15 +3953,6 @@ function PayoutsPage() {
                         className="text-brand-navy dark:text-brand-green font-bold text-xs"
                       >
                         Payout
-                      </Button>
-                      <Button 
-                        onClick={() => setSelectedTx(tx)}
-                        variant="ghost" 
-                        size="sm" 
-                        icon={<Eye className="w-4 h-4" />}
-                        className="text-slate-550 dark:text-slate-400 font-bold text-xs"
-                      >
-                        View Details
                       </Button>
                     </div>
                   </div>
