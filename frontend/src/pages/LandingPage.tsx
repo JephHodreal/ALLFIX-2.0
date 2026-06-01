@@ -288,7 +288,7 @@ const LandingPage = () => {
       if (role === 'customer') {
         navigate('/customer/book');
       } else {
-        navigate(role === 'admin' ? '/admin' : role === 'vendor' ? '/vendor' : '/personnel');
+        navigate(role === 'admin' ? '/admin/bookings' : role === 'vendor' ? '/vendor/bookings' : '/personnel/bookings');
       }
     } else {
       navigate('/login');

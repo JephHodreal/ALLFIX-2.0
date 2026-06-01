@@ -89,10 +89,10 @@ export default function LoginPage() {
       const tokenResult = await user.getIdTokenResult();
       const role = (tokenResult.claims.role as UserRole) || 'customer';
       const routes: Record<UserRole, string> = {
-        admin: '/admin/services',
-        customer: ROUTES.customer,
-        vendor: '/vendor/services',
-        personnel: ROUTES.personnel
+        admin: '/admin/bookings',
+        customer: '/customer/bookings',
+        vendor: '/vendor/bookings',
+        personnel: '/personnel/bookings'
       };
 
       // Call login-success to update last_login timestamp

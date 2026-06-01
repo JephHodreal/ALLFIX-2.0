@@ -17,10 +17,10 @@ const PrivacyPolicy = () => {
 
       <Box sx={{ bgcolor: 'grey.100', minHeight: '100vh', width: '100%' }}>
         
-        {/* Hero Section - 50vh */}
+        {/* Hero Section - 35vh */}
         <Box sx={{ 
           position: 'relative',
-          minHeight: '50vh',
+          minHeight: '35vh',
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
@@ -77,29 +77,19 @@ const PrivacyPolicy = () => {
             }}
           />
 
-          <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Box
-              component="img"
-              src="/dpo-certificate.jpg"
-              alt="DPO/DPS Certificate"
-              sx={{
-                maxWidth: { xs: '200px', sm: '280px', md: '350px' },
-                maxHeight: '400px',
-                objectFit: 'contain',
-              }}
-            />
+          <Container maxWidth="md" sx={{ position: 'relative', zIndex: 10, textAlign: 'center' }}>
+            <Typography variant="h2" fontWeight="900" color="white" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' }, lineHeight: 1.2, mb: 2, letterSpacing: '-0.02em' }}>
+              Privacy & Policy
+            </Typography>
+            <Typography sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: { xs: '1rem', md: '1.1rem' }, lineHeight: 1.6, maxWidth: '600px', mx: 'auto' }}>
+              We're committed to protecting your privacy and being transparent about how we collect and use your data.
+            </Typography>
           </Container>
         </Box>
 
         {/* Privacy Policy Content - White Section */}
-        <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: 'white', width: '100%' }}>
+        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: 'white', width: '100%' }}>
           <Container maxWidth="md">
-            <Typography variant="h2" fontWeight="900" color="#10355f" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' }, lineHeight: 1.2, mb: 2, letterSpacing: '-0.02em', textAlign: 'center' }}>
-              Privacy & Policy
-            </Typography>
-            <Typography sx={{ color: '#555', fontSize: { xs: '1rem', md: '1.1rem' }, lineHeight: 1.6, maxWidth: '600px', mx: 'auto', mb: 6, textAlign: 'center' }}>
-              We're committed to protecting your privacy and being transparent about how we collect and use your data.
-            </Typography>
             
             <Section title="1. Introduction">
               <Typography sx={{ mb: 2 }}>

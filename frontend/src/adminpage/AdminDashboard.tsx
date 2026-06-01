@@ -1316,7 +1316,6 @@ function BookingsTab() {
                   className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
                 >
                   <option value="GCash">GCash</option>
-                  <option value="Dragonpay">Dragonpay</option>
                 </select>
               </div>
 
@@ -2328,7 +2327,7 @@ export default function AdminDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<Navigate to="bookings" replace />} />
+            <Route index element={<DashboardHome />} />
             {/* Overview */}
             <Route path="calendar" element={<CalendarPage />} />
             {/* Communications */}

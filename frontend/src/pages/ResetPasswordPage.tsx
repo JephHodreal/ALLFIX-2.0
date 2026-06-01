@@ -75,10 +75,10 @@ export default function ResetPasswordPage() {
       setTimeout(async () => {
         const updatedProfile = await refreshProfile();
         const roleRoutes: Record<UserRole, string> = {
-          admin: '/admin/services',
-          customer: ROUTES.customer,
-          vendor: '/vendor/services',
-          personnel: ROUTES.personnel,
+          admin: '/admin/bookings',
+          customer: '/customer/bookings',
+          vendor: '/vendor/bookings',
+          personnel: '/personnel/bookings',
         };
         navigate(roleRoutes[(updatedProfile?.role || role || 'customer') as UserRole] || ROUTES.customer);
       }, 2000);

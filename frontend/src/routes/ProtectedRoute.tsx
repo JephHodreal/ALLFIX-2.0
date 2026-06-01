@@ -41,10 +41,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   // Access reset-password page only when required
   if (!profile?.requires_password_reset && location.pathname === '/reset-password') {
     const roleRoutes: Record<UserRole, string> = {
-      admin: '/admin/services',
-      customer: '/customer',
-      vendor: '/vendor/services',
-      personnel: ROUTES.personnel,
+      admin: '/admin/bookings',
+      customer: '/customer/bookings',
+      vendor: '/vendor/bookings',
+      personnel: '/personnel/bookings',
     };
     return <Navigate to={roleRoutes[role || 'customer']} replace />;
   }
@@ -52,10 +52,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   // Wrong role → redirect to their correct dashboard
   if (role && !allowedRoles.includes(role)) {
     const roleRoutes: Record<UserRole, string> = {
-      admin: '/admin/services',
-      customer: '/customer',
-      vendor: '/vendor/services',
-      personnel: ROUTES.personnel,
+      admin: '/admin/bookings',
+      customer: '/customer/bookings',
+      vendor: '/vendor/bookings',
+      personnel: '/personnel/bookings',
     };
     return <Navigate to={roleRoutes[role]} replace />;
   }

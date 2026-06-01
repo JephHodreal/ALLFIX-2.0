@@ -93,12 +93,49 @@ public class SlotService {
     }
 
     public List<Map<String, Object>> getAvailableVendors(String serviceType, String date) throws Exception {
-        // Get all vendor slots for the date with available > 0
+        // Get all vendor slots for the date
         List<Map<String, Object>> slots = firestoreService.getWhere("vendor_slots", "slot_date", date);
         List<String> vendorIds = new ArrayList<>();
         for (Map<String, Object> slot : slots) {
-            int available = ((Number) slot.getOrDefault("available_slots", 0)).intValue();
-            if (available > 0) vendorIds.add((String) slot.get("vendor_id"));
+            String slotId = (String) slot.get("id");
+            String vendorId = (String) slot.get("vendor_id");
+            int totalSlots = ((Number) slot.getOrDefault("total_slots", 0)).intValue();
+
+            // [CAVEMAN] If available_slots field in vendor_slots is explicitly 0 or less, skip
+            Object availSlotsFieldObj = slot.get("available_slots");
+            if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                if (availSlotsField <= 0) {
+                    continue;
+                }
+            }
+
+            // Count bookings for this slot
+            List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "vendor_id", vendorId);
+            long activeBookings = bookings.stream()
+                    .filter(b -> {
+                        String status = objectToString(b.get("status"));
+                        boolean isActive = status != null && (
+                            "pending".equalsIgnoreCase(status) ||
+                            "assigned".equalsIgnoreCase(status) ||
+                            "inprogress".equalsIgnoreCase(status) ||
+                            "in_progress".equalsIgnoreCase(status) ||
+                            "in-progress".equalsIgnoreCase(status) ||
+                            "completed".equalsIgnoreCase(status)
+                        );
+                        if (!isActive) return false;
+                        String bookingSlotId = objectToString(b.get("slot_id"));
+                        return slotId != null && slotId.equals(bookingSlotId);
+                    })
+                    .count();
+            int available = Math.max(0, totalSlots - (int) activeBookings);
+            if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                available = Math.min(available, availSlotsField);
+            }
+            if (available > 0) {
+                vendorIds.add(vendorId);
+            }
         }
 
         // Get vendors matching service type and in the available list
@@ -109,15 +146,52 @@ public class SlotService {
     }
 
     public List<Map<String, Object>> getAvailableBySubService(String serviceType, String subService, String date) throws Exception {
-        // Get all vendor slots for the date with service/sub-service match and available > 0
+        // Get all vendor slots for the date
         List<Map<String, Object>> slots = firestoreService.getWhere("vendor_slots", "slot_date", date);
         List<String> vendorIds = new ArrayList<>();
         for (Map<String, Object> slot : slots) {
-            int available = ((Number) slot.getOrDefault("available_slots", 0)).intValue();
+            String slotId = (String) slot.get("id");
+            String vendorId = (String) slot.get("vendor_id");
+            int totalSlots = ((Number) slot.getOrDefault("total_slots", 0)).intValue();
             String slotService = (String) slot.get("service_type");
             String slotSubService = (String) slot.get("sub_service");
-            if (available > 0 && serviceType.equals(slotService) && subService.equals(slotSubService)) {
-                vendorIds.add((String) slot.get("vendor_id"));
+
+            if (serviceType.equals(slotService) && subService.equals(slotSubService)) {
+                // [CAVEMAN] If available_slots field in vendor_slots is explicitly 0 or less, skip
+                Object availSlotsFieldObj = slot.get("available_slots");
+                if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                    int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                    if (availSlotsField <= 0) {
+                        continue;
+                    }
+                }
+
+                // Count bookings for this slot
+                List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "vendor_id", vendorId);
+                long activeBookings = bookings.stream()
+                        .filter(b -> {
+                            String status = objectToString(b.get("status"));
+                            boolean isActive = status != null && (
+                                "pending".equalsIgnoreCase(status) ||
+                                "assigned".equalsIgnoreCase(status) ||
+                                "inprogress".equalsIgnoreCase(status) ||
+                                "in_progress".equalsIgnoreCase(status) ||
+                                "in-progress".equalsIgnoreCase(status) ||
+                                "completed".equalsIgnoreCase(status)
+                            );
+                            if (!isActive) return false;
+                            String bookingSlotId = objectToString(b.get("slot_id"));
+                            return slotId != null && slotId.equals(bookingSlotId);
+                        })
+                        .count();
+                int available = Math.max(0, totalSlots - (int) activeBookings);
+                if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                    int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                    available = Math.min(available, availSlotsField);
+                }
+                if (available > 0) {
+                    vendorIds.add(vendorId);
+                }
             }
         }
 
@@ -152,25 +226,10 @@ public class SlotService {
             System.out.println("[SlotService] CAVEMAN: RAW SLOT: " + slot);
             String slotId = objectToString(slot.get("id"));
             
-            // Check availability: use available_slots first, fallback to total_slots
-            int available = 0;
-            Object availObj = slot.get("available_slots");
             Object totalObj = slot.get("total_slots");
-            System.out.println("[SlotService] CAVEMAN:   available_slots raw=" + availObj + " (type=" + (availObj == null ? "null" : availObj.getClass().getName()) + ")");
-            System.out.println("[SlotService] CAVEMAN:   total_slots raw=" + totalObj + " (type=" + (totalObj == null ? "null" : totalObj.getClass().getName()) + ")");
-            
-            if (availObj != null && availObj instanceof Number) {
-                available = ((Number) availObj).intValue();
-            } else if (totalObj != null && totalObj instanceof Number) {
-                // Fallback: if available_slots not set, use total_slots
-                available = ((Number) totalObj).intValue();
-                System.out.println("[SlotService] CAVEMAN:   FALLBACK: using total_slots=" + available + " since available_slots is missing");
-            }
-            System.out.println("[SlotService] CAVEMAN:   Effective available=" + available);
-            
-            if (available <= 0) {
-                System.out.println("[SlotService]   SKIP slot (no available) vendor=" + slot.get("vendor_id"));
-                continue;
+            int totalSlots = 5;
+            if (totalObj != null && totalObj instanceof Number) {
+                totalSlots = ((Number) totalObj).intValue();
             }
             
             // Check that the slot matches the selected subservice and service category
@@ -208,13 +267,6 @@ public class SlotService {
                 String slotVendorId = objectToString(slot.get("vendor_id"));
                 String slotDate = objectToString(slot.get("slot_date"));
                 
-                int totalSlots = 0;
-                if (totalObj != null && totalObj instanceof Number) {
-                    totalSlots = ((Number) totalObj).intValue();
-                } else {
-                    totalSlots = available;
-                }
-                
                 long activeBookingsCount = 0;
                 try {
                     Map<String, Object> bookingFilters = new HashMap<>();
@@ -227,11 +279,12 @@ public class SlotService {
                             .filter(b -> {
                                 String status = objectToString(b.get("status"));
                                 boolean isActive = status != null && (
-                                    "active".equalsIgnoreCase(status) ||
                                     "pending".equalsIgnoreCase(status) ||
-                                    "confirmed".equalsIgnoreCase(status) ||
+                                    "assigned".equalsIgnoreCase(status) ||
+                                    "inprogress".equalsIgnoreCase(status) ||
                                     "in_progress".equalsIgnoreCase(status) ||
-                                    "in-progress".equalsIgnoreCase(status)
+                                    "in-progress".equalsIgnoreCase(status) ||
+                                    "completed".equalsIgnoreCase(status)
                                 );
                                 if (!isActive) return false;
 
@@ -246,19 +299,29 @@ public class SlotService {
                                 }
                             })
                             .count();
-                    System.out.println("[SlotService] CAVEMAN: Slot validation: vendor=" + slotVendorId + ", date=" + slotDate + ", subService=" + slotSubService + " -> activeBookings=" + activeBookingsCount + ", totalSlots=" + totalSlots + ", available=" + available);
+                    System.out.println("[SlotService] CAVEMAN: Slot validation: vendor=" + slotVendorId + ", date=" + slotDate + ", subService=" + slotSubService + " -> activeBookings=" + activeBookingsCount + ", totalSlots=" + totalSlots);
                 } catch (Exception e) {
                     System.err.println("[SlotService] CAVEMAN ERROR checking bookings count for slot: " + e.getMessage());
                 }
                 
-                if (activeBookingsCount >= totalSlots) {
-                    System.out.println("[SlotService] CAVEMAN:   SKIP slot (fully booked/occupied: bookings=" + activeBookingsCount + " >= total_slots=" + totalSlots + ") vendor=" + slotVendorId);
-                    continue;
+                // [CAVEMAN] If available_slots field in vendor_slots is explicitly 0 or less, skip
+                Object availSlotsFieldObj = slot.get("available_slots");
+                if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                    int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                    if (availSlotsField <= 0) {
+                        System.out.println("[SlotService] CAVEMAN:   SKIP slot (db available_slots <= 0) vendor=" + slotVendorId);
+                        continue;
+                    }
+                }
+
+                int effectiveAvailable = Math.max(0, totalSlots - (int) activeBookingsCount);
+                if (availSlotsFieldObj != null && availSlotsFieldObj instanceof Number) {
+                    int availSlotsField = ((Number) availSlotsFieldObj).intValue();
+                    effectiveAvailable = Math.min(effectiveAvailable, availSlotsField);
                 }
                 
-                int effectiveAvailable = Math.min(available, totalSlots - (int) activeBookingsCount);
                 if (effectiveAvailable <= 0) {
-                    System.out.println("[SlotService] CAVEMAN:   SKIP slot (effective available <= 0) vendor=" + slotVendorId);
+                    System.out.println("[SlotService] CAVEMAN:   SKIP slot (fully booked/occupied or db available <= 0: effectiveAvailable=" + effectiveAvailable + ") vendor=" + slotVendorId);
                     continue;
                 }
                 

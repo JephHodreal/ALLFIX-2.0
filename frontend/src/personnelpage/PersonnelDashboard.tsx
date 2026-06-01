@@ -333,7 +333,7 @@ export default function PersonnelDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<Navigate to="bookings" replace />} />
+            <Route index element={<PersonnelHome />} />
             <Route path="bookings" element={<PersonnelBookings />} />
             <Route path="profile" element={<PersonnelProfile />} />
           </Routes>

@@ -568,8 +568,9 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
 
   // [CAVEMAN] Derived list: only vendors with available_slots > 0 are displayed and selectable
   const selectableVendors = scheduleAvailableVendors.filter((v: any) => {
-    const isSelectable = v.available_slots === undefined || v.available_slots > 0;
-    console.log(`[CAVEMAN] Vendor ${v.company_name || v.name || v.username} remaining slots: ${v.available_slots} -> Displayable/Selectable: ${isSelectable}`);
+    const avail = v.available_slots !== undefined && v.available_slots !== null ? v.available_slots : v.total_slots;
+    const isSelectable = avail === undefined || avail === null || avail > 0;
+    console.log(`[CAVEMAN] Vendor ${v.company_name || v.name || v.username} remaining slots: ${avail} -> Displayable/Selectable: ${isSelectable}`);
     return isSelectable;
   });
 
@@ -647,8 +648,9 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
       return;
     }
 
-    if (selectedVendor && selectedVendor.available_slots !== undefined && selectedVendor.available_slots <= 0) {
-      console.log(`[CAVEMAN] Booking blocked: ${selectedVendor.company_name || selectedVendor.name} has available_slots = ${selectedVendor.available_slots}`);
+    const avail = selectedVendor ? (selectedVendor.available_slots !== undefined && selectedVendor.available_slots !== null ? selectedVendor.available_slots : selectedVendor.total_slots) : undefined;
+    if (selectedVendor && avail !== undefined && avail !== null && avail <= 0) {
+      console.log(`[CAVEMAN] Booking blocked: ${selectedVendor.company_name || selectedVendor.name} has remaining slots = ${avail}`);
       alert("The selected vendor has no remaining available slots.");
       return;
     }
@@ -1795,7 +1797,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
   const [postalCode, setPostalCode] = useState('');
 
   // Payment Selection States
-  const [paymentMethod, setPaymentMethod] = useState<'GCash' | 'Dragon Pay'>('GCash');
+  const [paymentMethod, setPaymentMethod] = useState<'GCash'>('GCash');
 
   // Payment Details Form States
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -2141,33 +2143,10 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       <p className="text-xs font-extrabold text-slate-455 uppercase tracking-widest">Select Gateway</p>
                       
                       <div
-                        onClick={() => {
-                          console.log("[CAVEMAN] Payment method switched to GCash");
-                          setPaymentMethod('GCash');
-                        }}
-                        className={`w-full sm:w-3/4 p-2 sm:p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
-                          paymentMethod === 'GCash'
-                            ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 font-bold border-2'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-350 dark:hover:border-slate-700'
-                        }`}
+                        className="w-full sm:w-3/4 p-2 sm:p-2.5 rounded-xl border cursor-default transition-all flex items-center gap-3 border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 font-bold border-2"
                       >
                         <img src="/images/sample-gcash-qr.png" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-md shadow-sm border border-slate-100 flex-shrink-0" alt="GCash Logo" />
                         <span className="text-xs sm:text-sm font-extrabold">GCash</span>
-                      </div>
-
-                      <div
-                        onClick={() => {
-                          console.log("[CAVEMAN] Payment method switched to Dragon Pay");
-                          setPaymentMethod('Dragon Pay');
-                        }}
-                        className={`w-full sm:w-3/4 p-2 sm:p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
-                          paymentMethod === 'Dragon Pay'
-                            ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 font-bold border-2'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-350 dark:hover:border-slate-700'
-                        }`}
-                      >
-                        <img src="/images/sample-qr-dragonpay.png" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-md shadow-sm border border-slate-100 flex-shrink-0" alt="Dragon Pay Logo" />
-                        <span className="text-xs sm:text-sm font-extrabold">Dragon Pay</span>
                       </div>
                     </div>
 
@@ -2176,13 +2155,13 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">Scan QR Code to Pay</p>
                       <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-slate-100">
                         <img
-                          src={paymentMethod === 'GCash' ? '/images/sample-gcash-qr.png' : '/images/sample-qr-dragonpay.png'}
-                          alt={`${paymentMethod} QR Code`}
+                          src="/images/sample-gcash-qr.png"
+                          alt="GCash QR Code"
                           className="w-32 h-32 xs:w-40 xs:h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 object-contain transition-all"
                         />
                       </div>
                       <p className="text-[10px] sm:text-xs text-slate-500 leading-normal font-semibold">
-                        Scan code with your {paymentMethod} app.
+                        Scan code with your GCash app.
                       </p>
                     </div>
                   </div>
@@ -2382,7 +2361,7 @@ export default function CustomerApp() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<Navigate to="bookings" replace />} />
+            <Route index element={<CustomerHome />} />
             <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="bookings" element={<MyBookingsTab />} />
             <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />

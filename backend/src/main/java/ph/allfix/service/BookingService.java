@@ -43,7 +43,9 @@ public class BookingService {
         data.put("cancellation_requested", false);
         data.put("refund_requested", false);
         data.put("refund_status", "none");
-        return firestoreService.create("bookings", data);
+        String bookingId = firestoreService.create("bookings", data);
+        handleSlotDecrementForBooking(bookingId);
+        return bookingId;
     }
 
     public void confirmPayment(String bookingId) throws Exception {
@@ -56,17 +58,11 @@ public class BookingService {
         firestoreService.update("bookings", bookingId, updates);
 
         // Deduct vendor slot
-        String vendorId = (String) booking.get("vendor_id");
-        String date = (String) booking.get("scheduled_date");
-        String subService = (String) booking.get("sub_service");
-        String time = (String) booking.get("scheduled_time");
-        String slotId = (String) booking.get("slot_id");
-        if (vendorId != null && date != null) {
-            slotService.decrementSlot(vendorId, date, subService, time, slotId);
-        }
+        handleSlotDecrementForBooking(bookingId);
 
         // Notify customer + vendor
         String customerId = (String) booking.get("customer_id");
+        String vendorId = (String) booking.get("vendor_id");
         if (customerId != null) notificationService.notify(customerId, "customer", "Your booking has been confirmed!");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "New confirmed booking assigned to you.");
     }
@@ -77,6 +73,8 @@ public class BookingService {
         updates.put("status", "in_progress");
         firestoreService.update("bookings", bookingId, updates);
 
+        handleSlotDecrementForBooking(bookingId);
+
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) notificationService.notify(customerId, "customer", "A personnel has been assigned to your booking.");
@@ -85,6 +83,9 @@ public class BookingService {
 
     public void completeBooking(String bookingId) throws Exception {
         firestoreService.updateField("bookings", bookingId, "status", "completed");
+        
+        handleSlotDecrementForBooking(bookingId);
+
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) notificationService.notify(customerId, "customer", "Your booking has been completed! Please leave a review.");
@@ -168,6 +169,44 @@ public class BookingService {
         String vendorId = (String) booking.get("vendor_id");
         if (vendorId != null) {
             notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+        }
+    }
+
+    public void handleSlotDecrementForBooking(String bookingId) {
+        try {
+            Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+            if (booking == null) return;
+
+            String status = (String) booking.get("status");
+            if (status == null) return;
+
+            String lowerStatus = status.toLowerCase();
+            boolean isQualifying = lowerStatus.equals("pending") || 
+                                  lowerStatus.equals("assigned") || 
+                                  lowerStatus.equals("in_progress") || 
+                                  lowerStatus.equals("inprogress") ||
+                                  lowerStatus.equals("in-progress") ||
+                                  lowerStatus.equals("completed") ||
+                                  lowerStatus.equals("confirmed");
+
+            if (isQualifying) {
+                Object decremented = booking.get("slot_decremented");
+                if (decremented == null || !((Boolean) decremented)) {
+                    String vendorId = (String) booking.get("vendor_id");
+                    String date = (String) booking.get("scheduled_date");
+                    String subService = (String) booking.get("sub_service");
+                    String time = (String) booking.get("scheduled_time");
+                    String slotId = (String) booking.get("slot_id");
+
+                    if (vendorId != null && date != null) {
+                        slotService.decrementSlot(vendorId, date, subService, time, slotId);
+                        firestoreService.updateField("bookings", bookingId, "slot_decremented", true);
+                        System.out.println("[CAVEMAN] Successfully decremented slot for bookingId=" + bookingId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error in handleSlotDecrementForBooking: " + e.getMessage());
         }
     }
 }

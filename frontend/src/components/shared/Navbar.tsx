@@ -21,13 +21,13 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     if (!isAuthenticated || !role) {
       navigate('/');
     } else if (role === 'customer') {
-      navigate('/customer');
+      navigate('/customer/bookings');
     } else if (role === 'admin') {
-      navigate('/admin/services');
+      navigate('/admin/bookings');
     } else if (role === 'vendor') {
-      navigate('/vendor/services');
+      navigate('/vendor/bookings');
     } else if (role === 'personnel') {
-      navigate('/personnel');
+      navigate('/personnel/bookings');
     } else {
       navigate('/');
     }

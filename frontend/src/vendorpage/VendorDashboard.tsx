@@ -530,7 +530,6 @@ function VendorBookings() {
                   className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
                 >
                   <option value="GCash">GCash</option>
-                  <option value="Dragonpay">Dragonpay</option>
                 </select>
               </div>
 
@@ -723,6 +722,7 @@ function VendorBookings() {
 function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const { profile } = useAuth();
   const [slots, setSlots] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -733,11 +733,52 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const vendorProfile = profile as any;
   const vendorServices = getFilteredVendorServices(vendorProfile?.services || [], dbServices);
 
-  useEffect(() => {
-    if (vendorProfile?.id) {
-      api.get(`/api/slots/vendor/${vendorProfile.id}`).then(r => setSlots(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+  const isStatusActive = (status: string) => {
+    const normalized = (status || '').toLowerCase().replace(/[-_]/g, '');
+    return ['pending', 'assigned', 'inprogress', 'completed'].includes(normalized);
+  };
+
+  const fetchSlotsAndBookings = useCallback(async () => {
+    if (!vendorProfile?.id) return;
+    setLoading(true);
+    try {
+      const [slotsRes, bookingsRes] = await Promise.all([
+        api.get(`/api/slots/vendor/${vendorProfile.id}`),
+        api.get(`/api/bookings/vendor/${vendorProfile.id}`)
+      ]);
+      const slotsData = slotsRes.data || [];
+      const bookingsData = bookingsRes.data || [];
+      setBookings(bookingsData);
+
+      const enriched = slotsData.map((s: any) => {
+        const consumed = bookingsData.filter((b: any) => {
+          const matchesSlot = b.slot_id === s.id;
+          return matchesSlot && isStatusActive(b.status);
+        }).length;
+        // [CAVEMAN] Respect explicitly set 0 or less from slot's db available_slots
+        let available = Math.max(0, (s.total_slots || 0) - consumed);
+        if (s.available_slots === 0 || s.available_slots === '0') {
+          console.log(`[CAVEMAN] Database available_slots is 0 for slot ${s.id}, overriding to 0.`);
+          available = 0;
+        } else if (s.available_slots !== undefined && s.available_slots !== null) {
+          available = Math.min(available, Number(s.available_slots));
+        }
+        return {
+          ...s,
+          available_slots: available
+        };
+      });
+      setSlots(enriched);
+    } catch (err) {
+      console.error('Failed to fetch slots or bookings:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [vendorProfile]);
+  }, [vendorProfile?.id]);
+
+  useEffect(() => {
+    fetchSlotsAndBookings();
+  }, [fetchSlotsAndBookings]);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -762,7 +803,11 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
   const getTotalAvailableForDate = (date: number) => {
     const dateSlots = getSlotsForDate(date);
-    return dateSlots.reduce((sum, s) => sum + (s.available_slots || 0), 0);
+    return dateSlots.reduce((sum, s) => {
+      const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+      const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
+      return sum + safeAvail;
+    }, 0);
   };
 
   const handleAddSlot = async () => {
@@ -811,7 +856,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         time_to: newSlot.time_to,
         total_slots: newSlot.total_slots,
       });
-      setSlots([...slots, { slot_date: dateStr, service_type: newSlot.service, sub_service: newSlot.sub_service, available_slots: newSlot.total_slots, total_slots: newSlot.total_slots, time_from: newSlot.time_from, time_to: newSlot.time_to }]);
+      await fetchSlotsAndBookings();
       setShowModal(false);
       setNewSlot({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
     } catch (err) {
@@ -899,17 +944,23 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                           <div key={sub}>
                             <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{sub}</p>
                             <div className="space-y-1">
-                              {subSlots.map((s, i) => (
-                                <div key={i} className="p-2 rounded bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
-                                  <div className="flex-1">
-                                    <span className="text-xs text-slate-700 dark:text-slate-300">{s.slot_date}</span>
-                                    {s.time_from && s.time_to && <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{s.time_from} - {s.time_to}</span>}
+                              {subSlots.map((s, i) => {
+                                const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+                                const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
+                                const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
+                                const safeTotal = Math.max(0, total);
+                                return (
+                                  <div key={i} className="p-2 rounded bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                                    <div className="flex-1">
+                                      <span className="text-xs text-slate-700 dark:text-slate-300">{s.slot_date}</span>
+                                      {s.time_from && s.time_to && <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{s.time_from} - {s.time_to}</span>}
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded font-bold ${safeAvail > 0 ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-red/20 text-brand-red'}`}>
+                                      {safeAvail}/{safeTotal}
+                                    </span>
                                   </div>
-                                  <span className={`text-xs px-2 py-0.5 rounded font-bold ${s.available_slots > 0 ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-red/20 text-brand-red'}`}>
-                                    {s.available_slots}/{s.total_slots}
-                                  </span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -2605,7 +2656,7 @@ export default function VendorDashboard() {
         <Header />
         <main className="p-6">
           <Routes>
-            <Route index element={<Navigate to="bookings" replace />} />
+            <Route index element={<VendorHome />} />
             <Route path="schedule" element={<SlotCalendar dbServices={dbServices} />} />
             <Route path="bookings" element={<VendorBookings />} />
             <Route path="services" element={<VendorServices dbServices={dbServices} loadingDb={loadingDb} refreshServices={fetchServices} />} />
