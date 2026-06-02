@@ -1,0 +1,1904 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sidebar } from '../components/shared/Sidebar';
+import { Header } from '../components/shared/Header';
+import { Card, StatCard } from '../components/shared/Card';
+import { DataTable } from '../components/shared/DataTable';
+import { EmptyState } from '../components/shared/EmptyState';
+import { Button } from '../components/shared/Button';
+import { EditModal } from '../components/shared/EditModal';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/apiService';
+
+/**
+ * Filters the vendor's profile services list against active database services.
+ * Keeps only services and subservices that exist in the database, matching exact database casing.
+ */
+export function getFilteredVendorServices(vendorServices: any[], dbServices: any[]): any[] {
+  if (!dbServices || dbServices.length === 0) return [];
+  
+  return vendorServices
+    .map((svc: any) => {
+      // Find matching service in database (case-insensitive)
+      const dbMatch = dbServices.find(
+        (db: any) => db.name.toLowerCase() === svc.service.toLowerCase()
+      );
+      if (!dbMatch) return null;
+
+      // Filter subservices: must exist in both vendor profile and database (case-insensitive)
+      const dbSubNames = (dbMatch.subServices || []).map((sub: any) => (sub.name || sub).toLowerCase());
+      const validSubServices = (svc.sub_services || []).filter((subName: string) => 
+        dbSubNames.includes(subName.toLowerCase())
+      );
+
+      // Map back to database-defined casing/name
+      const displaySubServices = validSubServices.map((subName: string) => {
+        const matchedDbSub = (dbMatch.subServices || []).find(
+          (dbSub: any) => (dbSub.name || dbSub).toLowerCase() === subName.toLowerCase()
+        );
+        return matchedDbSub ? (matchedDbSub.name || matchedDbSub) : subName;
+      });
+
+      return {
+        ...svc,
+        service: dbMatch.name, // Database casing
+        sub_services: displaySubServices, // Filtered and database-cased subservices
+        dbDescription: dbMatch.description || '',
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Safely formats a Date object to YYYY-MM-DD in the local timezone.
+ * Avoids any UTC / toISOString timezone shifting.
+ */
+function formatLocalYYYYMMDD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const formatted = `${year}-${month}-${day}`;
+  console.log('[CAVEMAN] formatLocalYYYYMMDD: input dateObj =', date.toString(), '| output localDateString =', formatted);
+  return formatted;
+}
+
+function VendorHome() {
+  const { profile } = useAuth();
+  const [personnelCount, setPersonnelCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPersonnels = async () => {
+      try {
+        if (profile?.id) {
+          const response = await api.get(`/api/vendors/${profile.id}/personnels`);
+          setPersonnelCount(response.data?.length ?? 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch personnel count:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPersonnels();
+  }, [profile?.id]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title="Total Jobs" value={(profile as any)?.total_jobs ?? 0} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
+        <StatCard title="Completion Rate" value={`${(profile as any)?.completion_rate ?? 0}%`} icon={<TrendingUp className="w-5 h-5" />} color="green" />
+        <StatCard title="Personnels" value={personnelCount} icon={<Users className="w-5 h-5" />} color="navy" />
+      </div>
+    </div>
+  );
+}
+
+function VendorBookings() {
+  const { profile } = useAuth();
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (profile?.id) api.get(`/api/bookings/vendor/${profile.id}`).then(r => setBookings(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    else setLoading(false);
+  }, [profile]);
+  return (
+    <DataTable columns={[
+      { key: 'service_type', label: 'Service', sortable: true },
+      { key: 'scheduled_date', label: 'Date', sortable: true },
+      { key: 'status', label: 'Status', render: (item: any) => {
+        const cls: Record<string, string> = { pending: 'badge-pending', confirmed: 'badge-confirmed', in_progress: 'badge-in-progress', completed: 'badge-completed' };
+        return <span className={cls[item.status] || 'badge'}>{item.status?.replace('_', ' ')}</span>;
+      }},
+      { key: 'actions', label: 'Actions', render: (item: any) => (
+        <div className="flex gap-2">
+          {item.status === 'confirmed' && <Button size="sm" onClick={() => api.patch(`/api/bookings/${item.id}/assign-personnel`)}>Assign</Button>}
+          {item.status === 'in_progress' && <Button size="sm" variant="success" onClick={() => api.patch(`/api/bookings/${item.id}/complete`)}>Complete</Button>}
+        </div>
+      )},
+    ]} data={bookings} loading={loading} searchPlaceholder="Search bookings..." />
+  );
+}
+
+function SlotCalendar({ dbServices }: { dbServices: any[] }) {
+  const { profile } = useAuth();
+  const [slots, setSlots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [newSlot, setNewSlot] = useState({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [timeError, setTimeError] = useState<string>('');
+
+  const vendorProfile = profile as any;
+  const vendorServices = getFilteredVendorServices(vendorProfile?.services || [], dbServices);
+
+  useEffect(() => {
+    if (vendorProfile?.id) {
+      api.get(`/api/slots/vendor/${vendorProfile.id}`).then(r => setSlots(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    }
+  }, [vendorProfile]);
+
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const isDateDisabled = (date: number) => {
+    const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), date);
+    return checkDate < today;
+  };
+
+  const getSlotsForDate = (date: number) => {
+    const dateStr = formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), date));
+    return slots.filter(s => s.slot_date === dateStr);
+  };
+
+  const getTotalAvailableForDate = (date: number) => {
+    const dateSlots = getSlotsForDate(date);
+    return dateSlots.reduce((sum, s) => sum + (s.available_slots || 0), 0);
+  };
+
+  const handleAddSlot = async () => {
+    setTimeError('');
+    if (!selectedDate || !newSlot.service || newSlot.total_slots < 1) {
+      alert('Fill all fields');
+      return;
+    }
+
+    // Check if service has sub-services; if not, sub_service not required
+    const selectedService = vendorServices.find((s: any) => s.service === newSlot.service);
+    if (selectedService?.sub_services?.length > 0 && !newSlot.sub_service) {
+      alert('Select sub-service');
+      return;
+    }
+
+    // Validate time range
+    const [fromHour, fromMin] = newSlot.time_from.split(':').map(Number);
+    const [toHour, toMin] = newSlot.time_to.split(':').map(Number);
+    const fromTime = fromHour * 60 + fromMin;
+    const toTime = toHour * 60 + toMin;
+    if (toTime <= fromTime) {
+      setTimeError('End time must be later than start time');
+      return;
+    }
+
+    // Validate time not in past
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    if (isToday) {
+      const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), fromHour, fromMin);
+      if (fromDate < now) {
+        alert('Cannot create slot with past time');
+        return;
+      }
+    }
+
+    const dateStr = formatLocalYYYYMMDD(selectedDate);
+    try {
+      await api.post('/api/slots', {
+        vendor_id: vendorProfile.id,
+        slot_date: dateStr,
+        service_type: newSlot.service,
+        sub_service: newSlot.sub_service || null,
+        time_from: newSlot.time_from,
+        time_to: newSlot.time_to,
+        total_slots: newSlot.total_slots,
+      });
+      setSlots([...slots, { slot_date: dateStr, service_type: newSlot.service, sub_service: newSlot.sub_service, available_slots: newSlot.total_slots, total_slots: newSlot.total_slots, time_from: newSlot.time_from, time_to: newSlot.time_to }]);
+      setShowModal(false);
+      setNewSlot({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
+    } catch (err) {
+      alert('Failed to create slot');
+    }
+  };
+
+  const daysInMonth = getDaysInMonth(currentMonth);
+  const firstDay = getFirstDayOfMonth(currentMonth);
+  const days = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="space-y-6">
+      {/* Calendar */}
+      <Card>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{monthName}</h2>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}>←</Button>
+              <Button size="sm" variant="ghost" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}>→</Button>
+            </div>
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="text-center text-xs font-bold text-slate-600 dark:text-slate-400 py-2">{d}</div>)}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-2">
+            {days.map((day, i) => {
+              const disabled = day && isDateDisabled(day);
+              const dateSlots = day ? getSlotsForDate(day) : [];
+              const totalAvailable = getTotalAvailableForDate(day || 0);
+              return (
+                <div
+                  key={i}
+                  onClick={() => day && !disabled && (setSelectedDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)), setShowModal(true), setTimeError(''))}
+                  className={`p-3 rounded-lg text-center text-sm font-medium cursor-pointer transition-all ${
+                    !day ? 'bg-transparent' :
+                    disabled ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' :
+                    dateSlots.length > 0 ? 'bg-brand-green text-white font-bold' :
+                    'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {day && (
+                    <div>
+                      <div>{day}</div>
+                      {dateSlots.length > 0 && <div className="text-xs mt-1">{totalAvailable} slots</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Active slots grouped by service/sub-service */}
+      <Card>
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Your Active Slots</h3>
+          {loading ? (
+            <div className="text-center text-slate-500">Loading...</div>
+          ) : slots.length === 0 ? (
+            <EmptyState title="No slots" description="Create slots to accept bookings" icon={<CalendarDays className="w-6 h-6" />} />
+          ) : (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {vendorServices.map((svc: any) => {
+                const serviceSlots = slots.filter(s => s.service_type === svc.service);
+                if (serviceSlots.length === 0) return null;
+                return (
+                  <div key={svc.service} className="border-l-4 border-brand-green pl-4">
+                    <h4 className="font-semibold text-slate-900 dark:text-white mb-2">{svc.service}</h4>
+                    <div className="space-y-2">
+                      {svc.sub_services.map((sub: any) => {
+                        const subSlots = serviceSlots.filter(s => s.sub_service === sub);
+                        if (subSlots.length === 0) return null;
+                        return (
+                          <div key={sub}>
+                            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{sub}</p>
+                            <div className="space-y-1">
+                              {subSlots.map((s, i) => (
+                                <div key={i} className="p-2 rounded bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                                  <div className="flex-1">
+                                    <span className="text-xs text-slate-700 dark:text-slate-300">{s.slot_date}</span>
+                                    {s.time_from && s.time_to && <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{s.time_from} - {s.time_to}</span>}
+                                  </div>
+                                  <span className={`text-xs px-2 py-0.5 rounded font-bold ${s.available_slots > 0 ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-red/20 text-brand-red'}`}>
+                                    {s.available_slots}/{s.total_slots}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Add slot modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Add Slot for {selectedDate?.toDateString()}</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Main Service</label>
+                  <select value={newSlot.service} onChange={(e) => { setNewSlot({ ...newSlot, service: e.target.value, sub_service: '' }); }} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                    <option value="">Select main service...</option>
+                    {vendorServices.map((s: any) => <option key={s.service} value={s.service}>{s.service}</option>)}
+                  </select>
+                </div>
+                {newSlot.service && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Sub-Service</label>
+                    <select value={newSlot.sub_service} onChange={(e) => setNewSlot({ ...newSlot, sub_service: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                      <option value="">Select sub-service...</option>
+                      {vendorServices.find((s: any) => s.service === newSlot.service)?.sub_services.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Time From</label>
+                    <input type="time" value={newSlot.time_from} onChange={(e) => { setNewSlot({ ...newSlot, time_from: e.target.value }); setTimeError(''); }} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Time To</label>
+                    <input type="time" value={newSlot.time_to} onChange={(e) => { setNewSlot({ ...newSlot, time_to: e.target.value }); setTimeError(''); }} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white" />
+                  </div>
+                </div>
+                {timeError && <div className="text-xs text-brand-red font-medium">{timeError}</div>}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Available Slots</label>
+                  <input type="number" min="1" max="20" value={newSlot.total_slots} onChange={(e) => setNewSlot({ ...newSlot, total_slots: parseInt(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white" />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <Button variant="ghost" className="flex-1" onClick={() => { setShowModal(false); setTimeError(''); }}>Cancel</Button>
+                  <Button className="flex-1" onClick={handleAddSlot}>Add Slot</Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
+  const { profile, refreshProfile } = useAuth();
+  const [personnel, setPersonnel] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [acceptPersonnel, setAcceptPersonnel] = useState(!!(profile as any)?.accept_personnel);
+
+  // Creation form states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    firstName: '',
+    lastName: '',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    service: '',
+    subService: ''
+  });
+  const [createError, setCreateError] = useState('');
+  const [createSaving, setCreateSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameValid, setUsernameValid] = useState(false);
+
+  useEffect(() => {
+    setAcceptPersonnel(!!(profile as any)?.accept_personnel);
+  }, [profile]);
+
+  const handleToggleAccept = async (checked: boolean) => {
+    if (!profile?.id) return;
+    try {
+      setAcceptPersonnel(checked);
+      await api.put(`/api/vendors/${profile.id}`, {
+        accept_personnel: checked
+      });
+      await refreshProfile();
+    } catch (e) {
+      console.error(e);
+      setAcceptPersonnel(!checked);
+    }
+  };
+
+  useEffect(() => {
+    if (profile?.id) api.get(`/api/personnel?vendor_id=${profile.id}`).then(r => setPersonnel(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    else setLoading(false);
+  }, [profile]);
+
+  const handleApprove = async (id: string) => {
+    try {
+      await api.post(`/api/personnel/${id}/approve`);
+      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'approved', temp_delete: 0 } : p));
+    } catch (e) { }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      await api.post(`/api/personnel/${id}/reject`);
+      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'rejected', temp_delete: 0 } : p));
+    } catch (e) { }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.delete(`/api/personnel/${id}`);
+      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, temp_delete: 1 } : p));
+    } catch (e) { }
+  };
+
+  const handleEditSave = async (data: Record<string, any>) => {
+    await api.put(`/api/personnel/${editItem.id}`, data);
+    setPersonnel(ps => ps.map(p => p.id === editItem.id ? { ...p, ...data } : p));
+    setEditItem(null);
+  };
+
+  const checkUsername = async (username: string) => {
+    if (!username || username.length < 3) {
+      setUsernameError('Min 3 chars');
+      setUsernameValid(false);
+      return;
+    }
+    setUsernameCheckLoading(true);
+    try {
+      const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+      if (res.data.available) {
+        setUsernameValid(true);
+        setUsernameError('');
+      } else {
+        setUsernameError('Username taken');
+        setUsernameValid(false);
+      }
+    } catch {
+      setUsernameValid(true);
+      setUsernameError('');
+    } finally {
+      setUsernameCheckLoading(false);
+    }
+  };
+
+  const passwordStrength = useCallback((pw: string) => {
+    let s = 0;
+    if (pw.length >= 8) s++; if (/[A-Z]/.test(pw)) s++; if (/[0-9]/.test(pw)) s++; if (/[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }, []);
+
+  const strength = passwordStrength(createForm.password);
+  const strengthColors = ['bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-brand-green'];
+  const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
+
+  const updateCreateForm = (key: keyof typeof createForm, value: string) => {
+    let processedValue = value;
+    if (['username', 'email', 'password', 'confirmPassword'].includes(key)) {
+      processedValue = value.replace(/\s/g, '');
+    }
+    if (['firstName', 'lastName'].includes(key) && value.length > 0) {
+      processedValue = value.charAt(0).toUpperCase() + value.slice(1);
+    }
+    setCreateForm(prev => ({ ...prev, [key]: processedValue }));
+    if (key === 'username') {
+      setUsernameError('');
+      setUsernameValid(false);
+    }
+  };
+
+  const vendorServices = getFilteredVendorServices((profile as any)?.services || [], dbServices);
+  const selectedServiceObj = vendorServices.find((s: any) => s.service === createForm.service);
+  const hasSubServices = !!(selectedServiceObj && selectedServiceObj.sub_services && selectedServiceObj.sub_services.length > 0);
+  const handleCreatePersonnelSubmit = async () => {
+    setCreateError('');
+
+    if (!createForm.firstName || !createForm.lastName || !createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.service || (hasSubServices && !createForm.subService)) {
+      setCreateError('All fields are required.');
+      return;
+    }
+    if (!/^\d{11}$/.test(createForm.phone)) {
+      setCreateError('Phone number must be exactly 11 digits.');
+      return;
+    }
+    if (!usernameValid) {
+      setCreateError('Please use a valid, unique username.');
+      return;
+    }
+    if (createForm.password !== createForm.confirmPassword) {
+      setCreateError("Passwords do not match.");
+      return;
+    }
+    if (strength < 4) {
+      setCreateError("Password must be strong (min 8 chars, uppercase, number, special char).");
+      return;
+    }
+
+    setCreateSaving(true);
+    try {
+      const res = await api.post('/api/personnel/create-by-vendor', createForm);
+      const newPersonnel = {
+        id: res.data.id,
+        uid: res.data.id,
+        first_name: createForm.firstName,
+        last_name: createForm.lastName,
+        username: createForm.username,
+        email: createForm.email,
+        phone: createForm.phone,
+        acc_approve: 'approved',
+        temp_delete: 0,
+        last_login: null
+      };
+      setPersonnel(prev => [newPersonnel, ...prev]);
+      setShowCreateModal(false);
+      setCreateForm({
+        firstName: '',
+        lastName: '',
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        service: '',
+        subService: ''
+      });
+    } catch (err: any) {
+      setCreateError(err.response?.data?.message || err.message || 'Failed to create personnel account.');
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Accept Personnel Applications</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Enable this option to allow new personnel to register under your vendor profile.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={acceptPersonnel}
+              onChange={(e) => handleToggleAccept(e.target.checked)}
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-green"></div>
+          </label>
+        </div>
+      </Card>
+
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Personnel List</h3>
+        <Button onClick={() => { setShowCreateModal(true); setCreateError(''); }} icon={<Plus className="w-4 h-4" />}>
+          Create Personnel
+        </Button>
+      </div>
+
+      <DataTable columns={[
+        { key: 'first_name', label: 'First Name', sortable: true },
+        { key: 'last_name', label: 'Last Name', sortable: true },
+        { key: 'email', label: 'Email' },
+        { key: 'phone', label: 'Phone', render: (item: any) => item.phone || '—' },
+        { key: 'last_login', label: 'Last Login', sortable: true, render: (item: any) => {
+          if (!item.last_login) return 'Never';
+          const date = item.last_login.seconds ? new Date(item.last_login.seconds * 1000) : new Date(item.last_login);
+          return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
+        } },
+        { key: 'acc_approve', label: 'Status', render: (item: any) => {
+          const status = item.acc_approve || 'pending';
+          return <span className={status === 'approved' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>;
+        }},
+        { key: 'actions', label: 'Actions', render: (item: any) => {
+          const status = item.acc_approve || 'pending';
+          return status === 'pending' ? (
+            <div className="flex gap-2">
+              <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id); }}>Approve</Button>
+              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id); }}>Reject</Button>
+            </div>
+          ) : status === 'approved' ? (
+            <div className="flex gap-2">
+              <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
+              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+            </div>
+          ) : <span className="text-xs text-slate-400">—</span>;
+        }}
+      ]} data={personnel.filter(p => p.temp_delete !== 1)} loading={loading} searchPlaceholder="Search personnel..." emptyTitle="No personnel added" />
+
+      {editItem && (
+        <EditModal
+          title="Edit Personnel"
+          fields={[
+            { key: 'first_name', label: 'First Name', placeholder: 'First name' },
+            { key: 'last_name', label: 'Last Name', placeholder: 'Last name' },
+            { key: 'phone', label: 'Phone', type: 'tel', placeholder: '09XX XXX XXXX' },
+          ]}
+          initialData={editItem}
+          onSave={handleEditSave}
+          onClose={() => setEditItem(null)}
+        />
+      )}
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowCreateModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+              <Card>
+                <div className="p-6 max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create Personnel Account</h3>
+                    <button onClick={() => setShowCreateModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {createError && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-2 items-center">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{createError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={createForm.firstName}
+                            onChange={(e) => updateCreateForm('firstName', e.target.value)}
+                            className="input-base pl-10 text-sm"
+                            placeholder="Juan"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={createForm.lastName}
+                            onChange={(e) => updateCreateForm('lastName', e.target.value)}
+                            className="input-base pl-10 text-sm"
+                            placeholder="Dela Cruz"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={createForm.username}
+                          onChange={(e) => updateCreateForm('username', e.target.value)}
+                          onBlur={() => createForm.username && checkUsername(createForm.username)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="username"
+                        />
+                        {usernameCheckLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Checking...</div>}
+                      </div>
+                      {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="email"
+                          value={createForm.email}
+                          onChange={(e) => updateCreateForm('email', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={createForm.password}
+                          onChange={(e) => updateCreateForm('password', e.target.value)}
+                          className="input-base pl-10 pr-10 text-sm"
+                          placeholder="Min 8 characters"
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {createForm.password && (
+                        <div className="mt-2">
+                          <div className="flex gap-1">
+                            {[0, 1, 2, 3].map(i => (
+                              <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < strength ? strengthColors[strength - 1] : 'bg-slate-200 dark:bg-slate-700'}`} />
+                            ))}
+                          </div>
+                          <p className="text-xs mt-1 text-slate-500">{strengthLabels[strength - 1] || 'Too weak'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="password"
+                          value={createForm.confirmPassword}
+                          onChange={(e) => updateCreateForm('confirmPassword', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="Re-enter password"
+                        />
+                      </div>
+                      {createForm.confirmPassword && createForm.password !== createForm.confirmPassword && (
+                        <p className="text-xs text-brand-red mt-1">Passwords don't match</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="tel"
+                          value={createForm.phone}
+                          onChange={(e) => updateCreateForm('phone', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="09XX XXX XXXX"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service</label>
+                        <select
+                          value={createForm.service}
+                          onChange={(e) => updateCreateForm('service', e.target.value)}
+                          className="input-base text-sm py-3"
+                        >
+                          <option value="">Select Service</option>
+                          {vendorServices.map((s: any) => (
+                            <option key={s.service} value={s.service}>{s.service}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sub Service</label>
+                        <select
+                          value={createForm.subService}
+                          onChange={(e) => updateCreateForm('subService', e.target.value)}
+                          className="input-base text-sm py-3"
+                          disabled={!createForm.service}
+                        >
+                          <option value="">Select Sub Service</option>
+                          {createForm.service && vendorServices.find((s: any) => s.service === createForm.service)?.sub_services.map((sub: string) => (
+                            <option key={sub} value={sub}>{sub}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-6">
+                    <Button variant="ghost" className="flex-grow sm:flex-1" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                    <Button
+                      variant="success"
+                      className="flex-grow sm:flex-1"
+                      onClick={handleCreatePersonnelSubmit}
+                      loading={createSaving}
+                      disabled={!createForm.firstName || !createForm.lastName || !createForm.username || !usernameValid || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !/^\d{11}$/.test(createForm.phone) || !createForm.service || (hasSubServices && !createForm.subService) || createForm.password !== createForm.confirmPassword || strength < 4}
+                      icon={<Plus className="w-4 h-4" />}
+                    >
+                      Create Personnel
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices, onSave }: {
+  isOpen: boolean;
+  onClose: () => void;
+  dbServices: any[];
+  currentServices: any[];
+  onSave: (services: any[]) => Promise<void>;
+}) {
+  const [selectedServices, setSelectedServices] = useState<Array<{ service: string; sub_services: string[]; work_types?: any[] }>>([]);
+  const [expandedService, setExpandedService] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedServices(
+        currentServices.map((s: any) => ({
+          service: s.service,
+          sub_services: [...(s.sub_services || []), ...(s.subServices || [])],
+          work_types: s.work_types || []
+        }))
+      );
+      setError('');
+    }
+  }, [isOpen, currentServices]);
+
+  const toggleService = (serviceName: string) => {
+    const exists = selectedServices.find(s => s.service === serviceName);
+    if (exists) {
+      setSelectedServices(selectedServices.filter(s => s.service !== serviceName));
+      setExpandedService(null);
+    } else {
+      setSelectedServices([...selectedServices, { service: serviceName, sub_services: [], work_types: [] }]);
+      setExpandedService(serviceName);
+    }
+  };
+
+  const toggleSubService = (serviceName: string, subName: string) => {
+    setSelectedServices(selectedServices.map(s => {
+      if (s.service === serviceName) {
+        const has = s.sub_services.includes(subName);
+        const newSubServices = has 
+          ? s.sub_services.filter(x => x !== subName) 
+          : [...s.sub_services, subName];
+        
+        const currentWts = s.work_types || [];
+        const newWts = has
+          ? currentWts.filter((wt: any) => wt.subService !== subName)
+          : currentWts;
+
+        return {
+          ...s,
+          sub_services: newSubServices,
+          work_types: newWts
+        };
+      }
+      return s;
+    }));
+  };
+
+  const toggleWorkType = (serviceName: string, subName: string, workTypeName: string, defaultPrice: string) => {
+    setSelectedServices(selectedServices.map(s => {
+      if (s.service === serviceName) {
+        const currentWts = s.work_types || [];
+        const exists = currentWts.some((wt: any) => wt.name === workTypeName && wt.subService === subName);
+        const updatedWts = exists
+          ? currentWts.filter((wt: any) => !(wt.name === workTypeName && wt.subService === subName))
+          : [...currentWts, { name: workTypeName, subService: subName, price: defaultPrice || '0.00', status: 'approved' }];
+        return {
+          ...s,
+          work_types: updatedWts
+        };
+      }
+      return s;
+    }));
+  };
+
+  const handleSave = async () => {
+    setError('');
+    if (selectedServices.length === 0) {
+      setError('Please select at least one service brand.');
+      return;
+    }
+    for (const s of selectedServices) {
+      const def = dbServices.find(db => db.name === s.service);
+      if (def && def.subServices && def.subServices.length > 0 && s.sub_services.length === 0) {
+        setError(`Please select at least one sub-service for ${s.service}.`);
+        return;
+      }
+      if (def && def.subServices) {
+        for (const subName of s.sub_services) {
+          const dbSub = def.subServices.find((ds: any) => (ds.name || ds) === subName);
+          if (dbSub && dbSub.workTypes && dbSub.workTypes.length > 0) {
+            const hasWt = (s.work_types || []).some((wt: any) => wt.subService === subName);
+            if (!hasWt) {
+              setError(`Please select at least one work type for sub-service ${subName} under ${s.service}.`);
+              return;
+            }
+          }
+        }
+      }
+    }
+    setSaving(true);
+    try {
+      const mergedServices = selectedServices.map(sel => {
+        const existing = currentServices.find(c => c.service === sel.service);
+        const existingCustomWts = (existing?.work_types || []).filter((wt: any) => wt.status === 'pending' || wt.status === 'rejected');
+        
+        const finalWts = [...(sel.work_types || [])];
+        existingCustomWts.forEach((vwt: any) => {
+          if (!finalWts.some((wt: any) => wt.name.toLowerCase() === vwt.name.toLowerCase() && wt.subService.toLowerCase() === vwt.subService.toLowerCase())) {
+            finalWts.push(vwt);
+          }
+        });
+
+        return {
+          ...sel,
+          work_types: finalWts
+        };
+      });
+      await onSave(mergedServices);
+      onClose();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to save services');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Offered Services</h3>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+                {error}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Select the services, sub-services, and work types you offer:
+                </label>
+                <div className="max-h-96 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
+                  {dbServices.map(svc => {
+                    const isSelected = selectedServices.find(s => s.service === svc.name);
+                    return (
+                      <div key={svc.name} className="space-y-1">
+                        <button type="button" onClick={() => toggleService(svc.name)}
+                          className={`w-full p-2.5 rounded-lg border-2 transition-all text-left text-sm ${isSelected ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-900 dark:text-white">{svc.name}</span>
+                            {isSelected && <Check className="w-4 h-4 text-brand-green" />}
+                          </div>
+                        </button>
+                        {isSelected && svc.subServices && svc.subServices.length > 0 && (
+                          <div className="ml-4 mt-1 p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Sub-services & Work Types:</p>
+                            {svc.subServices.map((sub: any) => {
+                              const subName = sub.name || sub;
+                              const isSubSelected = isSelected.sub_services.includes(subName);
+                              const subServiceWorkTypes = sub.workTypes || [];
+
+                              return (
+                                <div key={subName} className="space-y-1.5 border-l-2 border-slate-100 dark:border-slate-800 pl-3">
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={isSubSelected} onChange={() => toggleSubService(svc.name, subName)}
+                                      className="w-3.5 h-3.5 rounded border-slate-300 text-brand-navy focus:ring-brand-navy" />
+                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
+                                  </label>
+
+                                  {isSubSelected && subServiceWorkTypes.length > 0 && (
+                                    <div className="ml-5 mt-1 space-y-1">
+                                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Select Work Types:</p>
+                                      {subServiceWorkTypes.map((wt: string) => {
+                                        const isWtSelected = isSelected.work_types?.some((vwt: any) => vwt.name === wt && vwt.subService === subName);
+
+                                        return (
+                                          <label key={wt} className="flex items-center gap-2 cursor-pointer py-0.5">
+                                            <input type="checkbox" checked={!!isWtSelected} onChange={() => toggleWorkType(svc.name, subName, wt, sub.prices?.[wt] || '0.00')}
+                                              className="w-3 h-3 rounded border-slate-300 text-brand-green focus:ring-brand-green" />
+                                            <span className="text-[11px] text-slate-655 dark:text-slate-345">{wt}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-6">
+              <Button variant="ghost" className="flex-1" onClick={onClose}>Cancel</Button>
+              <Button variant="success" className="flex-1" onClick={handleSave} loading={saving}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbServices, onNewRequest }: {
+  isOpen: boolean;
+  onClose: () => void;
+  service: any;
+  subServiceName: string;
+  dbServices: any[];
+  onNewRequest: () => void;
+}) {
+  const { profile } = useAuth();
+  const p = profile as any;
+  const [proposedRows, setProposedRows] = useState<Array<{ name: string; restrictions: string }>>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [vendorRequests, setVendorRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
+  const dbServiceMatch = dbServices.find(s => s.name.toLowerCase() === service.service.toLowerCase());
+  const dbSubServiceMatch = dbServiceMatch?.subServices?.find((sub: any) => (sub.name || sub).toLowerCase() === subServiceName.toLowerCase());
+  
+  const existingWorkTypes = dbSubServiceMatch?.workTypes || [];
+  const prices = dbSubServiceMatch?.prices || {};
+
+  // Merge general work types with vendor's approved custom ones from their profile
+  const vendorSvc = (profile as any)?.services?.find((s: any) => s.service.toLowerCase() === service.service.toLowerCase());
+  const vendorApprovedWorkTypes = vendorSvc?.work_types?.filter((wt: any) => wt.subService.toLowerCase() === subServiceName.toLowerCase() && wt.status === 'approved') || [];
+
+  const allActiveWts = [...existingWorkTypes];
+  vendorApprovedWorkTypes.forEach((vwt: any) => {
+    if (!allActiveWts.some(wtName => wtName.toLowerCase() === vwt.name.toLowerCase())) {
+      allActiveWts.push(vwt.name);
+    }
+  });
+
+  const allPrices = { ...prices };
+  vendorApprovedWorkTypes.forEach((vwt: any) => {
+    allPrices[vwt.name] = vwt.price;
+  });
+
+  const fetchVendorRequests = useCallback(() => {
+    if (!p?.id) return;
+    setLoadingRequests(true);
+    api.get(`/api/services/requests/work-type/vendor/${p.id}`)
+      .then(res => {
+        const filtered = (res.data || []).filter((req: any) => 
+          req.serviceId.toLowerCase() === (dbServiceMatch?.id || service.service).toLowerCase() && 
+          req.subServiceId.toLowerCase() === subServiceName.toLowerCase()
+        );
+        setVendorRequests(filtered);
+      })
+      .catch(err => {
+        console.error('Failed to load vendor work type requests', err);
+      })
+      .finally(() => setLoadingRequests(false));
+  }, [p?.id, dbServiceMatch?.id, service.service, subServiceName]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setProposedRows([]);
+      setError('');
+      setSuccess('');
+      fetchVendorRequests();
+    }
+  }, [isOpen, fetchVendorRequests]);
+
+  const handleAddRow = () => {
+    setProposedRows([...proposedRows, { name: '', restrictions: '' }]);
+  };
+
+  const handleRowChange = (index: number, key: 'name' | 'restrictions', val: string) => {
+    const updated = [...proposedRows];
+    updated[index] = { ...updated[index], [key]: val };
+    setProposedRows(updated);
+  };
+
+  const handleRemoveRow = (index: number) => {
+    setProposedRows(proposedRows.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitAll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!p) {
+      setError('Not authenticated');
+      return;
+    }
+
+    const validNewProposals = proposedRows.filter(r => r.name.trim());
+    if (validNewProposals.length === 0) {
+      setError('Please add at least one work type proposal.');
+      return;
+    }
+
+    // Validation checks for existing or pending
+    for (const row of validNewProposals) {
+      const proposedName = row.name.trim();
+      const existsApproved = allActiveWts.some((wt: string) => wt.toLowerCase() === proposedName.toLowerCase());
+      const existsPending = vendorRequests.some((req: any) => req.name.toLowerCase() === proposedName.toLowerCase() && req.status === 'pending');
+      
+      if (existsApproved) {
+        setError(`"${proposedName}" is already approved and active for this sub-service.`);
+        return;
+      }
+      if (existsPending) {
+        setError(`You have already submitted a pending request for "${proposedName}".`);
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      await Promise.all(
+        validNewProposals.map(row =>
+          api.post('/api/services/requests/work-type', {
+            vendorId: p.id,
+            vendorName: p.company_name || p.name || 'Vendor',
+            serviceId: dbServiceMatch?.id || service.service,
+            serviceName: service.service,
+            subServiceId: subServiceName,
+            subServiceName: subServiceName,
+            name: row.name.trim(),
+            restrictions: row.restrictions.trim()
+          })
+        )
+      );
+      
+      setSuccess('Your request(s) have been submitted successfully and are pending admin approval.');
+      setProposedRows([]);
+      fetchVendorRequests();
+      onNewRequest();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to submit requests');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-brand-navy/60 dark:text-brand-green/60">{service.service}</span>
+                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">{subServiceName} — Work Types</h3>
+              </div>
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-2 items-center">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              {success && (
+                <div className="p-3 rounded-xl bg-brand-green/10 border border-brand-green/20 text-brand-green text-sm flex gap-2 items-center">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  <span>{success}</span>
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">Configure Work Types</h4>
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  
+                  {/* Active Work Types (Read Only) */}
+                  {allActiveWts.map((wt: string) => (
+                    <div
+                      key={wt}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 space-y-2"
+                    >
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-grow">
+                          <input
+                            type="text"
+                            value={wt}
+                            disabled
+                            className="w-full text-xs font-semibold px-3 py-2 border border-slate-250 dark:border-slate-750 bg-slate-100/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400 rounded-lg outline-none cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="relative w-28">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">₱</span>
+                          <input
+                            type="text"
+                            value={allPrices[wt] || '0.00'}
+                            disabled
+                            className="w-full pl-6 pr-3 py-2 text-xs font-semibold border border-slate-250 dark:border-slate-750 bg-slate-100/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400 rounded-lg outline-none cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            Active
+                          </span>
+                        </div>
+                      </div>
+                      {vendorApprovedWorkTypes.find((vwt: any) => vwt.name.toLowerCase() === wt.toLowerCase())?.restrictions && (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100/40 dark:bg-slate-800/20 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 flex gap-1.5 items-center">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[9px]">Restrictions:</span>
+                          <span>{vendorApprovedWorkTypes.find((vwt: any) => vwt.name.toLowerCase() === wt.toLowerCase())?.restrictions}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Proposed/Pending Work Types (Read Only) */}
+                  {vendorRequests.map((req: any) => (
+                    <div
+                      key={req.id}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 space-y-2"
+                    >
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-grow">
+                          <input
+                            type="text"
+                            value={req.name}
+                            disabled
+                            className="w-full text-xs font-semibold px-3 py-2 border border-slate-250 dark:border-slate-750 bg-slate-100/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400 rounded-lg outline-none cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="relative w-28">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">₱</span>
+                          <input
+                            type="text"
+                            value={req.price || 'TBD'}
+                            disabled
+                            className="w-full pl-6 pr-3 py-2 text-xs font-semibold border border-slate-250 dark:border-slate-750 bg-slate-100/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-400 rounded-lg outline-none cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
+                            req.status === 'approved' 
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                              : req.status === 'rejected' 
+                                ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' 
+                                : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </div>
+                      </div>
+                      {req.restrictions && (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100/40 dark:bg-slate-800/20 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 flex gap-1.5 items-center">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[9px]">Restrictions:</span>
+                          <span>{req.restrictions}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Editable Proposed New Rows */}
+                  {proposedRows.map((row, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-brand-navy/5 dark:bg-brand-green/5 border border-brand-navy/20 dark:border-brand-green/20 flex gap-2 items-center"
+                    >
+                      <div className="flex-grow">
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={e => handleRowChange(idx, 'name', e.target.value)}
+                          placeholder="e.g. Standard Split Type"
+                          disabled={submitting}
+                          className="w-full text-xs font-semibold px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-brand-navy/20 dark:focus:ring-brand-green/20"
+                          required
+                        />
+                      </div>
+                      <div className="flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(idx)}
+                          className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors"
+                          title="Remove proposal row"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {existingWorkTypes.length === 0 && vendorRequests.length === 0 && proposedRows.length === 0 && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                      No work types defined. Click "Add Work Type" below to propose one.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Row Button */}
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleAddRow}
+                  icon={<Plus className="w-4 h-4" />}
+                  className="w-full border border-dashed border-slate-300 dark:border-slate-700 text-slate-550 dark:text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  disabled={submitting}
+                >
+                  Add Work Type
+                </Button>
+              </div>
+
+              {/* Form Buttons */}
+              {proposedRows.length > 0 && (
+                <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex-1"
+                    onClick={() => setProposedRows([])}
+                    disabled={submitting}
+                  >
+                    Clear New Rows
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="success"
+                    className="flex-1"
+                    onClick={handleSubmitAll}
+                    loading={submitting}
+                    disabled={proposedRows.every(r => !r.name.trim())}
+                  >
+                    Submit Proposals
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const { profile } = useAuth();
+  const p = profile as any;
+  const [form, setForm] = useState({ name: '', tagline: '', description: '' });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({ name: '', tagline: '', description: '' });
+      setError('');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!p) {
+      setError('Not authenticated');
+      return;
+    }
+    if (!form.name.trim() || !form.tagline.trim() || !form.description.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post('/api/services/requests/main-service', {
+        vendorId: p.id,
+        vendorName: p.company_name || p.name || 'Vendor',
+        name: form.name.trim(),
+        tagline: form.tagline.trim(),
+        description: form.description.trim()
+      });
+      onSubmitted();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to submit request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Propose New Main Service Brand</h3>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+                {error}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service Brand Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="input-base text-sm" placeholder="e.g. RoofFix" disabled={submitting} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tagline *</label>
+                <input value={form.tagline} onChange={e => setForm({ ...form, tagline: e.target.value })}
+                  className="input-base text-sm" placeholder="e.g. Premium Roofing & Gutter Solutions" disabled={submitting} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description *</label>
+                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                  className="input-base text-sm min-h-[100px]" placeholder="Describe the service..." disabled={submitting} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" className="flex-1" onClick={onClose} type="button">Cancel</Button>
+                <Button variant="success" className="flex-1" type="submit" loading={submitting}>Submit Proposal</Button>
+              </div>
+            </form>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
+  isOpen: boolean;
+  onClose: () => void;
+  dbServices: any[];
+  onSubmitted: () => void;
+}) {
+  const { profile } = useAuth();
+  const p = profile as any;
+  const [form, setForm] = useState({ serviceId: '', name: '', description: '' });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({ serviceId: dbServices[0]?.id || dbServices[0]?.name || '', name: '', description: '' });
+      setError('');
+    }
+  }, [isOpen, dbServices]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!p) {
+      setError('Not authenticated');
+      return;
+    }
+    if (!form.serviceId || !form.name.trim() || !form.description.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    const parentSvc = dbServices.find(s => s.id === form.serviceId || s.name === form.serviceId);
+    setSubmitting(true);
+    try {
+      await api.post('/api/services/requests/sub-service', {
+        vendorId: p.id,
+        vendorName: p.company_name || p.name || 'Vendor',
+        serviceId: form.serviceId,
+        serviceName: parentSvc?.name || form.serviceId,
+        name: form.name.trim(),
+        description: form.description.trim()
+      });
+      onSubmitted();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to submit request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Propose New Sub Service</h3>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+                {error}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parent Service Category *</label>
+                <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })}
+                  className="input-base text-sm" disabled={submitting}>
+                  {dbServices.map(s => (
+                    <option key={s.id || s.name} value={s.id || s.name}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sub Service Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="input-base text-sm" placeholder="e.g. Deep Cleaning" disabled={submitting} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description *</label>
+                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                  className="input-base text-sm min-h-[100px]" placeholder="Describe the subservice..." disabled={submitting} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" className="flex-1" onClick={onClose} type="button">Cancel</Button>
+                <Button variant="success" className="flex-1" type="submit" loading={submitting}>Submit Proposal</Button>
+              </div>
+            </form>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices: any[]; loadingDb: boolean; refreshServices: () => void }) {
+  const { profile, refreshProfile } = useAuth();
+  const p = profile as any;
+  const [activeTab, setActiveTab] = useState<'offered' | 'proposals'>('offered');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedSubService, setSelectedSubService] = useState<{ svc: any; subName: string } | null>(null);
+  
+  // Proposals & Requests lists
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [showProposeMain, setShowProposeMain] = useState(false);
+  const [showProposeSub, setShowProposeSub] = useState(false);
+
+  const vendorServices = getFilteredVendorServices(p?.services || [], dbServices);
+
+  const fetchAllProposals = useCallback(async () => {
+    if (!p?.id) return;
+    setLoadingRequests(true);
+    try {
+      const [mains, subs, wts] = await Promise.all([
+        api.get(`/api/services/requests/main-service/vendor/${p.id}`).catch(() => ({ data: [] })),
+        api.get(`/api/services/requests/sub-service/vendor/${p.id}`).catch(() => ({ data: [] })),
+        api.get(`/api/services/requests/work-type/vendor/${p.id}`).catch(() => ({ data: [] }))
+      ]);
+
+      const formatted = [
+        ...mains.data.map((r: any) => ({ ...r, type: 'Main Service' })),
+        ...subs.data.map((r: any) => ({ ...r, type: 'Sub Service', parent: r.serviceName })),
+        ...wts.data.map((r: any) => ({ ...r, type: 'Work Type', parent: `${r.serviceName} → ${r.subServiceName}` }))
+      ];
+      // Sort by status / creation if available
+      setProposals(formatted);
+    } catch (e) {
+      console.error('Failed to load proposals', e);
+    } finally {
+      setLoadingRequests(false);
+    }
+  }, [p?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'proposals') {
+      fetchAllProposals();
+    }
+  }, [activeTab, fetchAllProposals]);
+
+  const handleUpdateServices = async (updatedServices: any[]) => {
+    if (!p?.id) return;
+    await api.put(`/api/vendors/${p.id}`, { services: updatedServices });
+    await refreshProfile();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Service Brand Management</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Configure offered service brands, propose custom categories, or manage custom Work Types.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {activeTab === 'offered' ? (
+            <Button onClick={() => setShowEditModal(true)} icon={<Edit className="w-4 h-4" />}>
+              Edit Offered Services
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setShowProposeMain(true)} icon={<Plus className="w-4 h-4" />}>
+                Propose Main Category
+              </Button>
+              <Button onClick={() => setShowProposeSub(true)} icon={<Plus className="w-4 h-4" />}>
+                Propose Sub Service
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Elegant Sub-navigation Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800">
+        <button
+          onClick={() => setActiveTab('offered')}
+          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
+            activeTab === 'offered'
+              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          My Offered Services
+        </button>
+        <button
+          onClick={() => setActiveTab('proposals')}
+          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
+            activeTab === 'proposals'
+              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          Proposals & Request History
+        </button>
+      </div>
+
+      {/* Tab Contents */}
+      {activeTab === 'offered' ? (
+        vendorServices.length === 0 ? (
+          <EmptyState
+            title="No Services Assigned"
+            description="You have not selected any services you offer yet. Click 'Edit Offered Services' above to choose from the platform catalog."
+            icon={<Wrench className="w-8 h-8 text-slate-400" />}
+          />
+        ) : loadingDb ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array(2).fill(0).map((_, i) => (
+              <div key={i} className="skeleton h-48 rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {vendorServices.map((svc: any, idx: number) => {
+              const displaySubServices = svc.sub_services || [];
+
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.1 }}
+                  className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-navy/10 dark:bg-brand-green/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
+                          <Wrench className="w-5 h-5" />
+                        </div>
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-wide">
+                          {svc.service}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {displaySubServices.length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                        No specific sub-services assigned.
+                      </p>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Sub Services (Click to view/propose Work Types):</p>
+                        {displaySubServices.map((sub: string) => (
+                          <div
+                            key={sub}
+                            className="flex items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 transition-all hover:bg-brand-navy/5 hover:border-brand-navy/20 dark:hover:bg-brand-green/10 dark:hover:border-brand-green/20 cursor-pointer"
+                          >
+                            <div 
+                              className="flex items-center gap-2.5 flex-grow"
+                              onClick={() => setSelectedSubService({ svc, subName: sub })}
+                            >
+                              <Check className="w-4 h-4 text-brand-green flex-shrink-0" />
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                {sub}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <span 
+                                onClick={() => setSelectedSubService({ svc, subName: sub })}
+                                className="text-xs text-brand-navy dark:text-brand-green font-bold flex items-center gap-1"
+                              >
+                                Configure <ArrowRight className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* Proposals & Request History Tab */
+        <Card>
+          <div className="p-6">
+            <h4 className="text-md font-bold text-slate-900 dark:text-white mb-4">Submitted Category & Work Type Proposals</h4>
+            {loadingRequests ? (
+              <div className="space-y-3">
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="skeleton h-12 rounded-xl" />
+                ))}
+              </div>
+            ) : proposals.length === 0 ? (
+              <EmptyState
+                title="No proposals found"
+                description="You haven't proposed any new categories, sub-services, or work types yet. Click 'Propose Category' or configure a Sub-Service to add a Work Type."
+                icon={<Mail className="w-8 h-8 text-slate-400" />}
+              />
+            ) : (
+              <DataTable
+                columns={[
+                  { key: 'name', label: 'Proposed Item Name', sortable: true },
+                  { key: 'type', label: 'Proposal Level', sortable: true, render: (item: any) => (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-brand-navy/10 text-brand-navy dark:bg-brand-green/10 dark:text-brand-green font-bold">
+                      {item.type}
+                    </span>
+                  )},
+                  { key: 'parent', label: 'Context / Parent', render: (item: any) => item.parent || '—' },
+                  { key: 'status', label: 'Status', render: (item: any) => (
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
+                      item.status === 'approved' 
+                        ? 'badge-completed' 
+                        : item.status === 'rejected' 
+                          ? 'badge-cancelled' 
+                          : 'badge-pending'
+                    }`}>
+                      {item.status}
+                    </span>
+                  )},
+                ]}
+                data={proposals}
+                searchPlaceholder="Search request history..."
+              />
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Edit Offered Services Modal */}
+      <EditVendorServicesModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        dbServices={dbServices}
+        currentServices={(profile as any)?.services || []}
+        onSave={handleUpdateServices}
+      />
+
+      {/* Subservice & Work Types detail modal */}
+      {selectedSubService && (
+        <SubServiceDetailModal
+          isOpen={!!selectedSubService}
+          onClose={() => setSelectedSubService(null)}
+          service={selectedSubService.svc}
+          subServiceName={selectedSubService.subName}
+          dbServices={dbServices}
+          onNewRequest={fetchAllProposals}
+        />
+      )}
+
+      {/* Propose Main Category Modal */}
+      <ProposeMainServiceModal
+        isOpen={showProposeMain}
+        onClose={() => setShowProposeMain(false)}
+        onSubmitted={() => {
+          setActiveTab('proposals');
+          fetchAllProposals();
+        }}
+      />
+
+      {/* Propose Sub Service Modal */}
+      <ProposeSubServiceModal
+        isOpen={showProposeSub}
+        onClose={() => setShowProposeSub(false)}
+        dbServices={dbServices}
+        onSubmitted={() => {
+          setActiveTab('proposals');
+          fetchAllProposals();
+        }}
+      />
+    </div>
+  );
+}
+
+
+export default function VendorDashboard() {
+  const [collapsed, setCollapsed] = useState(true);
+  const [dbServices, setDbServices] = useState<any[]>([]);
+  const [loadingDb, setLoadingDb] = useState(true);
+
+  const fetchServices = () => {
+    setLoadingDb(true);
+    api.get('/api/services')
+      .then(res => {
+        setDbServices(res.data || []);
+      })
+      .catch(err => {
+        console.error('Failed to load services from DB', err);
+      })
+      .finally(() => setLoadingDb(false));
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
+      <Sidebar role="vendor" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <div className={`transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-[260px]'}`}>
+        <Header />
+        <main className="p-6">
+          <Routes>
+            <Route index element={<VendorHome />} />
+            <Route path="schedule" element={<SlotCalendar dbServices={dbServices} />} />
+            <Route path="bookings" element={<VendorBookings />} />
+            <Route path="services" element={<VendorServices dbServices={dbServices} loadingDb={loadingDb} refreshServices={fetchServices} />} />
+
+            <Route path="personnel" element={<VendorPersonnel dbServices={dbServices} />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
+}
