@@ -824,7 +824,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         // [CAVEMAN] Respect explicitly set 0 or less from slot's db available_slots
         let available = Math.max(0, (s.total_slots || 0) - consumed);
         if (s.available_slots === 0 || s.available_slots === '0') {
-          console.log(`[CAVEMAN] Database available_slots is 0 for slot ${s.id}, overriding to 0.`);
+          console.log(`Database available_slots is 0 for slot ${s.id}, overriding to 0.`);
           available = 0;
         } else if (s.available_slots !== undefined && s.available_slots !== null) {
           available = Math.min(available, Number(s.available_slots));

@@ -41,28 +41,28 @@ public class RefundService {
         }
 
         // Notify all admins so they can review and process the refund request
-        System.out.println("[CAVEMAN] RefundService.createRefund: notifying all admins of new refund request ID=" + id);
+        System.out.println("RefundService.createRefund: notifying all admins of new refund request ID=" + id);
         try {
             java.util.List<java.util.Map<String, Object>> admins = firestoreService.getAll("admins");
-            System.out.println("[CAVEMAN] Found " + admins.size() + " admin(s) to notify.");
+            System.out.println("Found " + admins.size() + " admin(s) to notify.");
             for (java.util.Map<String, Object> admin : admins) {
                 String adminId = (String) admin.get("id");
                 if (adminId == null) adminId = (String) admin.get("uid");
                 if (adminId != null) {
                     notificationService.notify(adminId, "admin",
                         customerName + " has submitted a cancellation and refund request. Please review it in the Refunds section.");
-                    System.out.println("[CAVEMAN] Admin notified: " + adminId);
+                    System.out.println("Admin notified: " + adminId);
                 }
             }
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Failed to notify admins of new refund request: " + e.getMessage());
+            System.err.println("Failed to notify admins of new refund request: " + e.getMessage());
         }
 
         return id;
     }
 
     public void approveRefund(String refundId, Map<String, Object> details) throws Exception {
-        System.out.println("[CAVEMAN] RefundService.approveRefund: Called for ID: " + refundId + " with details: " + details);
+        System.out.println("RefundService.approveRefund: Called for ID: " + refundId + " with details: " + details);
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", "Processed");
         updates.put("notified", true);
@@ -75,12 +75,12 @@ public class RefundService {
         }
         
         firestoreService.update("refunds", refundId, updates);
-        System.out.println("[CAVEMAN] RefundService.approveRefund: Updated refund document " + refundId + " with: " + updates);
+        System.out.println("RefundService.approveRefund: Updated refund document " + refundId + " with: " + updates);
 
         Map<String, Object> refund = firestoreService.getById("refunds", refundId);
         String bookingId = (String) refund.get("booking_id");
         if (bookingId != null) {
-            System.out.println("[CAVEMAN] RefundService.approveRefund: Found linked booking: " + bookingId + ". Updating booking record.");
+            System.out.println("RefundService.approveRefund: Found linked booking: " + bookingId + ". Updating booking record.");
             Map<String, Object> bookingUpdates = new HashMap<>();
             bookingUpdates.put("status", "cancelled");
             bookingUpdates.put("cancellation_requested", true);
@@ -96,42 +96,42 @@ public class RefundService {
             }
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
-            System.out.println("[CAVEMAN] RefundService.approveRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
+            System.out.println("RefundService.approveRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
             
             // Restore slot back to vendor slots
             try {
                 slotService.restoreSlotForCancelledBooking(bookingId);
             } catch (Exception e) {
-                System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in approveRefund: " + e.getMessage());
+                System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in approveRefund: " + e.getMessage());
             }
         } else {
-            System.out.println("[CAVEMAN] RefundService.approveRefund WARNING: No bookingId linked to refund ID: " + refundId);
+            System.out.println("RefundService.approveRefund WARNING: No bookingId linked to refund ID: " + refundId);
         }
 
         String customerId = (String) refund.get("customer_id");
         if (customerId != null) {
             notificationService.notify(customerId, "customer", "Your refund has been approved.");
-            System.out.println("[CAVEMAN] RefundService.approveRefund: Notified customer: " + customerId);
+            System.out.println("RefundService.approveRefund: Notified customer: " + customerId);
         }
 
         // Send Email Notification
         try {
             sendRefundEmailNotification(refundId);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] ERROR: Failed to send refund email: " + e.getMessage());
+            System.err.println("ERROR: Failed to send refund email: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     public String createDirectRefund(Map<String, Object> data) throws Exception {
-        System.out.println("[CAVEMAN] RefundService.createDirectRefund: Creating direct refund with: " + data);
+        System.out.println("RefundService.createDirectRefund: Creating direct refund with: " + data);
         data.put("status", "Processed");
         data.put("notified", true);
         data.put("processed_at", new Date());
         
         String bookingId = (String) data.get("booking_id");
         if (bookingId != null) {
-            System.out.println("[CAVEMAN] RefundService.createDirectRefund: Fetching booking to populate details: " + bookingId);
+            System.out.println("RefundService.createDirectRefund: Fetching booking to populate details: " + bookingId);
             Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
             if (booking != null) {
                 if (!data.containsKey("customer_id")) data.put("customer_id", booking.get("customer_id"));
@@ -149,15 +149,15 @@ public class RefundService {
                         data.put("refund_amount", price * qty);
                     }
                 }
-                System.out.println("[CAVEMAN] RefundService.createDirectRefund: Populated from booking: customer_name=" + data.get("customer_name") + ", refund_amount=" + data.get("refund_amount"));
+                System.out.println("RefundService.createDirectRefund: Populated from booking: customer_name=" + data.get("customer_name") + ", refund_amount=" + data.get("refund_amount"));
             }
         }
         
         String refundId = firestoreService.create("refunds", data);
-        System.out.println("[CAVEMAN] RefundService.createDirectRefund: Created refund document ID: " + refundId);
+        System.out.println("RefundService.createDirectRefund: Created refund document ID: " + refundId);
         
         if (bookingId != null) {
-            System.out.println("[CAVEMAN] RefundService.createDirectRefund: Updating booking: " + bookingId);
+            System.out.println("RefundService.createDirectRefund: Updating booking: " + bookingId);
             Map<String, Object> bookingUpdates = new HashMap<>();
             bookingUpdates.put("status", "cancelled");
             bookingUpdates.put("cancellation_requested", true);
@@ -169,27 +169,27 @@ public class RefundService {
             if (data.get("refund_amount") != null) bookingUpdates.put("refund_amount", data.get("refund_amount"));
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
-            System.out.println("[CAVEMAN] RefundService.createDirectRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
+            System.out.println("RefundService.createDirectRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);
             
             // Restore slot back to vendor slots
             try {
                 slotService.restoreSlotForCancelledBooking(bookingId);
             } catch (Exception e) {
-                System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in createDirectRefund: " + e.getMessage());
+                System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in createDirectRefund: " + e.getMessage());
             }
         }
         
         String customerId = (String) data.get("customer_id");
         if (customerId != null) {
             notificationService.notify(customerId, "customer", "A refund of ₱" + data.get("refund_amount") + " has been issued for your booking.");
-            System.out.println("[CAVEMAN] RefundService.createDirectRefund: Notified customer: " + customerId);
+            System.out.println("RefundService.createDirectRefund: Notified customer: " + customerId);
         }
 
         // Send Email Notification
         try {
             sendRefundEmailNotification(refundId);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] ERROR: Failed to send direct refund email: " + e.getMessage());
+            System.err.println("ERROR: Failed to send direct refund email: " + e.getMessage());
             e.printStackTrace();
         }
         
@@ -197,7 +197,7 @@ public class RefundService {
     }
 
     public void rejectRefund(String refundId) throws Exception {
-        System.out.println("[CAVEMAN] RefundService.rejectRefund: Rejecting refund ID: " + refundId);
+        System.out.println("RefundService.rejectRefund: Rejecting refund ID: " + refundId);
         firestoreService.updateField("refunds", refundId, "status", "rejected");
         
         Map<String, Object> refund = firestoreService.getById("refunds", refundId);
@@ -206,16 +206,16 @@ public class RefundService {
             Map<String, Object> bookingUpdates = new HashMap<>();
             bookingUpdates.put("refund_status", "rejected");
             firestoreService.update("bookings", bookingId, bookingUpdates);
-            System.out.println("[CAVEMAN] RefundService.rejectRefund: Updated booking refund_status to rejected for ID=" + bookingId);
+            System.out.println("RefundService.rejectRefund: Updated booking refund_status to rejected for ID=" + bookingId);
         }
     }
 
     public void sendRefundEmailNotification(String refundId) throws Exception {
-        System.out.println("[CAVEMAN] sendRefundEmailNotification: Starting email process for Refund ID: " + refundId);
+        System.out.println("sendRefundEmailNotification: Starting email process for Refund ID: " + refundId);
         
         Map<String, Object> refund = firestoreService.getById("refunds", refundId);
         if (refund == null) {
-            System.out.println("[CAVEMAN] ERROR: Refund record not found for ID: " + refundId);
+            System.out.println("ERROR: Refund record not found for ID: " + refundId);
             return;
         }
         
@@ -234,7 +234,7 @@ public class RefundService {
             try {
                 refundAmountValue = Double.parseDouble((String) amtObj);
             } catch (Exception e) {
-                System.out.println("[CAVEMAN] WARNING: Could not parse refund amount string: " + amtObj);
+                System.out.println("WARNING: Could not parse refund amount string: " + amtObj);
             }
         }
         
@@ -275,17 +275,17 @@ public class RefundService {
             processingDateStr = sdf.format(new java.util.Date());
         }
 
-        System.out.println("[CAVEMAN] sendRefundEmailNotification: Retrieved details from DB:");
-        System.out.println("[CAVEMAN]   - Refund ID: " + id);
-        System.out.println("[CAVEMAN]   - Booking ID: " + bookingId);
-        System.out.println("[CAVEMAN]   - Customer ID: " + customerId);
-        System.out.println("[CAVEMAN]   - Customer Name: " + customerName);
-        System.out.println("[CAVEMAN]   - Payment Method: " + paymentMethod);
-        System.out.println("[CAVEMAN]   - Payment Reference: " + paymentReference);
-        System.out.println("[CAVEMAN]   - Refund Reason: " + reason);
-        System.out.println("[CAVEMAN]   - Refund Amount: " + refundAmountValue);
-        System.out.println("[CAVEMAN]   - Refund Processing Date: " + processingDateStr);
-        System.out.println("[CAVEMAN]   - Refund Status: " + status);
+        System.out.println("sendRefundEmailNotification: Retrieved details from DB:");
+        System.out.println("- Refund ID: " + id);
+        System.out.println("- Booking ID: " + bookingId);
+        System.out.println("- Customer ID: " + customerId);
+        System.out.println("- Customer Name: " + customerName);
+        System.out.println("- Payment Method: " + paymentMethod);
+        System.out.println("- Payment Reference: " + paymentReference);
+        System.out.println("- Refund Reason: " + reason);
+        System.out.println("- Refund Amount: " + refundAmountValue);
+        System.out.println("- Refund Processing Date: " + processingDateStr);
+        System.out.println("- Refund Status: " + status);
 
         // Fetch customer email address
         String customerEmail = null;
@@ -297,11 +297,11 @@ public class RefundService {
         }
         
         if (customerEmail == null || customerEmail.isBlank()) {
-            System.out.println("[CAVEMAN] ERROR: Registered email not found for Customer ID: " + customerId);
+            System.out.println("ERROR: Registered email not found for Customer ID: " + customerId);
             return;
         }
 
-        System.out.println("[CAVEMAN] sendRefundEmailNotification: Sending email to: " + customerEmail);
+        System.out.println("sendRefundEmailNotification: Sending email to: " + customerEmail);
 
         // Send Email
         String appPassword = env.getProperty("spring.mail.password");
@@ -419,7 +419,7 @@ public class RefundService {
         helper.setText(htmlBody, true);
 
         mailSender.send(message);
-        System.out.println("[CAVEMAN] sendRefundEmailNotification: Successfully sent email to " + customerEmail);
+        System.out.println("sendRefundEmailNotification: Successfully sent email to " + customerEmail);
     }
 }
 

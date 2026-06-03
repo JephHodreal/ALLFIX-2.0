@@ -20,7 +20,7 @@ public class ReviewController {
         try {
             List<Map<String, Object>> existing = firestoreService.getAll("reviews");
             if (existing == null || existing.isEmpty()) {
-                System.out.println("[CAVEMAN] Reviews collection is empty. Seeding initial featured reviews...");
+                System.out.println("Reviews collection is empty. Seeding initial featured reviews...");
                 
                 Map<String, Object> r1 = new HashMap<>();
                 r1.put("customer_name", "Maria Santos");
@@ -62,10 +62,10 @@ public class ReviewController {
                 r4.put("created_at", new Date());
                 firestoreService.create("reviews", r4);
 
-                System.out.println("[CAVEMAN] Seeding completed successfully!");
+                System.out.println("Seeding completed successfully!");
             }
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error seeding reviews: " + e.getMessage());
+            System.err.println("Error seeding reviews: " + e.getMessage());
         }
     }
 
@@ -96,7 +96,7 @@ public class ReviewController {
 
     @GetMapping("/featured")
     public ResponseEntity<List<Map<String, Object>>> getFeatured() throws Exception {
-        System.out.println("[CAVEMAN] Fetching featured reviews from Firestore...");
+        System.out.println("Fetching featured reviews from Firestore...");
         List<Map<String, Object>> featuredBools = firestoreService.getWhere("reviews", "featured", true);
         List<Map<String, Object>> featuredStrings = firestoreService.getWhere("reviews", "featured", "true");
         
@@ -109,7 +109,7 @@ public class ReviewController {
                 }
             }
         }
-        System.out.println("[CAVEMAN] Found " + allFeatured.size() + " featured reviews.");
+        System.out.println("Found " + allFeatured.size() + " featured reviews.");
         return ResponseEntity.ok(allFeatured);
     }
 
@@ -127,7 +127,7 @@ public class ReviewController {
         } else if (val instanceof String) {
             featured = Boolean.parseBoolean((String) val);
         }
-        System.out.println("[CAVEMAN] Admin updating featured status for review: " + id + " to: " + featured);
+        System.out.println("Admin updating featured status for review: " + id + " to: " + featured);
         firestoreService.updateField("reviews", id, "featured", featured);
         return ResponseEntity.ok(Map.of("message", "Featured status updated", "featured", featured));
     }

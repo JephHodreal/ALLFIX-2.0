@@ -466,7 +466,7 @@ public class PersonnelController {
 
     @GetMapping("/{id}/dashboard-stats")
     public ResponseEntity<?> getDashboardStats(@PathVariable String id) {
-        System.out.println("[CAVEMAN] PersonnelController.getDashboardStats: fetching stats for personnel " + id);
+        System.out.println("PersonnelController.getDashboardStats: fetching stats for personnel " + id);
         try {
             List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "personnel_id", id);
             
@@ -526,10 +526,10 @@ public class PersonnelController {
             stats.put("totalJobsTrend", totalJobsTrend);
             stats.put("completedJobsTrend", completedJobsTrend);
             
-            System.out.println("[CAVEMAN] PersonnelController.getDashboardStats: successfully calculated stats for personnel " + id);
+            System.out.println("PersonnelController.getDashboardStats: successfully calculated stats for personnel " + id);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getDashboardStats: " + e.getMessage());
+            System.err.println("Error in getDashboardStats: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }

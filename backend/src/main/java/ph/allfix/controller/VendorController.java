@@ -134,7 +134,7 @@ public class VendorController {
 
     @GetMapping("/{id}/dashboard-stats")
     public ResponseEntity<?> getDashboardStats(@PathVariable String id) {
-        System.out.println("[CAVEMAN] VendorController.getDashboardStats: fetching stats for vendor " + id);
+        System.out.println("VendorController.getDashboardStats: fetching stats for vendor " + id);
         try {
             List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "vendor_id", id);
             
@@ -244,10 +244,10 @@ public class VendorController {
             stats.put("incomeTrend", incomeTrend);
             stats.put("completionTrend", completionTrend);
             
-            System.out.println("[CAVEMAN] VendorController.getDashboardStats: successfully calculated stats for vendor " + id);
+            System.out.println("VendorController.getDashboardStats: successfully calculated stats for vendor " + id);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getDashboardStats: " + e.getMessage());
+            System.err.println("Error in getDashboardStats: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }

@@ -344,7 +344,7 @@ public class AuthController {
             emailVerificationService.sendVerificationEmail(email);
             return ResponseEntity.ok(Map.of("message", "Verification email sent successfully"));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error sending verification email: " + e.getMessage());
+            System.err.println("Error sending verification email: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

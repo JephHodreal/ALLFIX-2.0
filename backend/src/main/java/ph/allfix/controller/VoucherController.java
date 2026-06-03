@@ -77,17 +77,17 @@ public class VoucherController {
     public ResponseEntity<?> validateVoucher(@RequestParam String code, @RequestParam String customerId) {
         try {
             String normalizedCode = code.toUpperCase().trim();
-            System.out.println("[CAVEMAN] validateVoucher: code='" + normalizedCode + "', customerId='" + customerId + "'");
+            System.out.println("validateVoucher: code='" + normalizedCode + "', customerId='" + customerId + "'");
 
             // 1. Fetch all active (non-deleted) vouchers from the vouchers collection
             List<Map<String, Object>> allVouchers = firestoreService.getAllActive("vouchers");
-            System.out.println("[CAVEMAN] validateVoucher: Total active vouchers in collection: " + allVouchers.size());
+            System.out.println("validateVoucher: Total active vouchers in collection: " + allVouchers.size());
 
             // 2. Find voucher by code
             Map<String, Object> matchedVoucher = null;
             for (Map<String, Object> v : allVouchers) {
                 String vCode = v.get("code") != null ? v.get("code").toString().toUpperCase().trim() : "";
-                System.out.println("[CAVEMAN] validateVoucher: Checking voucher code='" + vCode + "' (id=" + v.get("id") + ")");
+                System.out.println("validateVoucher: Checking voucher code='" + vCode + "' (id=" + v.get("id") + ")");
                 if (vCode.equals(normalizedCode)) {
                     matchedVoucher = v;
                     break;
@@ -96,19 +96,19 @@ public class VoucherController {
 
             // 3. If voucher code does not exist
             if (matchedVoucher == null) {
-                System.out.println("[CAVEMAN] validateVoucher: INVALID — voucher code '" + normalizedCode + "' does NOT exist in the vouchers collection.");
+                System.out.println("validateVoucher: INVALID — voucher code '" + normalizedCode + "' does NOT exist in the vouchers collection.");
                 return ResponseEntity.ok(Map.of(
                     "valid", false,
                     "message", "Voucher code does not exist."
                 ));
             }
 
-            System.out.println("[CAVEMAN] validateVoucher: Voucher FOUND — id='" + matchedVoucher.get("id") + "', customer_id='" + matchedVoucher.get("customer_id") + "', status='" + matchedVoucher.get("status") + "', discount_type='" + matchedVoucher.get("discount_type") + "', discount_value='" + matchedVoucher.get("discount_value") + "'");
+            System.out.println("validateVoucher: Voucher FOUND — id='" + matchedVoucher.get("id") + "', customer_id='" + matchedVoucher.get("customer_id") + "', status='" + matchedVoucher.get("status") + "', discount_type='" + matchedVoucher.get("discount_type") + "', discount_value='" + matchedVoucher.get("discount_value") + "'");
 
             // 4. Check if the voucher is already used
             String status = matchedVoucher.get("status") != null ? matchedVoucher.get("status").toString() : "";
             if ("used".equalsIgnoreCase(status)) {
-                System.out.println("[CAVEMAN] validateVoucher: INVALID — voucher '" + normalizedCode + "' has already been used.");
+                System.out.println("validateVoucher: INVALID — voucher '" + normalizedCode + "' has already been used.");
                 return ResponseEntity.ok(Map.of(
                     "valid", false,
                     "message", "This voucher has already been used."
@@ -117,10 +117,10 @@ public class VoucherController {
 
             // 5. Check if the voucher's customer_id matches the current customer's ID
             String voucherCustomerId = matchedVoucher.get("customer_id") != null ? matchedVoucher.get("customer_id").toString() : "";
-            System.out.println("[CAVEMAN] validateVoucher: Comparing voucher customer_id='" + voucherCustomerId + "' vs requestedCustomerId='" + customerId + "'");
+            System.out.println("validateVoucher: Comparing voucher customer_id='" + voucherCustomerId + "' vs requestedCustomerId='" + customerId + "'");
 
             if (!voucherCustomerId.equals(customerId)) {
-                System.out.println("[CAVEMAN] validateVoucher: INVALID — customer_id MISMATCH. Voucher belongs to '" + voucherCustomerId + "' but requester is '" + customerId + "'.");
+                System.out.println("validateVoucher: INVALID — customer_id MISMATCH. Voucher belongs to '" + voucherCustomerId + "' but requester is '" + customerId + "'.");
                 return ResponseEntity.ok(Map.of(
                     "valid", false,
                     "message", "This voucher is not assigned to your account."
@@ -128,7 +128,7 @@ public class VoucherController {
             }
 
             // 6. All checks passed — voucher is valid and assigned to this customer
-            System.out.println("[CAVEMAN] validateVoucher: VALID — voucher '" + normalizedCode + "' is valid and assigned to customer '" + customerId + "'.");
+            System.out.println("validateVoucher: VALID — voucher '" + normalizedCode + "' is valid and assigned to customer '" + customerId + "'.");
 
             Map<String, Object> result = new HashMap<>();
             result.put("valid", true);
@@ -142,7 +142,7 @@ public class VoucherController {
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] validateVoucher: ERROR — " + e.getMessage());
+            System.err.println("validateVoucher: ERROR — " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("valid", false, "message", "Server error validating voucher."));
         }
     }

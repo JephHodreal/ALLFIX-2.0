@@ -3306,14 +3306,14 @@ function TransactionsPage() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-850/50">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Details</span>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">Booking Ref: #{selectedTx.id}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">Booking Ref: #{selectedTx.id}</h3>
                 </div>
                 <button 
                   onClick={() => setSelectedTx(null)} 
-                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-450 transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3386,8 +3386,8 @@ function TransactionsPage() {
                 </div>
 
                 {/* Section 3: Financial Payment Breakdown */}
-                <div className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-150 dark:border-slate-800/60">
-                  <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-1.5 font-bold">
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60">
+                  <h5 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-1.5">
                     Financial Summary Breakdown
                   </h5>
                   
@@ -3395,7 +3395,7 @@ function TransactionsPage() {
                     {/* Item price / qty */}
                     <div className="flex justify-between font-medium">
                       <span>Unit Price (₱{selectedTx.price || '0.00'} × {selectedTx.quantity || 1})</span>
-                      <span className="text-slate-800 dark:text-slate-250 font-bold">
+                      <span className="text-slate-800 dark:text-white font-bold">
                         {formatCurrency((selectedTx.price || 0) * (selectedTx.quantity || 1))}
                       </span>
                     </div>
@@ -3406,26 +3406,26 @@ function TransactionsPage() {
                         <span className="flex items-center gap-1.5">
                           Voucher Discounted ({selectedTx.voucher_code})
                         </span>
-                        <span className="font-bold">-{formatCurrency(selectedTx.discount_amount)}</span>
+                        <span className="font-bold dark:text-white">-{formatCurrency(selectedTx.discount_amount)}</span>
                       </div>
                     )}
 
                     {/* Total payment */}
                     <div className="flex justify-between font-bold border-t border-dashed border-slate-250 dark:border-slate-700 pt-2.5 text-sm">
-                      <span className="text-slate-900 dark:text-white">Customer Total Payment</span>
-                      <span className="text-brand-green text-base">{formatCurrency(selectedTx.total_payment)}</span>
+                      <span className="text-slate-900 dark:text-slate-100">Customer Total Payment</span>
+                      <span className="text-brand-green dark:text-white text-base">{formatCurrency(selectedTx.total_payment)}</span>
                     </div>
 
                     {/* System Fee percentage and deduction */}
                     <div className="flex justify-between font-bold text-rose-500 pt-1">
                       <span>Platform Fee Deducted ({selectedTx.system_fee_percentage}%)</span>
-                      <span>-{formatCurrency(selectedTx.system_fee)}</span>
+                      <span className="dark:text-white">-{formatCurrency(selectedTx.system_fee)}</span>
                     </div>
 
                     {/* Vendor Net earnings */}
                     <div className="flex justify-between font-black text-emerald-500 border-t border-slate-200 dark:border-slate-700 pt-2.5 text-base sm:text-lg bg-emerald-500/5 dark:bg-emerald-500/10 p-2 rounded-xl">
                       <span>Vendor Partner Earnings</span>
-                      <span>{formatCurrency(selectedTx.vendor_earnings)}</span>
+                      <span className="dark:text-white">{formatCurrency(selectedTx.vendor_earnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -3438,8 +3438,8 @@ function TransactionsPage() {
               </div>
 
               {/* Footer */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end gap-2">
-                {selectedTx.payout_status !== 'Paid' && (
+              {selectedTx.payout_status !== 'Paid' && (
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
                   <Button 
                     onClick={() => {
                       setPayoutFormFields(selectedTx);
@@ -3450,9 +3450,8 @@ function TransactionsPage() {
                   >
                     Payout
                   </Button>
-                )}
-                <Button onClick={() => setSelectedTx(null)} variant="ghost" className="font-bold">Close details</Button>
-              </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -4077,14 +4076,14 @@ function PayoutsPage() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-855/50">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Details</span>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">Booking Ref: #{selectedTx.id}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">Booking Ref: #{selectedTx.id}</h3>
                 </div>
                 <button 
                   onClick={() => setSelectedTx(null)} 
-                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-455 transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -4157,8 +4156,8 @@ function PayoutsPage() {
                 </div>
 
                 {/* Section 3: Financial Payment Breakdown */}
-                <div className="space-y-3 bg-slate-50 dark:bg-slate-850/40 p-5 rounded-2xl border border-slate-150 dark:border-slate-800/60">
-                  <h5 className="font-bold text-slate-905 dark:text-white text-xs uppercase tracking-wider border-b border-slate-205 dark:border-slate-700 pb-1.5 font-bold">
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/60">
+                  <h5 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-1.5">
                     Financial Summary Breakdown
                   </h5>
                   
@@ -4166,7 +4165,7 @@ function PayoutsPage() {
                     {/* Item price / qty */}
                     <div className="flex justify-between font-medium">
                       <span>Unit Price (₱{selectedTx.price || '0.00'} × {selectedTx.quantity || 1})</span>
-                      <span className="text-slate-800 dark:text-slate-250 font-bold">
+                      <span className="text-slate-800 dark:text-white font-bold">
                         {formatCurrency((selectedTx.price || 0) * (selectedTx.quantity || 1))}
                       </span>
                     </div>
@@ -4177,26 +4176,26 @@ function PayoutsPage() {
                         <span className="flex items-center gap-1.5">
                           Voucher Discounted ({selectedTx.voucher_code})
                         </span>
-                        <span className="font-bold">-{formatCurrency(selectedTx.discount_amount)}</span>
+                        <span className="font-bold dark:text-white">-{formatCurrency(selectedTx.discount_amount)}</span>
                       </div>
                     )}
 
                     {/* Total payment */}
                     <div className="flex justify-between font-bold border-t border-dashed border-slate-250 dark:border-slate-700 pt-2.5 text-sm">
-                      <span className="text-slate-900 dark:text-white">Customer Total Payment</span>
-                      <span className="text-brand-green text-base">{formatCurrency(selectedTx.total_payment)}</span>
+                      <span className="text-slate-900 dark:text-slate-100">Customer Total Payment</span>
+                      <span className="text-brand-green dark:text-white text-base">{formatCurrency(selectedTx.total_payment)}</span>
                     </div>
 
                     {/* System Fee percentage and deduction */}
                     <div className="flex justify-between font-bold text-rose-500 pt-1">
                       <span>Platform Fee Deducted ({selectedTx.system_fee_percentage}%)</span>
-                      <span>-{formatCurrency(selectedTx.system_fee)}</span>
+                      <span className="dark:text-white">-{formatCurrency(selectedTx.system_fee)}</span>
                     </div>
 
                     {/* Vendor Net earnings */}
                     <div className="flex justify-between font-black text-emerald-500 border-t border-slate-200 dark:border-slate-700 pt-2.5 text-base sm:text-lg bg-emerald-500/5 dark:bg-emerald-500/10 p-2 rounded-xl">
                       <span>Vendor Partner Earnings</span>
-                      <span>{formatCurrency(selectedTx.vendor_earnings)}</span>
+                      <span className="dark:text-white">{formatCurrency(selectedTx.vendor_earnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -4209,8 +4208,8 @@ function PayoutsPage() {
               </div>
 
               {/* Footer */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-855 flex justify-end gap-2">
-                {selectedTx.payout_status !== 'Paid' && (
+              {selectedTx.payout_status !== 'Paid' && (
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
                   <Button 
                     onClick={() => {
                       setPayoutFormFields(selectedTx);
@@ -4221,9 +4220,8 @@ function PayoutsPage() {
                   >
                     Payout
                   </Button>
-                )}
-                <Button onClick={() => setSelectedTx(null)} variant="ghost" className="font-bold">Close details</Button>
-              </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -4357,7 +4355,7 @@ function VouchersPage() {
                 </span>
               )},
               { key: 'discount_type', label: 'Type', render: (item: any) => (
-                <span className="capitalize font-semibold text-slate-700 dark:text-slate-350 text-xs">
+                <span className="capitalize font-semibold text-slate-700 dark:text-white text-xs">
                   {item.discount_type}
                 </span>
               )},
@@ -4792,7 +4790,7 @@ function RefundsPage() {
               { key: 'refund_amount', label: 'Refund Amount', sortable: true, render: (item: any) => <span className="font-black text-brand-green">₱{Number(item.refund_amount || 0).toFixed(2)}</span> },
               { key: 'reason', label: 'Reason', render: (item: any) => (
                 <div className="flex flex-col gap-0.5 max-w-[150px]">
-                  <span className="text-xs text-slate-700 dark:text-slate-350 font-bold truncate" title={item.reason}>
+                  <span className="text-xs text-slate-700 dark:text-white font-bold truncate" title={item.reason}>
                     {item.reason || 'Customer Requested'}
                   </span>
                   {item.is_automatic_expiration && (

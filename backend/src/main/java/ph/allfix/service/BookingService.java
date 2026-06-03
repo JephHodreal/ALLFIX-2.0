@@ -84,7 +84,7 @@ public class BookingService {
     }
 
     public void completeBooking(String bookingId) throws Exception {
-        System.out.println("[CAVEMAN] BookingService.completeBooking: completing bookingId=" + bookingId);
+        System.out.println("BookingService.completeBooking: completing bookingId=" + bookingId);
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
 
@@ -94,12 +94,12 @@ public class BookingService {
             Map<String, Object> setting = firestoreService.getById("settings", "system_fee");
             if (setting != null && setting.get("percentage") != null) {
                 percentage = ((Number) setting.get("percentage")).doubleValue();
-                System.out.println("[CAVEMAN] BookingService.completeBooking: fetched configured system fee percentage: " + percentage + "%");
+                System.out.println("BookingService.completeBooking: fetched configured system fee percentage: " + percentage + "%");
             } else {
-                System.out.println("[CAVEMAN] BookingService.completeBooking: system fee setting not found, using default 10.0%");
+                System.out.println("BookingService.completeBooking: system fee setting not found, using default 10.0%");
             }
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error fetching system fee setting, using default 10%: " + e.getMessage());
+            System.err.println("Error fetching system fee setting, using default 10%: " + e.getMessage());
         }
 
         double price = booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() : 0.0;
@@ -117,7 +117,7 @@ public class BookingService {
         updates.put("vendor_earnings", vendorEarnings);
         
         firestoreService.update("bookings", bookingId, updates);
-        System.out.println("[CAVEMAN] BookingService.completeBooking: booking status set to completed, systemFee=" + systemFee + ", vendorEarnings=" + vendorEarnings);
+        System.out.println("BookingService.completeBooking: booking status set to completed, systemFee=" + systemFee + ", vendorEarnings=" + vendorEarnings);
 
         handleSlotDecrementForBooking(bookingId);
 
@@ -126,7 +126,7 @@ public class BookingService {
     }
 
     public void requestCancellation(String bookingId) throws Exception {
-        System.out.println("[CAVEMAN] requestCancellation: bookingId=" + bookingId);
+        System.out.println("requestCancellation: bookingId=" + bookingId);
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
 
@@ -140,7 +140,7 @@ public class BookingService {
         try {
             slotService.restoreSlotForCancelledBooking(bookingId);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in requestCancellation: " + e.getMessage());
+            System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in requestCancellation: " + e.getMessage());
         }
 
         // Notify customer
@@ -157,7 +157,7 @@ public class BookingService {
                 "A booking for \"" + booking.get("service_type") + "\" has been cancelled by the customer.");
         }
 
-        System.out.println("[CAVEMAN] requestCancellation complete: status set to cancelled, notifications sent.");
+        System.out.println("requestCancellation complete: status set to cancelled, notifications sent.");
     }
 
     public void cancelWithRefund(String bookingId, Map<String, Object> refundDetails) throws Exception {
@@ -208,7 +208,7 @@ public class BookingService {
         try {
             slotService.restoreSlotForCancelledBooking(bookingId);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in cancelWithRefund: " + e.getMessage());
+            System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in cancelWithRefund: " + e.getMessage());
         }
 
         // 3. Notify the customer and vendor
@@ -225,7 +225,7 @@ public class BookingService {
         try {
             refundService.sendRefundEmailNotification(refundId);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] ERROR: Failed to send cancellation refund email: " + e.getMessage());
+            System.err.println("ERROR: Failed to send cancellation refund email: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -259,12 +259,12 @@ public class BookingService {
                     if (vendorId != null && date != null) {
                         slotService.decrementSlot(vendorId, date, subService, time, slotId);
                         firestoreService.updateField("bookings", bookingId, "slot_decremented", true);
-                        System.out.println("[CAVEMAN] Successfully decremented slot for bookingId=" + bookingId);
+                        System.out.println("Successfully decremented slot for bookingId=" + bookingId);
                     }
                 }
             }
         } catch (Exception e) {
-             System.err.println("[CAVEMAN] Error in handleSlotDecrementForBooking: " + e.getMessage());
+             System.err.println("Error in handleSlotDecrementForBooking: " + e.getMessage());
          }
      }
  
@@ -274,7 +274,7 @@ public class BookingService {
      }
  
      public synchronized void checkAndExpireBookings() {
-         System.out.println("[CAVEMAN] Running checkAndExpireBookings automation...");
+         System.out.println("Running checkAndExpireBookings automation...");
          try {
              List<Map<String, Object>> bookings = firestoreService.getAll("bookings");
              if (bookings == null) return;
@@ -303,7 +303,7 @@ public class BookingService {
                          try {
                              slot = firestoreService.getById("vendor_slots", slotId);
                          } catch (Exception e) {
-                             System.err.println("[CAVEMAN] Error fetching slot by ID: " + slotId + " - " + e.getMessage());
+                             System.err.println("Error fetching slot by ID: " + slotId + " - " + e.getMessage());
                          }
                      }
  
@@ -341,7 +341,7 @@ public class BookingService {
                                  }
                              }
                          } catch (Exception e) {
-                             System.err.println("[CAVEMAN] Error falling back to query slot: " + e.getMessage());
+                             System.err.println("Error falling back to query slot: " + e.getMessage());
                          }
                      }
  
@@ -362,18 +362,18 @@ public class BookingService {
                              java.time.LocalDate slotLocalDate = java.time.LocalDate.parse(slotDateStr.trim());
                              if (slotLocalDate.isBefore(today)) {
                                  isExpired = true;
-                                 System.out.println("[CAVEMAN] BookingId=" + bookingId + " expired because slotDate=" + slotDateStr + " is before today=" + today);
+                                 System.out.println("BookingId=" + bookingId + " expired because slotDate=" + slotDateStr + " is before today=" + today);
                              } else if (slotLocalDate.isEqual(today)) {
                                  if (timeToStr != null && !timeToStr.isBlank()) {
                                      int slotEndTimeMinutes = parseTimeToMinutes(timeToStr);
                                      if (slotEndTimeMinutes > 0 && nowMinutes > slotEndTimeMinutes) {
                                          isExpired = true;
-                                         System.out.println("[CAVEMAN] BookingId=" + bookingId + " expired because slotTime=" + timeToStr + " (" + slotEndTimeMinutes + "m) is before nowTime=" + nowMinutes + "m");
+                                         System.out.println("BookingId=" + bookingId + " expired because slotTime=" + timeToStr + " (" + slotEndTimeMinutes + "m) is before nowTime=" + nowMinutes + "m");
                                      }
                                  }
                              }
                          } catch (Exception e) {
-                             System.err.println("[CAVEMAN] Error parsing date/time for bookingId=" + bookingId + ": " + e.getMessage());
+                             System.err.println("Error parsing date/time for bookingId=" + bookingId + ": " + e.getMessage());
                          }
                      }
  
@@ -383,13 +383,13 @@ public class BookingService {
                  }
              }
          } catch (Exception e) {
-             System.err.println("[CAVEMAN] Error in checkAndExpireBookings: " + e.getMessage());
+             System.err.println("Error in checkAndExpireBookings: " + e.getMessage());
              e.printStackTrace();
          }
      }
  
      public void expireBooking(String bookingId, Map<String, Object> booking) throws Exception {
-         System.out.println("[CAVEMAN] expireBooking: automatically expiring bookingId=" + bookingId);
+         System.out.println("expireBooking: automatically expiring bookingId=" + bookingId);
          
          // 1. Calculate full total amount paid
          double price = booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() : 0.0;
@@ -410,7 +410,7 @@ public class BookingService {
          refundData.put("created_at", new Date());
  
          String refundId = firestoreService.create("refunds", refundData);
-         System.out.println("[CAVEMAN] expireBooking: Created refund request with ID: " + refundId + " for amount ₱" + totalPrice);
+         System.out.println("expireBooking: Created refund request with ID: " + refundId + " for amount ₱" + totalPrice);
  
          // 3. Update the booking record
          Map<String, Object> updates = new HashMap<>();
@@ -423,13 +423,13 @@ public class BookingService {
          updates.put("expired_at", new Date());
          
          firestoreService.update("bookings", bookingId, updates);
-         System.out.println("[CAVEMAN] expireBooking: Updated bookingId=" + bookingId + " to cancelled with refund_status='Refund Required'");
+         System.out.println("expireBooking: Updated bookingId=" + bookingId + " to cancelled with refund_status='Refund Required'");
  
          // 4. Restore slot back to vendor slots
          try {
              slotService.restoreSlotForCancelledBooking(bookingId);
          } catch (Exception e) {
-             System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in expireBooking: " + e.getMessage());
+             System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in expireBooking: " + e.getMessage());
          }
  
          // 5. Notify customer
@@ -458,7 +458,7 @@ public class BookingService {
                  }
              }
          } catch (Exception e) {
-             System.err.println("[CAVEMAN] Failed to notify admins of automatic booking cancellation: " + e.getMessage());
+             System.err.println("Failed to notify admins of automatic booking cancellation: " + e.getMessage());
          }
      }
  

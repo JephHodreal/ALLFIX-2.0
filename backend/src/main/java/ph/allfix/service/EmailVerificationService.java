@@ -20,7 +20,7 @@ public class EmailVerificationService {
     }
 
     public void sendVerificationEmail(String email) throws Exception {
-        System.out.println("[CAVEMAN] sendVerificationEmail: Generating verification link for " + email);
+        System.out.println("sendVerificationEmail: Generating verification link for " + email);
 
         String frontendUrl = env.getProperty("frontend.url");
         if (frontendUrl == null || frontendUrl.isBlank()) {
@@ -35,7 +35,7 @@ public class EmailVerificationService {
                 .build();
 
         String link = FirebaseAuth.getInstance().generateEmailVerificationLink(email, settings);
-        System.out.println("[CAVEMAN] sendVerificationEmail: Generated verification link successfully");
+        System.out.println("sendVerificationEmail: Generated verification link successfully");
 
         // Fetch sender credentials
         String appPassword = env.getProperty("spring.mail.password");
@@ -138,6 +138,6 @@ public class EmailVerificationService {
         helper.setText(htmlBody, true);
 
         mailSender.send(message);
-        System.out.println("[CAVEMAN] sendVerificationEmail: Successfully sent email to " + email);
+        System.out.println("sendVerificationEmail: Successfully sent email to " + email);
     }
 }

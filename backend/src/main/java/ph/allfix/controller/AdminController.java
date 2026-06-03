@@ -161,7 +161,7 @@ public class AdminController {
 
     @GetMapping("/revenue-trend")
     public ResponseEntity<List<Map<String, Object>>> getRevenueTrend() {
-        System.out.println("[CAVEMAN] AdminController.getRevenueTrend: fetching revenue trend");
+        System.out.println("AdminController.getRevenueTrend: fetching revenue trend");
         try {
             List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "status", "completed");
             Map<Date, Double> weeklyValues = new TreeMap<>();
@@ -203,17 +203,17 @@ public class AdminController {
                 trend.add(point);
             }
             
-            System.out.println("[CAVEMAN] AdminController.getRevenueTrend: returning " + trend.size() + " points");
+            System.out.println("AdminController.getRevenueTrend: returning " + trend.size() + " points");
             return ResponseEntity.ok(trend);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getRevenueTrend: " + e.getMessage());
+            System.err.println("Error in getRevenueTrend: " + e.getMessage());
             return ResponseEntity.status(500).body(Collections.emptyList());
         }
     }
 
     @GetMapping("/job-trend")
     public ResponseEntity<List<Map<String, Object>>> getJobTrend() {
-        System.out.println("[CAVEMAN] AdminController.getJobTrend: fetching bookings trend");
+        System.out.println("AdminController.getJobTrend: fetching bookings trend");
         try {
             List<Map<String, Object>> bookings = firestoreService.getAll("bookings");
             Map<Date, Double> weeklyValues = new TreeMap<>();
@@ -251,10 +251,10 @@ public class AdminController {
                 trend.add(point);
             }
             
-            System.out.println("[CAVEMAN] AdminController.getJobTrend: returning " + trend.size() + " points");
+            System.out.println("AdminController.getJobTrend: returning " + trend.size() + " points");
             return ResponseEntity.ok(trend);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getJobTrend: " + e.getMessage());
+            System.err.println("Error in getJobTrend: " + e.getMessage());
             return ResponseEntity.status(500).body(Collections.emptyList());
         }
     }
@@ -484,7 +484,7 @@ public class AdminController {
 
     @GetMapping("/settings/system-fee")
     public ResponseEntity<?> getSystemFee() {
-        System.out.println("[CAVEMAN] AdminController.getSystemFee: fetching system fee");
+        System.out.println("AdminController.getSystemFee: fetching system fee");
         try {
             Map<String, Object> setting = firestoreService.getById("settings", "system_fee");
             if (setting == null) {
@@ -492,13 +492,13 @@ public class AdminController {
                 Map<String, Object> defaultSetting = new HashMap<>();
                 defaultSetting.put("percentage", 10.0);
                 firestoreService.createWithId("settings", "system_fee", defaultSetting);
-                System.out.println("[CAVEMAN] AdminController.getSystemFee: created default system fee = 10.0%");
+                System.out.println("AdminController.getSystemFee: created default system fee = 10.0%");
                 return ResponseEntity.ok(defaultSetting);
             }
-            System.out.println("[CAVEMAN] AdminController.getSystemFee: returning system fee = " + setting.get("percentage") + "%");
+            System.out.println("AdminController.getSystemFee: returning system fee = " + setting.get("percentage") + "%");
             return ResponseEntity.ok(setting);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getSystemFee: " + e.getMessage());
+            System.err.println("Error in getSystemFee: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
@@ -506,7 +506,7 @@ public class AdminController {
     @PostMapping("/settings/system-fee")
     public ResponseEntity<?> updateSystemFee(@RequestBody Map<String, Object> body) {
         Object pct = body.get("percentage");
-        System.out.println("[CAVEMAN] AdminController.updateSystemFee: updating to " + pct);
+        System.out.println("AdminController.updateSystemFee: updating to " + pct);
         try {
             double percentage = 10.0;
             if (pct instanceof Number) {
@@ -518,17 +518,17 @@ public class AdminController {
             Map<String, Object> data = new HashMap<>();
             data.put("percentage", percentage);
             firestoreService.createWithId("settings", "system_fee", data);
-            System.out.println("[CAVEMAN] AdminController.updateSystemFee: successfully set system fee to " + percentage + "%");
+            System.out.println("AdminController.updateSystemFee: successfully set system fee to " + percentage + "%");
             return ResponseEntity.ok(Map.of("success", true, "percentage", percentage));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in updateSystemFee: " + e.getMessage());
+            System.err.println("Error in updateSystemFee: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
     @GetMapping("/transactions")
     public ResponseEntity<?> getTransactions() {
-        System.out.println("[CAVEMAN] AdminController.getTransactions: fetching all completed transactions");
+        System.out.println("AdminController.getTransactions: fetching all completed transactions");
         try {
             // Get current fee percentage
             double currentPercentage = 10.0;
@@ -576,30 +576,30 @@ public class AdminController {
                 transactions.add(tx);
             }
 
-            System.out.println("[CAVEMAN] AdminController.getTransactions: found " + transactions.size() + " completed transactions");
+            System.out.println("AdminController.getTransactions: found " + transactions.size() + " completed transactions");
             return ResponseEntity.ok(transactions);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getTransactions: " + e.getMessage());
+            System.err.println("Error in getTransactions: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
     @GetMapping("/payouts")
     public ResponseEntity<?> getPayouts() {
-        System.out.println("[CAVEMAN] AdminController.getPayouts: fetching all payouts");
+        System.out.println("AdminController.getPayouts: fetching all payouts");
         try {
             List<Map<String, Object>> payouts = firestoreService.getAll("payouts");
-            System.out.println("[CAVEMAN] AdminController.getPayouts: found " + payouts.size() + " payouts");
+            System.out.println("AdminController.getPayouts: found " + payouts.size() + " payouts");
             return ResponseEntity.ok(payouts);
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in getPayouts: " + e.getMessage());
+            System.err.println("Error in getPayouts: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
     @PostMapping("/payouts")
     public ResponseEntity<?> createPayout(@RequestBody Map<String, Object> body) {
-        System.out.println("[CAVEMAN] AdminController.createPayout: creating payout with data " + body);
+        System.out.println("AdminController.createPayout: creating payout with data " + body);
         try {
             // Validate required fields
             if (body.get("vendor_id") == null || body.get("amount") == null || body.get("month") == null) {
@@ -618,12 +618,12 @@ public class AdminController {
             }
 
             String id = firestoreService.create("payouts", data);
-            System.out.println("[CAVEMAN] AdminController.createPayout: created payout with ID " + id);
+            System.out.println("AdminController.createPayout: created payout with ID " + id);
 
             // Synchronize with the linked booking if booking_id is provided
             if (body.get("booking_id") != null) {
                 String bookingId = (String) body.get("booking_id");
-                System.out.println("[CAVEMAN] AdminController.createPayout: updating booking " + bookingId + " payout_status to Paid");
+                System.out.println("AdminController.createPayout: updating booking " + bookingId + " payout_status to Paid");
                 firestoreService.updateField("bookings", bookingId, "payout_status", "Paid");
                 if (data.get("payout_date") != null) {
                     firestoreService.updateField("bookings", bookingId, "payout_date", data.get("payout_date"));
@@ -638,20 +638,20 @@ public class AdminController {
 
             return ResponseEntity.ok(Map.of("id", id, "message", "Payout recorded successfully."));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in createPayout: " + e.getMessage());
+            System.err.println("Error in createPayout: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
     @PutMapping("/payouts/{id}")
     public ResponseEntity<?> updatePayout(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        System.out.println("[CAVEMAN] AdminController.updatePayout: updating payout " + id + " with data " + body);
+        System.out.println("AdminController.updatePayout: updating payout " + id + " with data " + body);
         try {
             firestoreService.update("payouts", id, body);
-            System.out.println("[CAVEMAN] AdminController.updatePayout: payout " + id + " updated successfully");
+            System.out.println("AdminController.updatePayout: payout " + id + " updated successfully");
             return ResponseEntity.ok(Map.of("message", "Payout updated successfully."));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in updatePayout: " + e.getMessage());
+            System.err.println("Error in updatePayout: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
@@ -659,39 +659,39 @@ public class AdminController {
     @PatchMapping("/payouts/{id}/status")
     public ResponseEntity<?> updatePayoutStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
         String status = body.get("status");
-        System.out.println("[CAVEMAN] AdminController.updatePayoutStatus: updating payout " + id + " status to " + status);
+        System.out.println("AdminController.updatePayoutStatus: updating payout " + id + " status to " + status);
         try {
             if (status == null || status.isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("message", "status is required."));
             }
             firestoreService.updateField("payouts", id, "status", status);
-            System.out.println("[CAVEMAN] AdminController.updatePayoutStatus: payout " + id + " status updated successfully");
+            System.out.println("AdminController.updatePayoutStatus: payout " + id + " status updated successfully");
             return ResponseEntity.ok(Map.of("message", "Payout status updated successfully."));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in updatePayoutStatus: " + e.getMessage());
+            System.err.println("Error in updatePayoutStatus: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
     @DeleteMapping("/payouts/{id}")
     public ResponseEntity<?> deletePayout(@PathVariable String id) {
-        System.out.println("[CAVEMAN] AdminController.deletePayout: deleting payout " + id);
+        System.out.println("AdminController.deletePayout: deleting payout " + id);
         try {
             // Get payout to check for linked booking
             Map<String, Object> payout = firestoreService.getById("payouts", id);
             if (payout != null && payout.get("booking_id") != null) {
                 String bookingId = (String) payout.get("booking_id");
-                System.out.println("[CAVEMAN] AdminController.deletePayout: resetting booking " + bookingId + " payout fields");
+                System.out.println("AdminController.deletePayout: resetting booking " + bookingId + " payout fields");
                 firestoreService.updateField("bookings", bookingId, "payout_status", "Unpaid");
                 firestoreService.updateField("bookings", bookingId, "payout_reference", "");
                 firestoreService.updateField("bookings", bookingId, "payout_attachment", "");
             }
 
             firestoreService.delete("payouts", id);
-            System.out.println("[CAVEMAN] AdminController.deletePayout: payout " + id + " deleted");
+            System.out.println("AdminController.deletePayout: payout " + id + " deleted");
             return ResponseEntity.ok(Map.of("message", "Payout deleted successfully."));
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in deletePayout: " + e.getMessage());
+            System.err.println("Error in deletePayout: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
