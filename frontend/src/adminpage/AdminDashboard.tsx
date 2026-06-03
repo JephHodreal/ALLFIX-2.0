@@ -5359,7 +5359,7 @@ function PaymentsPage() {
 
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                        Payment QR Image (Optional)
+                        Payment QR Image
                       </label>
                       <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
                         {uploadingImage ? (

@@ -2997,17 +2997,17 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       <div className="sm:col-span-7 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col items-center gap-3 text-center min-h-[280px] justify-center">
                         {selectedMethodObj ? (
                           <>
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">
+                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">
                               Send Payment to:
                             </p>
                             
                             {/* Account details */}
                             <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl space-y-2 text-left shadow-sm">
-                              <div className="flex justify-between text-xs">
+                              <div className="flex justify-between text-[10px] sm:text-[11px]">
                                 <span className="text-slate-400 font-semibold">Account Name:</span>
                                 <span className="font-extrabold text-slate-900 dark:text-white">{selectedMethodObj.accountName}</span>
                               </div>
-                              <div className="flex justify-between text-xs">
+                              <div className="flex justify-between text-[10px] sm:text-[11px] items-center">
                                 <span className="text-slate-400 font-semibold">Account Number:</span>
                                 <span className="font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/60 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-800">
                                   {selectedMethodObj.accountNumber}
@@ -3018,12 +3018,12 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                             {/* QR Image Display */}
                             {selectedMethodObj.qrImageUrl ? (
                               <div className="flex flex-col items-center gap-2 mt-2">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">Scan QR Code to Pay</p>
-                                <div className="bg-white p-2 rounded-2xl shadow-md border border-slate-200/40">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">Scan QR Code to Pay</p>
+                                <div className="bg-white p-2.5 rounded-2xl shadow-md border border-slate-200/40">
                                   <img
                                     src={selectedMethodObj.qrImageUrl}
                                     alt={`${selectedMethodObj.paymentMethod} QR Code`}
-                                    className="w-32 h-32 xs:w-40 xs:h-40 sm:w-44 sm:h-44 object-contain transition-all"
+                                    className="w-44 h-44 xs:w-52 xs:h-52 sm:w-60 sm:h-60 object-contain transition-all"
                                   />
                                 </div>
                                 <p className="text-[10px] text-slate-550 leading-normal font-semibold">
