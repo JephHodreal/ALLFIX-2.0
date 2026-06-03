@@ -2997,7 +2997,8 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                     <h4 className="font-black text-base md:text-lg text-slate-900 dark:text-white">Step 4: Reference & Summary</h4>
                   </div>
 
-                  <div className="space-y-3.5 sm:space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* First Row: Amount Paid and Reference Number */}
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Amount Paid (PHP)</label>
                       <div className="relative">
@@ -3024,6 +3025,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       />
                     </div>
 
+                    {/* Second Row: Account Name and Account Number */}
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Account Name</label>
                       <input
@@ -3048,7 +3050,8 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       />
                     </div>
 
-                    <div>
+                    {/* Third Row: Voucher Code (spanning full width) */}
+                    <div className="md:col-span-2">
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Voucher Code (Optional)</label>
                       <div className="relative">
                         <input

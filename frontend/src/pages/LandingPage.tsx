@@ -230,6 +230,48 @@ const LandingPage = () => {
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
 
+  // Direct Message states
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactStatus, setContactStatus] = useState<'success' | 'error' | null>(null);
+  const [contactStatusMsg, setContactStatusMsg] = useState('');
+
+  const handleSubmitContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
+      setContactStatus('error');
+      setContactStatusMsg('Please fill in all fields.');
+      return;
+    }
+    
+    setContactSubmitting(true);
+    setContactStatus(null);
+    setContactStatusMsg('');
+    
+    try {
+      const response = await api.post('/api/support/contact', {
+        name: contactName.trim(),
+        email: contactEmail.trim(),
+        message: contactMessage.trim()
+      });
+      
+      setContactStatus('success');
+      setContactStatusMsg(response.data?.message || 'Your message has been sent successfully!');
+      setContactName('');
+      setContactEmail('');
+      setContactMessage('');
+    } catch (err: any) {
+      console.error('[CAVEMAN] Contact form submission failed:', err);
+      const errMsg = err.response?.data?.message || 'Failed to send message. Please try again later.';
+      setContactStatus('error');
+      setContactStatusMsg(errMsg);
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
+
   const colors = [
     { bg: '#eaf2fc', text: '#23406e' },
     { bg: '#e1d5fa', text: '#6c3fcf' },
@@ -986,23 +1028,74 @@ const LandingPage = () => {
                 <Box sx={{ bgcolor: '#ffffff', borderRadius: '20px', p: { xs: 3, sm: 5, lg: 4 }, boxShadow: '0 20px 40px rgba(16,53,95,0.08)', border: '1px solid #eaf2fc' }}>
                   <Typography sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem', lg: '1.4rem' }, fontWeight: 900, color: '#10355f', mb: 0.5, letterSpacing: '-0.01em' }}>Send a direct message</Typography>
                   <Typography sx={{ fontSize: '0.85rem', color: '#64748b', mb: 3 }}>Fill out the form below and our support team will respond shortly.</Typography>
-                  <Grid container spacing={2.5}>
-                    <Grid size={{ xs: 12, sm: 6 }} sx={{ width: '100%' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>Full Name</Typography>
-                      <TextField size="small" fullWidth placeholder="e.g. Juan Dela Cruz" sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} />
+                  <form onSubmit={handleSubmitContact}>
+                    <Grid container spacing={2.5}>
+                      <Grid size={{ xs: 12, sm: 6 }} sx={{ width: '100%' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>Full Name</Typography>
+                        <TextField 
+                          size="small" 
+                          fullWidth 
+                          placeholder="e.g. Juan Dela Cruz" 
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          disabled={contactSubmitting}
+                          required
+                          sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} 
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }} sx={{ width: '100%' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>Email Address</Typography>
+                        <TextField 
+                          size="small" 
+                          fullWidth 
+                          placeholder="juan@email.com" 
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          disabled={contactSubmitting}
+                          required
+                          sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} 
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12 }} sx={{ width: '100%' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>How can we help?</Typography>
+                        <TextField 
+                          fullWidth 
+                          multiline 
+                          rows={4} 
+                          placeholder="Tell us about your concern..." 
+                          value={contactMessage}
+                          onChange={(e) => setContactMessage(e.target.value)}
+                          disabled={contactSubmitting}
+                          required
+                          sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} 
+                        />
+                      </Grid>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6 }} sx={{ width: '100%' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>Email Address</Typography>
-                      <TextField size="small" fullWidth placeholder="juan@email.com" sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} />
-                    </Grid>
-                    <Grid size={{ xs: 12 }} sx={{ width: '100%' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#10355f', mb: 0.8 }}>How can we help?</Typography>
-                      <TextField fullWidth multiline rows={4} placeholder="Tell us about your concern..." sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', bgcolor: '#f8fafc', borderRadius: '8px', fontSize: '0.85rem', '& fieldset': { borderColor: '#e2e8f0' }, '&:hover fieldset': { borderColor: '#cbd5e1' }, '&.Mui-focused fieldset': { borderColor: '#2e5ba8', borderWidth: '2px' } } }} />
-                    </Grid>
-                  </Grid>
-                  <Button fullWidth variant="contained" endIcon={<ArrowForwardIcon sx={{ ml: 0.5, fontSize: '1.1rem' }} />} sx={{ mt: 3.5, py: 1.5, bgcolor: '#10355f', color: 'white', borderRadius: '8px', fontWeight: 800, fontSize: '0.9rem', textTransform: 'none', boxShadow: '0 4px 12px rgba(16,53,95,0.2)', transition: 'all 0.2s ease', '&:hover': { bgcolor: '#0d264a', transform: 'translateY(-2px)', boxShadow: '0 6px 16px rgba(16,53,95,0.3)' } }}>
-                    Submit Message
-                  </Button>
+
+                    {contactStatusMsg && (
+                      <Typography sx={{ 
+                        mt: 2, 
+                        fontSize: '0.85rem', 
+                        fontWeight: 700, 
+                        color: contactStatus === 'success' ? '#20b759' : '#d8242b',
+                        textAlign: 'center' 
+                      }}>
+                        {contactStatusMsg}
+                      </Typography>
+                    )}
+
+                    <Button 
+                      fullWidth 
+                      type="submit"
+                      variant="contained" 
+                      disabled={contactSubmitting}
+                      endIcon={!contactSubmitting && <ArrowForwardIcon sx={{ ml: 0.5, fontSize: '1.1rem' }} />} 
+                      sx={{ mt: 3.5, py: 1.5, bgcolor: '#10355f', color: 'white', borderRadius: '8px', fontWeight: 800, fontSize: '0.9rem', textTransform: 'none', boxShadow: '0 4px 12px rgba(16,53,95,0.2)', transition: 'all 0.2s ease', '&:hover': { bgcolor: '#0d264a', transform: 'translateY(-2px)', boxShadow: '0 6px 16px rgba(16,53,95,0.3)' } }}
+                    >
+                      {contactSubmitting ? 'Sending Message...' : 'Submit Message'}
+                    </Button>
+                  </form>
                 </Box>
               </Box>
             </Box>
