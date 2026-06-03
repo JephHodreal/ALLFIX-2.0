@@ -6,7 +6,7 @@ import {
   CreditCard, RefreshCcw, LifeBuoy, Settings, LogOut, ChevronLeft, ChevronRight,
   Home, Wrench, UserCog, Building2, ShoppingCart, User, MapPin, ChevronDown,
   Eye, BarChart3, History, Truck, BookOpen, Receipt,
-  Ticket, Tag, Package, UserCheck
+  Ticket, Tag, Package, UserCheck, Wallet
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { UserRole } from '../../context/AuthContext';
@@ -53,6 +53,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
         { label: 'Refunds', path: '/admin/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/admin/vouchers', icon: <Ticket className="w-5 h-5" /> },
         { label: 'Assigned Vouchers', path: '/admin/assigned-vouchers', icon: <Tag className="w-5 h-5" /> },
+        { label: 'Payment Methods', path: '/admin/payments', icon: <Wallet className="w-5 h-5" /> },
       ],
     },
   ],

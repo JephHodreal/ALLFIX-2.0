@@ -34,4 +34,16 @@ public class PaymentService {
         }
         // If rejected, booking stays pending
     }
+
+    public List<Map<String, Object>> getPaymentMethods() throws Exception {
+        return firestoreService.getAll("payment_methods");
+    }
+
+    public String addPaymentMethod(Map<String, Object> method) throws Exception {
+        return firestoreService.create("payment_methods", method);
+    }
+
+    public void deletePaymentMethod(String id) throws Exception {
+        firestoreService.delete("payment_methods", id);
+    }
 }

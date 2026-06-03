@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -5099,6 +5099,331 @@ function RefundsPage() {
   );
 }
 
+function PaymentsPage() {
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Form states
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [qrImageUrl, setQrImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const loadPaymentMethods = () => {
+    setLoading(true);
+    api.get('/api/payments/methods')
+      .then(res => {
+        setPaymentMethods(res.data || []);
+      })
+      .catch(err => {
+        console.error('Failed to load payment methods', err);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadPaymentMethods();
+  }, []);
+
+  const handleUploadQR = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError('');
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result as string;
+        console.log('[CAVEMAN] PaymentsPage: Uploading QR image...');
+        const res = await api.post('/api/upload/image', {
+          image: base64Data,
+          folder: 'payments'
+        });
+        setQrImageUrl(res.data.url);
+      } catch (err: any) {
+        console.error('[CAVEMAN] PaymentsPage: Upload failed', err);
+        setError('Failed to upload image. Please try again.');
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!paymentMethod.trim()) {
+      setError('Payment Method name is required.');
+      return;
+    }
+    if (!accountName.trim()) {
+      setError('Account Name is required.');
+      return;
+    }
+    if (!accountNumber.trim()) {
+      setError('Account Number is required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        paymentMethod: paymentMethod.trim(),
+        accountName: accountName.trim(),
+        accountNumber: accountNumber.trim(),
+        qrImageUrl: qrImageUrl
+      };
+
+      await api.post('/api/payments/methods', payload);
+      setShowCreateModal(false);
+
+      // Reset
+      setPaymentMethod('');
+      setAccountName('');
+      setAccountNumber('');
+      setQrImageUrl('');
+
+      loadPaymentMethods();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to add payment method.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this payment method?')) {
+      try {
+        await api.delete(`/api/payments/methods/${id}`);
+        setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
+      } catch (err) {
+        console.error('Failed to delete payment method', err);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Payment Methods</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Configure available payment gateways and details for checkout.
+          </p>
+        </div>
+        <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
+          Add Payment Method
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className="skeleton h-48 rounded-3xl" />
+          ))}
+        </div>
+      ) : paymentMethods.length === 0 ? (
+        <EmptyState
+          title="No Payment Methods Configured"
+          description="Click 'Add Payment Method' to set up Gcash, Maya, or bank details."
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {paymentMethods.map((pm) => (
+            <motion.div
+              key={pm.id}
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-lg rounded-3xl p-6 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <span className="font-extrabold text-sm px-3 py-1 rounded-xl bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green border border-brand-navy/5">
+                    {pm.paymentMethod}
+                  </span>
+                  <button
+                    onClick={() => handleDelete(pm.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400 font-semibold">Account Name</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{pm.accountName}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400 font-semibold">Account Number</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">{pm.accountNumber}</span>
+                  </div>
+                </div>
+              </div>
+
+              {pm.qrImageUrl ? (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-semibold">Payment QR Code</span>
+                  <a
+                    href={pm.qrImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-brand-navy dark:text-brand-green hover:underline font-bold"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> View QR Image
+                  </a>
+                </div>
+              ) : (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-400 italic">
+                  <span>No QR Code Uploaded</span>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Payment Method Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <Card>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add Payment Method</h3>
+                      <p className="text-xs text-slate-400 font-bold">Configure client checkout payment instructions</p>
+                    </div>
+                    <button onClick={() => setShowCreateModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {error && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-2 items-center">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleCreate} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Payment Method *</label>
+                      <input
+                        type="text"
+                        value={paymentMethod}
+                        onChange={e => setPaymentMethod(e.target.value)}
+                        placeholder="Payment Method"
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Account Name *</label>
+                      <input
+                        type="text"
+                        value={accountName}
+                        onChange={e => setAccountName(e.target.value)}
+                        placeholder="Account Name"
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Account Number *</label>
+                      <input
+                        type="text"
+                        value={accountNumber}
+                        onChange={e => setAccountNumber(e.target.value)}
+                        placeholder="Account Number"
+                        required
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                        Payment QR Image (Optional)
+                      </label>
+                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
+                        {uploadingImage ? (
+                          <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading Image...</div>
+                        ) : qrImageUrl ? (
+                          <div className="relative w-full h-40 rounded-xl overflow-hidden">
+                            <img src={qrImageUrl} alt="QR Code" className="w-full h-full object-contain" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQrImageUrl('');
+                              }}
+                              className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-lg transition-colors z-10"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Plus className="w-6 h-6 text-slate-400 mb-2" />
+                            <p className="text-xs font-semibold text-slate-650 dark:text-slate-400">
+                              Click to upload QR code image
+                            </p>
+                            <p className="text-[10px] text-slate-450 mt-1">PNG, JPG, or WEBP formats allowed</p>
+                          </>
+                        )}
+                        {!qrImageUrl && !uploadingImage && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={handleUploadQR}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateModal(false)}
+                        className="py-2.5 px-4 text-xs sm:text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <Button
+                        type="submit"
+                        disabled={uploadingImage || saving}
+                      >
+                        {saving ? 'Adding...' : 'Add Method'}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [collapsed, setCollapsed] = useState(true);
@@ -5131,6 +5456,7 @@ export default function AdminDashboard() {
 
             <Route path="vouchers" element={<VouchersPage />} />
             <Route path="assigned-vouchers" element={<AssignedVouchersPage />} />
+            <Route path="payments" element={<PaymentsPage />} />
           </Routes>
         </main>
       </div>

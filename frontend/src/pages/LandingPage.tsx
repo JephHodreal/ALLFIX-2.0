@@ -633,7 +633,7 @@ const LandingPage = () => {
                   <Button 
                     variant="contained" 
                     fullWidth 
-                    onClick={() => { navigate('/login'); window.scrollTo(0, 0); }}
+                    onClick={handleBookNowClick}
                     sx={{ 
                       bgcolor: '#10355f', 
                       color: 'white', 

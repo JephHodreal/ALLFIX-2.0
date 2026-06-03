@@ -32,4 +32,21 @@ public class PaymentController {
         paymentService.confirmPayment(bookingId, confirmed);
         return ResponseEntity.ok(Map.of("message", confirmed ? "Payment confirmed" : "Payment rejected"));
     }
+
+    @GetMapping("/methods")
+    public ResponseEntity<List<Map<String, Object>>> getPaymentMethods() throws Exception {
+        return ResponseEntity.ok(paymentService.getPaymentMethods());
+    }
+
+    @PostMapping("/methods")
+    public ResponseEntity<?> addPaymentMethod(@RequestBody Map<String, Object> method) throws Exception {
+        String id = paymentService.addPaymentMethod(method);
+        return ResponseEntity.ok(Map.of("id", id, "message", "Payment method added successfully"));
+    }
+
+    @DeleteMapping("/methods/{id}")
+    public ResponseEntity<?> deletePaymentMethod(@PathVariable String id) throws Exception {
+        paymentService.deletePaymentMethod(id);
+        return ResponseEntity.ok(Map.of("message", "Payment method deleted successfully"));
+    }
 }

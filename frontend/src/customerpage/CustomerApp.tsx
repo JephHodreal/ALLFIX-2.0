@@ -2443,7 +2443,39 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
   const [postalCode, setPostalCode] = useState('');
 
   // Payment Selection States
-  const [paymentMethod, setPaymentMethod] = useState<'GCash'>('GCash');
+  const [methods, setMethods] = useState<any[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<string>('GCash');
+
+  // Load payment methods from backend
+  useEffect(() => {
+    if (isOpen) {
+      const fetchMethods = async () => {
+        const defaultMethod = {
+          id: 'default-gcash',
+          paymentMethod: 'GCash',
+          accountName: 'ALLFIX.PH',
+          accountNumber: '0917-123-4567',
+          qrImageUrl: '/images/sample-gcash-qr.png'
+        };
+        try {
+          const res = await api.get('/api/payments/methods');
+          const data = res.data || [];
+          if (data.length > 0) {
+            setMethods(data);
+            setPaymentMethod(data[0].paymentMethod);
+          } else {
+            setMethods([defaultMethod]);
+            setPaymentMethod(defaultMethod.paymentMethod);
+          }
+        } catch (err) {
+          console.error('[CAVEMAN] Failed to load payment methods', err);
+          setMethods([defaultMethod]);
+          setPaymentMethod(defaultMethod.paymentMethod);
+        }
+      };
+      fetchMethods();
+    }
+  }, [isOpen]);
 
   // Payment Details Form States
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -2917,76 +2949,133 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
             )}
 
             {/* Step 3 Wizard Form */}
-            {step === 3 && (
-              <form onSubmit={handlePaymentMethodNext} className="flex flex-col justify-between h-full">
-                <div className="space-y-3.5 sm:space-y-4">
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <CreditCard className="w-5 h-5 text-brand-navy" />
-                    <h4 className="font-black text-base md:text-lg text-slate-900 dark:text-white">Step 3: Payment Method</h4>
-                  </div>
+            {/* Step 3 Wizard Form */}
+            {step === 3 && (() => {
+              const selectedMethodObj = methods.find(m => m.paymentMethod === paymentMethod);
+              return (
+                <form onSubmit={handlePaymentMethodNext} className="flex flex-col justify-between h-full">
+                  <div className="space-y-3.5 sm:space-y-4">
+                    <div className="flex items-center gap-2.5 mb-1">
+                      <CreditCard className="w-5 h-5 text-brand-navy" />
+                      <h4 className="font-black text-base md:text-lg text-slate-900 dark:text-white">Step 3: Payment Method</h4>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-6 items-center">
-                    {/* Left Column: payment method options (3/4 size) */}
-                    <div className="sm:col-span-5 space-y-2.5 sm:space-y-3.5">
-                      <p className="text-xs font-extrabold text-slate-455 uppercase tracking-widest">Select Gateway</p>
-                      
-                      <div
-                        className="w-full sm:w-3/4 p-2 sm:p-2.5 rounded-xl border cursor-default transition-all flex items-center gap-3 border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 font-bold border-2"
-                      >
-                        <img src="/images/sample-gcash-qr.png" className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-md shadow-sm border border-slate-100 flex-shrink-0" alt="GCash Logo" />
-                        <span className="text-xs sm:text-sm font-extrabold">GCash</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-6 items-center">
+                      {/* Left Column: payment method options */}
+                      <div className="sm:col-span-5 space-y-2.5 sm:space-y-3.5">
+                        <p className="text-xs font-extrabold text-slate-455 uppercase tracking-widest">Select Gateway</p>
+                        
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {methods.map((m) => {
+                            const isSelected = paymentMethod === m.paymentMethod;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => setPaymentMethod(m.paymentMethod)}
+                                className={`w-full p-3 rounded-2xl border transition-all flex items-center gap-3 text-left font-bold ${
+                                  isSelected
+                                    ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 border-2 shadow-sm'
+                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="flex-1">
+                                  <p className="text-xs sm:text-sm font-extrabold">{m.paymentMethod}</p>
+                                </div>
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                                  isSelected ? 'border-brand-navy dark:border-blue-400' : 'border-slate-300 dark:border-slate-600'
+                                }`}>
+                                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-brand-navy dark:bg-blue-400" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Right Column: QR & Details Display Box */}
+                      <div className="sm:col-span-7 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col items-center gap-3 text-center min-h-[280px] justify-center">
+                        {selectedMethodObj ? (
+                          <>
+                            <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">
+                              Send Payment to:
+                            </p>
+                            
+                            {/* Account details */}
+                            <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl space-y-2 text-left shadow-sm">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-semibold">Account Name:</span>
+                                <span className="font-extrabold text-slate-900 dark:text-white">{selectedMethodObj.accountName}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-semibold">Account Number:</span>
+                                <span className="font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/60 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                  {selectedMethodObj.accountNumber}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* QR Image Display */}
+                            {selectedMethodObj.qrImageUrl ? (
+                              <div className="flex flex-col items-center gap-2 mt-2">
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">Scan QR Code to Pay</p>
+                                <div className="bg-white p-2 rounded-2xl shadow-md border border-slate-200/40">
+                                  <img
+                                    src={selectedMethodObj.qrImageUrl}
+                                    alt={`${selectedMethodObj.paymentMethod} QR Code`}
+                                    className="w-32 h-32 xs:w-40 xs:h-40 sm:w-44 sm:h-44 object-contain transition-all"
+                                  />
+                                </div>
+                                <p className="text-[10px] text-slate-550 leading-normal font-semibold">
+                                  Scan or save QR code with your app.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-6 border border-dashed border-slate-200 dark:border-slate-700/80 rounded-2xl w-full text-slate-400 mt-2 text-xs font-semibold italic">
+                                No QR Code provided. Please use the account details above.
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-slate-400 font-semibold italic">Select a payment gateway to view details</p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Right Column: QR Display Box (Sized proportionally for viewports) */}
-                    <div className="sm:col-span-7 bg-slate-50 dark:bg-slate-800/40 p-3.5 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col items-center gap-2.5 text-center">
-                      <p className="text-[10px] sm:text-xs font-bold text-slate-455 uppercase tracking-widest">Scan QR Code to Pay</p>
-                      <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-slate-100">
-                        <img
-                          src="/images/sample-gcash-qr.png"
-                          alt="GCash QR Code"
-                          className="w-32 h-32 xs:w-40 xs:h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 object-contain transition-all"
-                        />
-                      </div>
-                      <p className="text-[10px] sm:text-xs text-slate-500 leading-normal font-semibold">
-                        Scan code with your GCash app.
+                    {/* Cancellation Warning Notice */}
+                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-2.5 flex items-start gap-2 text-amber-800 dark:text-amber-300">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                      <p className="text-[10px] sm:text-xs font-semibold leading-normal text-left">
+                        “Once the booking status is confirmed, any cancellation refund will be subject to a deduction fee.”
                       </p>
                     </div>
                   </div>
 
-                  {/* Cancellation Warning Notice */}
-                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-2.5 flex items-start gap-2 text-amber-800 dark:text-amber-300">
-                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-                    <p className="text-[10px] sm:text-xs font-semibold leading-normal text-left">
-                      “Once the booking status is confirmed, any cancellation refund will be subject to a deduction fee.”
-                    </p>
+                  {/* Step 3 Navigation Buttons */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between gap-3 sm:gap-4 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log("[CAVEMAN] Back to Step 2");
+                        setStep(2);
+                      }}
+                      className="py-2.5 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm font-bold border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Back</span>
+                    </button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="py-2.5 sm:py-3 px-5 sm:px-6 text-xs sm:text-sm font-extrabold rounded-2xl bg-brand-navy hover:bg-[#0a2d5c] text-white shadow-lg flex items-center gap-1.5 transition-transform hover:scale-[1.01]"
+                    >
+                      <span>Continue</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
                   </div>
-                </div>
-
-                {/* Step 3 Navigation Buttons */}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between gap-3 sm:gap-4 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.log("[CAVEMAN] Back to Step 2");
-                      setStep(2);
-                    }}
-                    className="py-2.5 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm font-bold border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back</span>
-                  </button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    className="py-2.5 sm:py-3 px-5 sm:px-6 text-xs sm:text-sm font-extrabold rounded-2xl bg-brand-navy hover:bg-[#0a2d5c] text-white shadow-lg flex items-center gap-1.5 transition-transform hover:scale-[1.01]"
-                  >
-                    <span>Continue</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </form>
-            )}
+                </form>
+              );
+            })()}
 
             {/* Step 4 Details Form */}
             {step === 4 && (
