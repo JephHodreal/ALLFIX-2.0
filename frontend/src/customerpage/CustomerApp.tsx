@@ -1374,6 +1374,8 @@ function MyBookingsTab() {
         payment_method: selectedBooking.payment_method || '',
         payment_reference: selectedBooking.payment_reference || '',
         status: 'pending',
+        cancelled_by: 'Customer',
+        status_at_cancellation: selectedBooking.status || 'pending',
       };
       console.log('[CAVEMAN] Submitting refund request payload:', refundPayload);
       await api.post('/api/refunds', refundPayload);

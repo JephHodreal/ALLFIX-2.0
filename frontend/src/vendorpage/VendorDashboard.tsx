@@ -270,6 +270,7 @@ function VendorBookings() {
         reference_number: referenceNumber.trim(),
         refund_method: refundMethod,
         receiver_gcash_number: refundMethod === 'GCash' ? receiverGcashNumber.trim() : '',
+        cancelled_by: 'Vendor',
       };
 
       await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);

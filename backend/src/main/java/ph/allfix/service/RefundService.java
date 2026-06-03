@@ -72,6 +72,9 @@ public class RefundService {
             if (details.containsKey("reference_number")) updates.put("reference_number", details.get("reference_number"));
             if (details.containsKey("account_number")) updates.put("account_number", details.get("account_number"));
             if (details.containsKey("proof_image_url")) updates.put("proof_image_url", details.get("proof_image_url"));
+            if (details.containsKey("refund_amount")) updates.put("refund_amount", details.get("refund_amount"));
+            if (details.containsKey("deduction_amount")) updates.put("deduction_amount", details.get("deduction_amount"));
+            if (details.containsKey("deduction_percentage")) updates.put("deduction_percentage", details.get("deduction_percentage"));
         }
         
         firestoreService.update("refunds", refundId, updates);
@@ -90,9 +93,17 @@ public class RefundService {
             if (updates.containsKey("account_number")) bookingUpdates.put("refund_account_number", updates.get("account_number"));
             if (updates.containsKey("proof_image_url")) bookingUpdates.put("refund_proof_image_url", updates.get("proof_image_url"));
             
-            Object amtObj = refund.get("refund_amount");
+            Object amtObj = updates.containsKey("refund_amount") ? updates.get("refund_amount") : refund.get("refund_amount");
             if (amtObj != null) {
                 bookingUpdates.put("refund_amount", amtObj);
+            }
+            Object dedAmtObj = updates.containsKey("deduction_amount") ? updates.get("deduction_amount") : refund.get("deduction_amount");
+            if (dedAmtObj != null) {
+                bookingUpdates.put("refund_deduction_amount", dedAmtObj);
+            }
+            Object dedPctObj = updates.containsKey("deduction_percentage") ? updates.get("deduction_percentage") : refund.get("deduction_percentage");
+            if (dedPctObj != null) {
+                bookingUpdates.put("refund_deduction_percentage", dedPctObj);
             }
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
@@ -179,6 +190,8 @@ public class RefundService {
             if (data.containsKey("account_number")) bookingUpdates.put("refund_account_number", data.get("account_number"));
             if (data.containsKey("proof_image_url")) bookingUpdates.put("refund_proof_image_url", data.get("proof_image_url"));
             if (data.get("refund_amount") != null) bookingUpdates.put("refund_amount", data.get("refund_amount"));
+            if (data.get("deduction_amount") != null) bookingUpdates.put("refund_deduction_amount", data.get("deduction_amount"));
+            if (data.get("deduction_percentage") != null) bookingUpdates.put("refund_deduction_percentage", data.get("deduction_percentage"));
             
             firestoreService.update("bookings", bookingId, bookingUpdates);
             System.out.println("RefundService.createDirectRefund: Successfully updated booking ID: " + bookingId + " with updates: " + bookingUpdates);

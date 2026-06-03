@@ -134,6 +134,8 @@ public class BookingService {
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", "cancelled");
         updates.put("cancellation_requested", true);
+        updates.put("cancelled_by", "Customer");
+        updates.put("status_at_cancellation", booking.get("status"));
         firestoreService.update("bookings", bookingId, updates);
 
         // Restore slot back to vendor slots
@@ -164,12 +166,22 @@ public class BookingService {
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found");
 
+        String cancelledBy = (String) refundDetails.getOrDefault("cancelled_by", "Admin");
+        String statusAtCancellation = (String) booking.get("status");
+
         // 1. Create a refund record in the refunds collection
         Map<String, Object> refundData = new HashMap<>();
         refundData.put("booking_id", bookingId);
         refundData.put("customer_id", booking.get("customer_id"));
         refundData.put("customer_name", booking.get("customer_name"));
-        refundData.put("reason", "Admin Cancelled Booking");
+        
+        String reason = (String) refundDetails.get("reason");
+        if (reason == null || reason.isBlank()) {
+            reason = cancelledBy + " Cancelled Booking";
+        }
+        refundData.put("reason", reason);
+        refundData.put("cancelled_by", cancelledBy);
+        refundData.put("status_at_cancellation", statusAtCancellation);
         
         // Capture refund amount correctly (handling Double/Integer/String)
         Object amt = refundDetails.get("refund_amount");
@@ -179,7 +191,26 @@ public class BookingService {
         } else if (amt instanceof String) {
             amount = Double.parseDouble((String) amt);
         }
-        refundData.put("deduction_amount", 0.0); // No deduction since it is a full refund or direct refund
+        
+        // Handle deduction if present in refundDetails
+        double deductionAmt = 0.0;
+        Object dedAmt = refundDetails.get("deduction_amount");
+        if (dedAmt instanceof Number) {
+            deductionAmt = ((Number) dedAmt).doubleValue();
+        } else if (dedAmt instanceof String) {
+            deductionAmt = Double.parseDouble((String) dedAmt);
+        }
+        
+        double dedPercent = 0.0;
+        Object dedPct = refundDetails.get("deduction_percentage");
+        if (dedPct instanceof Number) {
+            dedPercent = ((Number) dedPct).doubleValue();
+        } else if (dedPct instanceof String) {
+            dedPercent = Double.parseDouble((String) dedPct);
+        }
+
+        refundData.put("deduction_amount", deductionAmt);
+        refundData.put("deduction_percentage", dedPercent);
         refundData.put("refund_amount", amount);
         refundData.put("reference_number", refundDetails.get("reference_number"));
         refundData.put("refund_method", refundDetails.get("refund_method"));
@@ -194,8 +225,12 @@ public class BookingService {
         Map<String, Object> bookingUpdates = new HashMap<>();
         bookingUpdates.put("status", "cancelled");
         bookingUpdates.put("cancellation_requested", true);
+        bookingUpdates.put("cancelled_by", cancelledBy);
+        bookingUpdates.put("status_at_cancellation", statusAtCancellation);
         bookingUpdates.put("refund_id", refundId);
         bookingUpdates.put("refund_amount", amount);
+        bookingUpdates.put("refund_deduction_amount", deductionAmt);
+        bookingUpdates.put("refund_deduction_percentage", dedPercent);
         bookingUpdates.put("refund_reference_number", refundDetails.get("reference_number"));
         bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
         bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
@@ -407,6 +442,8 @@ public class BookingService {
          refundData.put("status", "pending"); // Admin must process it
          refundData.put("notified", false);
          refundData.put("is_automatic_expiration", true);
+         refundData.put("cancelled_by", "System");
+         refundData.put("status_at_cancellation", booking.get("status") != null ? booking.get("status") : "pending");
          refundData.put("created_at", new Date());
  
          String refundId = firestoreService.create("refunds", refundData);
@@ -420,6 +457,8 @@ public class BookingService {
          updates.put("refund_id", refundId);
          updates.put("refund_amount", totalPrice);
          updates.put("is_automatic_expiration", true);
+         updates.put("cancelled_by", "System");
+         updates.put("status_at_cancellation", booking.get("status") != null ? booking.get("status") : "pending");
          updates.put("expired_at", new Date());
          
          firestoreService.update("bookings", bookingId, updates);
