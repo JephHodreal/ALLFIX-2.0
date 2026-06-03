@@ -112,6 +112,18 @@ public class RefundService {
         if (customerId != null) {
             notificationService.notify(customerId, "customer", "Your refund has been approved.");
             System.out.println("RefundService.approveRefund: Notified customer: " + customerId);
+            
+            // Automatically save the account number to the customer's profile for future reuse
+            if (details != null && details.containsKey("account_number")) {
+                try {
+                    Map<String, Object> customerUpdates = new HashMap<>();
+                    customerUpdates.put("account_number", details.get("account_number"));
+                    firestoreService.update("customers", customerId, customerUpdates);
+                    System.out.println("[CAVEMAN] Saved account number to customer profile for ID: " + customerId);
+                } catch (Exception e) {
+                    System.err.println("[CAVEMAN] Failed to save account number to customer profile: " + e.getMessage());
+                }
+            }
         }
 
         // Send Email Notification
@@ -183,6 +195,18 @@ public class RefundService {
         if (customerId != null) {
             notificationService.notify(customerId, "customer", "A refund of ₱" + data.get("refund_amount") + " has been issued for your booking.");
             System.out.println("RefundService.createDirectRefund: Notified customer: " + customerId);
+
+            // Automatically save the account number to the customer's profile for future reuse
+            if (data.containsKey("account_number")) {
+                try {
+                    Map<String, Object> customerUpdates = new HashMap<>();
+                    customerUpdates.put("account_number", data.get("account_number"));
+                    firestoreService.update("customers", customerId, customerUpdates);
+                    System.out.println("[CAVEMAN] Saved account number to customer profile for ID: " + customerId);
+                } catch (Exception e) {
+                    System.err.println("[CAVEMAN] Failed to save account number to customer profile: " + e.getMessage());
+                }
+            }
         }
 
         // Send Email Notification

@@ -1210,6 +1210,18 @@ function BookingsTab() {
                 <span className="text-slate-400 font-medium">Reference No:</span>
                 <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
               </div>
+              {selectedBooking.account_name && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Account Name:</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name}</span>
+                </div>
+              )}
+              {selectedBooking.account_number && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Account Number:</span>
+                  <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number}</span>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
@@ -3346,6 +3358,8 @@ function TransactionsPage() {
                       <p><span className="font-semibold">Name:</span> {selectedTx.customer_name || '—'}</p>
                       <p><span className="font-semibold">User Account:</span> {selectedTx.customer_id || '—'}</p>
                       <p><span className="font-semibold">GCash Number:</span> {selectedTx.payment_reference ? selectedTx.payment_reference.substring(0, 11) : '—'}</p>
+                      {selectedTx.account_name && <p><span className="font-semibold">Account Name:</span> {selectedTx.account_name}</p>}
+                      {selectedTx.account_number && <p><span className="font-semibold">Account Number:</span> {selectedTx.account_number}</p>}
                     </div>
                   </div>
                 </div>
@@ -4116,6 +4130,8 @@ function PayoutsPage() {
                       <p><span className="font-semibold">Name:</span> {selectedTx.customer_name || '—'}</p>
                       <p><span className="font-semibold">User Account:</span> {selectedTx.customer_id || '—'}</p>
                       <p><span className="font-semibold">GCash Number:</span> {selectedTx.payment_reference ? selectedTx.payment_reference.substring(0, 11) : '—'}</p>
+                      {selectedTx.account_name && <p><span className="font-semibold">Account Name:</span> {selectedTx.account_name}</p>}
+                      {selectedTx.account_number && <p><span className="font-semibold">Account Number:</span> {selectedTx.account_number}</p>}
                     </div>
                   </div>
                 </div>
@@ -4629,6 +4645,24 @@ function RefundsPage() {
         console.log('[CAVEMAN] RefundsPage: Booking selected:', selectedBookingId, booking);
         setCustomerName(booking.customer_name || '—');
         setRefundAmount(String(booking.total_price || (booking.price * (booking.quantity || 1)) || 0));
+        
+        if (booking.customer_id) {
+          api.get(`/api/customers/${booking.customer_id}`)
+            .then(res => {
+              if (res.data && res.data.account_number) {
+                console.log('[CAVEMAN] RefundsPage: Automatically populated account number from customer profile for direct refund:', res.data.account_number);
+                setAccountNumber(res.data.account_number);
+              } else {
+                setAccountNumber('');
+              }
+            })
+            .catch(err => {
+              console.error('[CAVEMAN] RefundsPage: Failed to fetch customer details for account number', err);
+              setAccountNumber('');
+            });
+        } else {
+          setAccountNumber('');
+        }
       }
     }
   }, [selectedBookingId, isProcessingExisting, bookings]);
@@ -4685,10 +4719,24 @@ function RefundsPage() {
     setCustomerName(refund.customer_name || '—');
     setRefundAmount(String(refund.refund_amount || 0));
     setReferenceNumber('');
-    setAccountNumber('');
+    setAccountNumber(refund.account_number || '');
     setProofImageUrl('');
     setError('');
     setShowModal(true);
+
+    if (refund.customer_id) {
+      console.log('[CAVEMAN] RefundsPage: Fetching latest customer account number for customer:', refund.customer_id);
+      api.get(`/api/customers/${refund.customer_id}`)
+        .then(res => {
+          if (res.data && res.data.account_number) {
+            console.log('[CAVEMAN] RefundsPage: Found latest account number:', res.data.account_number);
+            setAccountNumber(res.data.account_number);
+          }
+        })
+        .catch(err => {
+          console.error('[CAVEMAN] RefundsPage: Failed to fetch latest customer account number', err);
+        });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -4750,6 +4798,7 @@ function RefundsPage() {
       await api.patch(`/api/refunds/${refundId}/reject`);
       console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
       alert('Refund request rejected successfully!');
+      setShowModal(false);
       loadData();
     } catch (err: any) {
       console.error('[CAVEMAN] RefundsPage: Reject failed', err);
@@ -5006,14 +5055,40 @@ function RefundsPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button variant="ghost" className="flex-1" onClick={() => setShowModal(false)} type="button" disabled={submitting}>
-                      Cancel
-                    </Button>
-                    <Button variant="success" className="flex-1" type="submit" loading={submitting} disabled={uploadingImage || !referenceNumber.trim() || !accountNumber.trim()}>
-                      {isProcessingExisting ? 'Process Refund' : 'Create Refund'}
-                    </Button>
-                  </div>
+                  {(() => {
+                    const selectedRefund = refunds.find(r => r.id === selectedRefundId);
+                    const selectedBooking = bookings.find(b => b.id === selectedBookingId);
+                    const isEligibleForRejectPayment = selectedRefund && selectedBooking &&
+                      selectedBooking.cancellation_requested === true &&
+                      selectedBooking.payment_confirmed !== true &&
+                      !selectedBooking.is_automatic_expiration &&
+                      !selectedRefund.is_automatic_expiration;
+
+                    return (
+                      <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        {isProcessingExisting && isEligibleForRejectPayment && (
+                          <Button
+                            variant="danger"
+                            className="flex-1"
+                            type="button"
+                            onClick={() => handleReject(selectedRefundId!)}
+                            disabled={submitting}
+                          >
+                            Reject Payment
+                          </Button>
+                        )}
+                        <Button
+                          variant="success"
+                          className="flex-1"
+                          type="submit"
+                          loading={submitting}
+                          disabled={uploadingImage || !referenceNumber.trim() || !accountNumber.trim()}
+                        >
+                          {isProcessingExisting ? 'Process Refund' : 'Create Refund'}
+                        </Button>
+                      </div>
+                    );
+                  })()}
                 </form>
               </Card>
             </motion.div>

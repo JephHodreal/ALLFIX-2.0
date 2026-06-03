@@ -1525,6 +1525,18 @@ function MyBookingsTab() {
                 <span className="text-slate-400 font-medium">Reference No:</span>
                 <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
               </div>
+              {selectedBooking.account_name && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Account Name:</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name}</span>
+                </div>
+              )}
+              {selectedBooking.account_number && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-400 font-medium">Account Number:</span>
+                  <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number}</span>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
@@ -2435,6 +2447,8 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
   // Payment Details Form States
   const [referenceNumber, setReferenceNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
 
   // Voucher States
@@ -2567,7 +2581,15 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
       alert("Please provide the reference number to complete your transaction.");
       return;
     }
-    console.log(`[CAVEMAN] Step 4 Payment Details complete. Reference: ${referenceNumber}, Voucher: ${voucherCode}`);
+    if (!accountName.trim()) {
+      alert("Please provide the account name to complete your transaction.");
+      return;
+    }
+    if (!accountNumber.trim()) {
+      alert("Please provide the account number to complete your transaction.");
+      return;
+    }
+    console.log(`[CAVEMAN] Step 4 Payment Details complete. Reference: ${referenceNumber}, Account Name: ${accountName}, Account Number: ${accountNumber}, Voucher: ${voucherCode}`);
     setShowConfirmation(true);
   };
 
@@ -2618,6 +2640,8 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
           postal_code: postalCode,
           payment_method: paymentMethod,
           payment_reference: referenceNumber,
+          account_name: accountName.trim(),
+          account_number: accountNumber.trim(),
           voucher_code: voucherCode || null,
           slot_id: item.slotId || null
         };
@@ -2995,6 +3019,30 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                         value={referenceNumber}
                         onChange={(e) => setReferenceNumber(e.target.value)}
                         placeholder="Reference Number"
+                        required
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Account Name</label>
+                      <input
+                        type="text"
+                        value={accountName}
+                        onChange={(e) => setAccountName(e.target.value)}
+                        placeholder="Enter account holder's name"
+                        required
+                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-455 mb-1 sm:mb-1.5">Account Number</label>
+                      <input
+                        type="text"
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder="Enter account number"
                         required
                         className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
                       />
