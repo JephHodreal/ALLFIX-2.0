@@ -886,7 +886,7 @@ const LandingPage = () => {
                     </Box>
                     <Box sx={{ overflow: 'hidden' }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>EMAIL US</Typography>
-                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#10355f', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>inquiry@allfix.ph</Typography>
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#10355f', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>concierge.fpdnexus@gmail.com</Typography>
                     </Box>
                   </Box>
                   <Box sx={{ bgcolor: 'white', p: 1.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2, boxShadow: '0 4px 12px rgba(16,53,95,0.04)', border: '1px solid #e2e8f0', width: '100%', maxWidth: { xs: '100%', sm: '420px', lg: '340px' } }}>

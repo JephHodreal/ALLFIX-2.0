@@ -203,7 +203,7 @@ export const Footer: React.FC = () => {
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.9)', mb: 0.3, letterSpacing: '0.05em' }}>EMAIL US</Typography>
               <Typography sx={{ fontSize: { xs: '0.9rem', sm: '1.05rem' }, fontWeight: 700, color: 'white' }}>
-                inquiry@allfix.ph
+                concierge.fpdnexus@gmail.com
               </Typography>
             </Box>
           </Box>
@@ -225,7 +225,7 @@ export const Footer: React.FC = () => {
             <Box>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.9)', mb: 0.3, letterSpacing: '0.05em' }}>HEAD OFFICE</Typography>
               <Typography sx={{ fontSize: { xs: '0.9rem', sm: '1.05rem' }, fontWeight: 700, color: 'white' }}>
-                9824 Kamagong Street, Makati City 1203 Philippines
+                139 Corporate Center, Valero, Makati City, Metro Manila
               </Typography>
             </Box>
           </Box>

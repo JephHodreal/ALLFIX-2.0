@@ -4776,9 +4776,30 @@ function RefundsPage() {
           <DataTable
             columns={[
               { key: 'id', label: 'Refund ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-500">{item.id?.substring(0, 8)}...</span> },
-              { key: 'booking_id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{item.booking_id}</span> },
+              { key: 'booking_id', label: 'Booking ID', sortable: true, render: (item: any) => (
+                <div className="flex flex-col">
+                  <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{item.booking_id}</span>
+                  {item.is_automatic_expiration && (
+                    <span className="bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[9px] px-1.5 py-0.5 rounded-full inline-block mt-1 font-semibold w-fit">
+                      ⚠️ Missed Deadline
+                    </span>
+                  )}
+                </div>
+              ) },
               { key: 'customer_name', label: 'Customer Name', sortable: true, render: (item: any) => <span className="font-bold text-slate-800 dark:text-white">{item.customer_name}</span> },
               { key: 'refund_amount', label: 'Refund Amount', sortable: true, render: (item: any) => <span className="font-black text-brand-green">₱{Number(item.refund_amount || 0).toFixed(2)}</span> },
+              { key: 'reason', label: 'Reason', render: (item: any) => (
+                <div className="flex flex-col gap-0.5 max-w-[150px]">
+                  <span className="text-xs text-slate-700 dark:text-slate-350 font-bold truncate" title={item.reason}>
+                    {item.reason || 'Customer Requested'}
+                  </span>
+                  {item.is_automatic_expiration && (
+                    <span className="text-[9px] text-rose-500 font-extrabold">
+                      Automatic Expiration
+                    </span>
+                  )}
+                </div>
+              ) },
               { key: 'reference_number', label: 'Ref Number', render: (item: any) => <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-350">{item.reference_number || '—'}</span> },
               { key: 'account_number', label: 'Account Number', render: (item: any) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{item.account_number || '—'}</span> },
               { key: 'proof_image_url', label: 'Proof Image', render: (item: any) => item.proof_image_url ? (

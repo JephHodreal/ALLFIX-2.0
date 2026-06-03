@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ph.allfix.service.RefundService;
 import ph.allfix.service.FirestoreService;
+import ph.allfix.service.BookingService;
 import java.util.*;
 
 @RestController
@@ -12,10 +13,12 @@ public class RefundController {
 
     private final RefundService refundService;
     private final FirestoreService firestoreService;
+    private final BookingService bookingService;
 
-    public RefundController(RefundService refundService, FirestoreService firestoreService) {
+    public RefundController(RefundService refundService, FirestoreService firestoreService, BookingService bookingService) {
         this.refundService = refundService;
         this.firestoreService = firestoreService;
+        this.bookingService = bookingService;
     }
 
     @PostMapping
@@ -41,12 +44,22 @@ public class RefundController {
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> getAll() throws Exception {
         System.out.println("[CAVEMAN] RefundController.getAll: Fetching all refunds");
+        try {
+            bookingService.checkAndExpireBookings();
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error running checkAndExpireBookings in RefundController.getAll: " + e.getMessage());
+        }
         return ResponseEntity.ok(firestoreService.getAll("refunds"));
     }
 
     @GetMapping("/customer/{id}")
     public ResponseEntity<List<Map<String, Object>>> getByCustomer(@PathVariable String id) throws Exception {
         System.out.println("[CAVEMAN] RefundController.getByCustomer: Fetching refunds for customer ID: " + id);
+        try {
+            bookingService.checkAndExpireBookings();
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error running checkAndExpireBookings in RefundController.getByCustomer: " + e.getMessage());
+        }
         return ResponseEntity.ok(firestoreService.getWhere("refunds", "customer_id", id));
     }
 

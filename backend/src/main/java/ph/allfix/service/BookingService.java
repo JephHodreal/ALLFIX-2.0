@@ -264,7 +264,241 @@ public class BookingService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[CAVEMAN] Error in handleSlotDecrementForBooking: " + e.getMessage());
-        }
-    }
-}
+             System.err.println("[CAVEMAN] Error in handleSlotDecrementForBooking: " + e.getMessage());
+         }
+     }
+ 
+     @org.springframework.scheduling.annotation.Scheduled(fixedRate = 60000)
+     public void scheduledCheckAndExpireBookings() {
+         checkAndExpireBookings();
+     }
+ 
+     public synchronized void checkAndExpireBookings() {
+         System.out.println("[CAVEMAN] Running checkAndExpireBookings automation...");
+         try {
+             List<Map<String, Object>> bookings = firestoreService.getAll("bookings");
+             if (bookings == null) return;
+ 
+             java.time.ZoneId manilaZone = java.time.ZoneId.of("Asia/Manila");
+             java.time.LocalDate today = java.time.LocalDate.now(manilaZone);
+             java.time.LocalTime nowTime = java.time.LocalTime.now(manilaZone);
+             int nowMinutes = nowTime.getHour() * 60 + nowTime.getMinute();
+ 
+             for (Map<String, Object> booking : bookings) {
+                 String bookingId = (String) booking.get("id");
+                 if (bookingId == null) continue;
+ 
+                 String status = (String) booking.get("status");
+                 if (status == null) continue;
+ 
+                 status = status.trim().toLowerCase();
+                 // We only check unconfirmed (pending) or unassigned (confirmed) bookings
+                 if (status.equals("pending") || status.equals("confirmed")) {
+                     boolean isExpired = false;
+                     String slotId = (String) booking.get("slot_id");
+                     Map<String, Object> slot = null;
+ 
+                     // 1. Try to fetch by slotId
+                     if (slotId != null && !slotId.isBlank()) {
+                         try {
+                             slot = firestoreService.getById("vendor_slots", slotId);
+                         } catch (Exception e) {
+                             System.err.println("[CAVEMAN] Error fetching slot by ID: " + slotId + " - " + e.getMessage());
+                         }
+                     }
+ 
+                     // 2. Fallback to querying slot by vendor, date, sub_service, and time
+                     if (slot == null) {
+                         try {
+                             String vendorId = (String) booking.get("vendor_id");
+                             String date = (String) booking.get("scheduled_date");
+                             String subService = (String) booking.get("sub_service");
+                             String time = (String) booking.get("scheduled_time");
+                             if (vendorId != null && date != null) {
+                                 Map<String, Object> filters = new HashMap<>();
+                                 filters.put("vendor_id", vendorId);
+                                 filters.put("slot_date", date);
+                                 if (subService != null && !subService.isEmpty()) {
+                                     filters.put("sub_service", subService);
+                                 }
+                                 List<Map<String, Object>> slots = firestoreService.getWhereMultiple("vendor_slots", filters);
+                                 if (slots != null && !slots.isEmpty()) {
+                                     if (time != null && !time.isEmpty()) {
+                                         for (Map<String, Object> s : slots) {
+                                             String timeFrom = (String) s.get("time_from");
+                                             String timeTo = (String) s.get("time_to");
+                                             if (timeFrom != null && timeTo != null) {
+                                                 if (isTimeWithinRange(time, timeFrom, timeTo)) {
+                                                     slot = s;
+                                                     break;
+                                                 }
+                                             }
+                                         }
+                                     }
+                                     if (slot == null) {
+                                         slot = slots.get(0);
+                                     }
+                                 }
+                             }
+                         } catch (Exception e) {
+                             System.err.println("[CAVEMAN] Error falling back to query slot: " + e.getMessage());
+                         }
+                     }
+ 
+                     String slotDateStr = null;
+                     String timeToStr = null;
+ 
+                     if (slot != null) {
+                         slotDateStr = (String) slot.get("slot_date");
+                         timeToStr = (String) slot.get("time_to");
+                     } else {
+                         // Fallback directly to booking fields if no slot could be found at all
+                         slotDateStr = (String) booking.get("scheduled_date");
+                         timeToStr = (String) booking.get("scheduled_time"); // Use preferred start time as a fallback
+                     }
+ 
+                     if (slotDateStr != null && !slotDateStr.isBlank()) {
+                         try {
+                             java.time.LocalDate slotLocalDate = java.time.LocalDate.parse(slotDateStr.trim());
+                             if (slotLocalDate.isBefore(today)) {
+                                 isExpired = true;
+                                 System.out.println("[CAVEMAN] BookingId=" + bookingId + " expired because slotDate=" + slotDateStr + " is before today=" + today);
+                             } else if (slotLocalDate.isEqual(today)) {
+                                 if (timeToStr != null && !timeToStr.isBlank()) {
+                                     int slotEndTimeMinutes = parseTimeToMinutes(timeToStr);
+                                     if (slotEndTimeMinutes > 0 && nowMinutes > slotEndTimeMinutes) {
+                                         isExpired = true;
+                                         System.out.println("[CAVEMAN] BookingId=" + bookingId + " expired because slotTime=" + timeToStr + " (" + slotEndTimeMinutes + "m) is before nowTime=" + nowMinutes + "m");
+                                     }
+                                 }
+                             }
+                         } catch (Exception e) {
+                             System.err.println("[CAVEMAN] Error parsing date/time for bookingId=" + bookingId + ": " + e.getMessage());
+                         }
+                     }
+ 
+                     if (isExpired) {
+                         expireBooking(bookingId, booking);
+                     }
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("[CAVEMAN] Error in checkAndExpireBookings: " + e.getMessage());
+             e.printStackTrace();
+         }
+     }
+ 
+     public void expireBooking(String bookingId, Map<String, Object> booking) throws Exception {
+         System.out.println("[CAVEMAN] expireBooking: automatically expiring bookingId=" + bookingId);
+         
+         // 1. Calculate full total amount paid
+         double price = booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() : 0.0;
+         double quantity = booking.get("quantity") != null ? ((Number) booking.get("quantity")).doubleValue() : 1.0;
+         double totalPrice = booking.get("total_price") != null ? ((Number) booking.get("total_price")).doubleValue() : (price * quantity);
+ 
+         // 2. Create the refund record in the refunds collection
+         Map<String, Object> refundData = new HashMap<>();
+         refundData.put("booking_id", bookingId);
+         refundData.put("customer_id", booking.get("customer_id"));
+         refundData.put("customer_name", booking.get("customer_name"));
+         refundData.put("reason", "Missed Confirmation/Assignment Deadline");
+         refundData.put("refund_amount", totalPrice);
+         refundData.put("deduction_amount", 0.0);
+         refundData.put("status", "pending"); // Admin must process it
+         refundData.put("notified", false);
+         refundData.put("is_automatic_expiration", true);
+         refundData.put("created_at", new Date());
+ 
+         String refundId = firestoreService.create("refunds", refundData);
+         System.out.println("[CAVEMAN] expireBooking: Created refund request with ID: " + refundId + " for amount ₱" + totalPrice);
+ 
+         // 3. Update the booking record
+         Map<String, Object> updates = new HashMap<>();
+         updates.put("status", "cancelled");
+         updates.put("cancellation_requested", true);
+         updates.put("refund_status", "Refund Required");
+         updates.put("refund_id", refundId);
+         updates.put("refund_amount", totalPrice);
+         updates.put("is_automatic_expiration", true);
+         updates.put("expired_at", new Date());
+         
+         firestoreService.update("bookings", bookingId, updates);
+         System.out.println("[CAVEMAN] expireBooking: Updated bookingId=" + bookingId + " to cancelled with refund_status='Refund Required'");
+ 
+         // 4. Restore slot back to vendor slots
+         try {
+             slotService.restoreSlotForCancelledBooking(bookingId);
+         } catch (Exception e) {
+             System.err.println("[CAVEMAN] ERROR: Failed to execute restoreSlotForCancelledBooking in expireBooking: " + e.getMessage());
+         }
+ 
+         // 5. Notify customer
+         String customerId = (String) booking.get("customer_id");
+         if (customerId != null) {
+             notificationService.notify(customerId, "customer",
+                 "Your booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline. A full refund has been requested.");
+         }
+ 
+         // 6. Notify vendor
+         String vendorId = (String) booking.get("vendor_id");
+         if (vendorId != null) {
+             notificationService.notify(vendorId, "vendor",
+                 "Booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline.");
+         }
+ 
+         // 7. Notify admins
+         try {
+             List<Map<String, Object>> admins = firestoreService.getAll("admins");
+             for (Map<String, Object> admin : admins) {
+                 String adminId = (String) admin.get("id");
+                 if (adminId == null) adminId = (String) admin.get("uid");
+                 if (adminId != null) {
+                     notificationService.notify(adminId, "admin",
+                         "Booking " + bookingId + " has been automatically cancelled due to missed deadline. Refund of ₱" + totalPrice + " is required.");
+                 }
+             }
+         } catch (Exception e) {
+             System.err.println("[CAVEMAN] Failed to notify admins of automatic booking cancellation: " + e.getMessage());
+         }
+     }
+ 
+     private boolean isTimeWithinRange(String timeStr, String fromStr, String toStr) {
+         if (timeStr == null || timeStr.isBlank() || fromStr == null || fromStr.isBlank() || toStr == null || toStr.isBlank()) {
+             return false;
+         }
+         try {
+             int timeMinutes = toMinutesSinceMidnight(timeStr);
+             int fromMinutes = toMinutesSinceMidnight(fromStr);
+             int toMinutes = toMinutesSinceMidnight(toStr);
+             return timeMinutes >= fromMinutes && timeMinutes <= toMinutes;
+         } catch (Exception e) {
+             return false;
+         }
+     }
+ 
+     private int toMinutesSinceMidnight(String raw) {
+         String timeStr = raw.trim();
+         timeStr = timeStr.replaceAll("[^\\dAPMapm: ]", "").trim();
+         timeStr = timeStr.replaceAll("\\s+", " ").trim().toUpperCase();
+         boolean isPM = timeStr.contains("PM");
+         boolean isAM = timeStr.contains("AM");
+         timeStr = timeStr.replaceAll("\\s*(AM|PM)", "").trim();
+         String[] parts = timeStr.split(":");
+         if (parts.length < 2) throw new IllegalArgumentException("Cannot parse time");
+         int hour = Integer.parseInt(parts[0].trim());
+         int minute = Integer.parseInt(parts[1].trim());
+         if (isPM || isAM) {
+             if (isPM && hour != 12) hour += 12;
+             if (isAM && hour == 12) hour = 0;
+         }
+         return hour * 60 + minute;
+     }
+ 
+     private int parseTimeToMinutes(String timeStr) {
+         try {
+             return toMinutesSinceMidnight(timeStr);
+         } catch (Exception e) {
+             return -1;
+         }
+     }
+ }

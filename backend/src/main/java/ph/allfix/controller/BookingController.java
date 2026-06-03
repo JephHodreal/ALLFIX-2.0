@@ -32,26 +32,31 @@ public class BookingController {
 
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> getAll() throws Exception {
+        bookingService.checkAndExpireBookings();
         return ResponseEntity.ok(firestoreService.getAll("bookings"));
     }
 
     @GetMapping("/customer/{id}")
     public ResponseEntity<List<Map<String, Object>>> getByCustomer(@PathVariable String id) throws Exception {
+        bookingService.checkAndExpireBookings();
         return ResponseEntity.ok(firestoreService.getWhere("bookings", "customer_id", id));
     }
 
     @GetMapping("/vendor/{id}")
     public ResponseEntity<List<Map<String, Object>>> getByVendor(@PathVariable String id) throws Exception {
+        bookingService.checkAndExpireBookings();
         return ResponseEntity.ok(firestoreService.getWhere("bookings", "vendor_id", id));
     }
 
     @GetMapping("/personnel/{id}")
     public ResponseEntity<List<Map<String, Object>>> getByPersonnel(@PathVariable String id) throws Exception {
+        bookingService.checkAndExpireBookings();
         return ResponseEntity.ok(firestoreService.getWhere("bookings", "personnel_id", id));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String id) throws Exception {
+        bookingService.checkAndExpireBookings();
         Map<String, Object> booking = firestoreService.getById("bookings", id);
         return booking != null ? ResponseEntity.ok(booking) : ResponseEntity.notFound().build();
     }
