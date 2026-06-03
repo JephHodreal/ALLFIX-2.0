@@ -14,9 +14,11 @@ import { VENDOR_SERVICES } from '../constants/services';
 import { servicesData } from '../constants/servicesData';
 import api from '../services/apiService';
 import AddServiceWizard from './AddServiceWizard';
+import { useTheme } from '../context/ThemeContext';
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
 function DashboardHome() {
+  const { isDark } = useTheme();
   const [stats, setStats] = useState<any>(null);
   const [revenueTrend, setRevenueTrend] = useState<any[]>([]);
   const [jobTrend, setJobTrend] = useState<any[]>([]);
@@ -56,7 +58,7 @@ function DashboardHome() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card><h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Revenue Trend</h3>
-          <LineChart data={revenueTrend} xKey="week" lines={[{ dataKey: 'revenue', color: '#041e41', name: 'Revenue (₱)' }]} /></Card>
+          <LineChart data={revenueTrend} xKey="week" lines={[{ dataKey: 'revenue', color: isDark ? '#60a5fa' : '#041e41', name: 'Revenue (₱)' }]} /></Card>
         <Card><h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Bookings Trend</h3>
           <LineChart data={jobTrend} xKey="week" lines={[{ dataKey: 'bookings', color: '#20b759', name: 'Bookings' }]} /></Card>
       </div>
