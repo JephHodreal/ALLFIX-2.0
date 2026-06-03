@@ -153,7 +153,7 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
         {/* Content */}
         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           {/* Grid for basic info and address */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Contact Person Details */}
             <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
               <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
@@ -205,6 +205,24 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Postal / Zip Code</span>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.postal_code || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Payout & Bank Details */}
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4" />
+                Payout & Bank Details
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Account Name</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.account_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Account Number</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.account_number || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -344,6 +362,8 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
     company_name: vendor.company_name || '',
     first_name: vendor.first_name || contactParts[0] || '',
     last_name: vendor.last_name || contactParts.slice(1).join(' ') || '',
+    account_name: vendor.account_name || '',
+    account_number: vendor.account_number || '',
   });
   const [services, setServices] = useState<Array<{ service: string; sub_services: string[]; work_types?: any[] }>>(
     Array.isArray(vendor.services) ? vendor.services.map((s: any) => ({
@@ -478,6 +498,8 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
         last_name: form.last_name.trim(),
         contact_person: `${form.first_name.trim()} ${form.last_name.trim()}`,
         services: mergedServices,
+        account_name: form.account_name.trim(),
+        account_number: form.account_number.trim(),
       });
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Save failed');
@@ -512,6 +534,20 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
                   <input value={form.last_name} onChange={e => { const v = e.target.value; setForm({ ...form, last_name: v.length > 0 ? v.charAt(0).toUpperCase() + v.slice(1) : v }); }}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
+                  <input value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
+                    placeholder="Enter Account Name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
+                  <input value={form.account_number} onChange={e => setForm({ ...form, account_number: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
+                    placeholder="Enter Account Number" />
                 </div>
               </div>
               {/* Services Selection */}
