@@ -163,6 +163,11 @@ function VendorBookings() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState('');
 
+  // Cancellation Reason Form State
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
   // Personnel List State
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [assigningLoading, setAssigningLoading] = useState(false);
@@ -490,7 +495,7 @@ function VendorBookings() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
+            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && selectedBooking.status !== 'pending' && (
               <Button
                 variant="danger"
                 className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[120px]"
@@ -543,11 +548,8 @@ function VendorBookings() {
                 variant="danger"
                 onClick={() => {
                   setShowCancelConfirm(false);
-                  const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00';
-                  setRefundAmount(String(totalAmt));
-                  setRefundMethod('GCash');
-                  setReceiverGcashNumber('');
-                  setReferenceNumber('');
+                  setCancellationReason('');
+                  setCancelError('');
                   setShowRefundForm(true);
                 }}
               >
@@ -557,72 +559,41 @@ function VendorBookings() {
           </div>
         )}
 
-        {/* Refund Form */}
+        {/* Cancellation Reason Form */}
         {showRefundForm && (
           <Card className="p-6 bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/30 rounded-2xl shadow-xl space-y-6">
             <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
-                <CreditCard className="w-5 h-5" />
+                <AlertCircle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-lg font-bold text-slate-900 dark:text-white">Refund Form</h4>
-                <p className="text-xs text-slate-500">Provide details to submit the booking cancellation refund.</p>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
+                <p className="text-xs text-slate-500">Provide a reason for cancelling this booking. A full refund will be automatically issued to the customer.</p>
               </div>
             </div>
 
-            {refundError && (
+            {cancelError && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
-                {refundError}
+                {cancelError}
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Refund Amount (₱) *</label>
-                <input
-                  type="number"
-                  value={refundAmount}
-                  onChange={(e) => setRefundAmount(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-black focus:outline-none"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Cancellation *</label>
+              <textarea
+                rows={4}
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-slate-400 resize-none"
+                placeholder="e.g. Vendor is unavailable on this date, equipment issue, etc."
+                required
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Refund Method *</label>
-                <select
-                  value={refundMethod}
-                  onChange={(e) => setRefundMethod(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                >
-                  <option value="GCash">GCash</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reference Number *</label>
-                <input
-                  type="text"
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
-                  placeholder="Enter Reference Number"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Receiver GCash Number</label>
-                <input
-                  type="text"
-                  value={receiverGcashNumber}
-                  onChange={(e) => setReceiverGcashNumber(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
-                  placeholder="Enter Receiver's GCash Number"
-                  disabled={refundMethod !== 'GCash'}
-                />
-              </div>
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                ⚠ A full refund of <span className="font-black">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span> will be submitted to the admin for processing.
+              </p>
             </div>
 
             <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -630,20 +601,52 @@ function VendorBookings() {
                 variant="ghost"
                 onClick={() => {
                   setShowRefundForm(false);
-                  setRefundError('');
+                  setCancelError('');
                 }}
-                disabled={refundSubmitting}
+                disabled={cancelSubmitting}
               >
                 Back to Details
               </Button>
               <Button
                 variant="danger"
                 className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
-                onClick={handleSubmitRefund}
-                loading={refundSubmitting}
-                disabled={!referenceNumber.trim() || !refundAmount.trim()}
+                onClick={async () => {
+                  if (!cancellationReason.trim()) {
+                    setCancelError('Please provide a reason for cancellation.');
+                    return;
+                  }
+                  setCancelSubmitting(true);
+                  setCancelError('');
+                  try {
+                    const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0;
+                    await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, {
+                      refund_amount: totalAmt,
+                      reason: cancellationReason.trim(),
+                      cancelled_by: 'Vendor',
+                    });
+                    setSelectedBooking((prev: any) => ({
+                      ...prev,
+                      status: 'cancelled',
+                      cancellation_requested: true,
+                    }));
+                    setBookings((prevList: any[]) =>
+                      prevList.map((b: any) =>
+                        b.id === selectedBooking.id
+                          ? { ...b, status: 'cancelled', cancellation_requested: true }
+                          : b
+                      )
+                    );
+                    setShowRefundForm(false);
+                    alert('Booking cancelled. A full refund request has been submitted to the admin.');
+                  } catch (err: any) {
+                    setCancelError(err.response?.data?.message || 'Failed to cancel booking. Please try again.');
+                  } finally {
+                    setCancelSubmitting(false);
+                  }
+                }}
+                loading={cancelSubmitting}
               >
-                Submit Refund Details
+                Confirm Cancellation
               </Button>
             </div>
           </Card>
