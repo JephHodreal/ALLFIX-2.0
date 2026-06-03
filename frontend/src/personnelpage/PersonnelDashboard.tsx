@@ -32,6 +32,10 @@ function PersonnelHome() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    console.log("[CAVEMAN] PersonnelHome loaded. Rendering Completed Jobs Trend only. stats:", stats);
+  }, [stats]);
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-4">
@@ -50,15 +54,7 @@ function PersonnelHome() {
         <StatCard title="Completed Jobs" value={completedJobs} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Total Jobs Trend</h3>
-          <LineChart
-            data={stats?.totalJobsTrend ?? []}
-            xKey="week"
-            lines={[{ dataKey: 'jobs', color: '#041e41', name: 'Total Jobs' }]}
-          />
-        </Card>
+      <div className="w-full">
         <Card>
           <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Completed Jobs Trend</h3>
           <LineChart

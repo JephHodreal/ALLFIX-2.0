@@ -42,7 +42,12 @@ export function LineChart({ data, xKey, lines, height = 300 }: LineChartProps) {
             fontWeight: 'bold'
           }}
         />
-        <Legend wrapperStyle={{ color: isDark ? '#f8fafc' : '#0f172a' }} />
+        <Legend 
+          formatter={(value) => {
+            console.log("[CAVEMAN] LineChart Legend value formatted in dark mode:", isDark, "val:", value);
+            return <span className="text-slate-600 dark:text-slate-300 font-medium text-xs">{value}</span>;
+          }}
+        />
         {lines.map((line) => (
           <Line key={line.dataKey} type="monotone" dataKey={line.dataKey} stroke={line.color} name={line.name || line.dataKey} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
         ))}

@@ -52,7 +52,8 @@ const AboutUsPage = () => {
 
   useEffect(() => {
     console.log("[CAVEMAN] AboutUsPage mounted. Loading company overview.");
-  }, []);
+    console.log("[CAVEMAN] UI Adjustment: KPI font-weight in dark mode =", isDark ? 300 : 800);
+  }, [isDark]);
 
   // Helper to render branded "AllFix" with custom letters
   const renderBrandedName = (textBefore = 'About All', textAfter = '.ph') => {
@@ -351,7 +352,7 @@ const AboutUsPage = () => {
                         variant="h6"
                         color={isDark ? '#90caf9' : '#10355f'}
                         sx={{
-                          fontWeight: 800,
+                          fontWeight: isDark ? 300 : 800,
                           mb: 1.5,
                           fontSize: '1.2rem',
                           lineHeight: 1.2,

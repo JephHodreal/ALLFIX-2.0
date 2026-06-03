@@ -10,6 +10,7 @@ import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
 
@@ -67,6 +68,7 @@ function formatLocalYYYYMMDD(date: Date): string {
 
 function VendorHome() {
   const { profile } = useAuth();
+  const { isDark } = useTheme();
   const [personnelCount, setPersonnelCount] = useState(0);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +92,10 @@ function VendorHome() {
     };
     fetchData();
   }, [profile?.id]);
+
+  useEffect(() => {
+    console.log("[CAVEMAN] VendorHome UI adjustment check - isDark:", isDark, "Completion Rate line color:", isDark ? '#60a5fa' : '#041e41');
+  }, [isDark]);
 
   if (loading) {
     return (
@@ -132,7 +138,7 @@ function VendorHome() {
           <LineChart
             data={stats?.completionTrend ?? []}
             xKey="week"
-            lines={[{ dataKey: 'rate', color: '#041e41', name: 'Completion Rate (%)' }]}
+            lines={[{ dataKey: 'rate', color: isDark ? '#60a5fa' : '#041e41', name: 'Completion Rate (%)' }]}
           />
         </Card>
       </div>
