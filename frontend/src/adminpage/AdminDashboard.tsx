@@ -5403,26 +5403,14 @@ function RefundsPage() {
 
                   {isProcessingExisting && (
                     <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Cancelled By</label>
-                          <input
-                            type="text"
-                            value={cancelledBy || '—'}
-                            readOnly
-                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Booking Status at Cancellation</label>
-                          <input
-                            type="text"
-                            value={statusAtCancellation ? statusAtCancellation.toUpperCase() : '—'}
-                            readOnly
-                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Cancelled By</label>
+                        <input
+                          type="text"
+                          value={cancelledBy || '—'}
+                          readOnly
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
+                        />
                       </div>
 
                       {cancelledBy === 'Customer' && (statusAtCancellation === 'assigned' || statusAtCancellation === 'in_progress') && (
@@ -5567,7 +5555,6 @@ function RefundsPage() {
                           className="flex-1"
                           type="submit"
                           loading={submitting}
-                          disabled={uploadingImage || !referenceNumber.trim() || !accountNumber.trim()}
                         >
                           {isProcessingExisting ? 'Process Refund' : 'Create Refund'}
                         </Button>
