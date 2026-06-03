@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Check, ChevronRight, ChevronLeft } from 'lucide-react';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendBackendVerificationEmail } from '../services/firebaseService';
 import { auth } from '../config/firebase';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
@@ -125,7 +126,7 @@ const AdminRegisterPage: React.FC = () => {
       const userCred = await createUserWithEmailAndPassword(auth, form.email, form.password);
       const user = userCred.user;
       
-      await sendEmailVerification(user);
+      await sendBackendVerificationEmail(form.email);
 
       localStorage.setItem('pendingRegistration', JSON.stringify({
         sentAt: Date.now(),

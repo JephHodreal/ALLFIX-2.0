@@ -13,13 +13,20 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
-function verificationLinkSettings() {
-  // This makes Firebase include a continue URL back to our app.
-  // The link will still contain mode/oobCode parameters.
-  return {
-    url: `${window.location.origin}/verify-email`,
-    handleCodeInApp: true,
-  };
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+export async function sendBackendVerificationEmail(email: string) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/send-verification`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to send verification email');
+  }
 }
 
 /**
@@ -27,7 +34,7 @@ function verificationLinkSettings() {
  */
 export async function registerUser(email: string, password: string) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  await sendEmailVerification(userCredential.user, verificationLinkSettings());
+  await sendBackendVerificationEmail(email);
   return userCredential.user;
 }
 
@@ -60,8 +67,8 @@ export async function getIdToken(): Promise<string | null> {
  */
 export async function resendVerificationEmail() {
   const user = auth.currentUser;
-  if (!user) throw new Error('No user is currently signed in');
-  await sendEmailVerification(user, verificationLinkSettings());
+  if (!user || !user.email) throw new Error('No user is currently signed in or user has no email');
+  await sendBackendVerificationEmail(user.email);
 }
 
 /**

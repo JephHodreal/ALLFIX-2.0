@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ph.allfix.service.FirebaseAuthService;
 import ph.allfix.service.FirestoreService;
+import ph.allfix.service.EmailVerificationService;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
@@ -16,10 +17,12 @@ public class AuthController {
 
     private final FirebaseAuthService authService;
     private final FirestoreService firestoreService;
+    private final EmailVerificationService emailVerificationService;
 
-    public AuthController(FirebaseAuthService authService, FirestoreService firestoreService) {
+    public AuthController(FirebaseAuthService authService, FirestoreService firestoreService, EmailVerificationService emailVerificationService) {
         this.authService = authService;
         this.firestoreService = firestoreService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @PostMapping("/register")
@@ -327,6 +330,22 @@ public class AuthController {
 
             return ResponseEntity.ok(Map.of("available", true));
         } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/send-verification")
+    public ResponseEntity<?> sendVerification(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+            if (email == null || email.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Missing required field: email"));
+            }
+            emailVerificationService.sendVerificationEmail(email);
+            return ResponseEntity.ok(Map.of("message", "Verification email sent successfully"));
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error sending verification email: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
