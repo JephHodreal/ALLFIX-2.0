@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { Navbar } from '../components/shared/Navbar';
 import { Footer } from '../components/shared/Footer';
+import { useTheme } from '../context/ThemeContext';
 
 // Icons for Privacy Policy Sections
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -17,6 +18,8 @@ import UpdateIcon from '@mui/icons-material/Update';
 import ContactMailIcon from '@mui/icons-material/ContactMail';
 
 const PrivacyPolicy = () => {
+  const { isDark } = useTheme();
+
   useEffect(() => {
     console.log("[CAVEMAN] PrivacyPage mounted. Loading user privacy policies.");
   }, []);
@@ -28,7 +31,7 @@ const PrivacyPolicy = () => {
       {/* Seamless Navbar */}
       <Navbar />
 
-      <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', width: '100%', pb: { xs: 4, md: 8 } }}>
+      <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', minHeight: '100vh', width: '100%', pb: { xs: 4, md: 8 } }}>
         
         {/* Hero Section */}
         <Box sx={{ 
@@ -105,7 +108,7 @@ const PrivacyPolicy = () => {
                 textShadow: '0 2px 10px rgba(0,0,0,0.2)'
               }}
             >
-              Privacy & Policy
+              Privacy Policy
             </Typography>
             <Typography sx={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: { xs: '1rem', md: '1.1rem' }, lineHeight: 1.6, maxWidth: '600px', mx: 'auto' }}>
               We're committed to protecting your privacy and being transparent about how we collect and use your data.
@@ -117,16 +120,16 @@ const PrivacyPolicy = () => {
         <Container maxWidth="md" sx={{ mt: { xs: -4, md: -6 }, position: 'relative', zIndex: 20 }}>
           
           <Section title="1. Introduction" icon={<InfoOutlinedIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
               AllFix Philippines Inc. ("we", "us", "our", or "Company") operates the AllFix.ph website and mobile application (the "Service"). This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.
             </Typography>
           </Section>
 
           <Section title="2. Information Collection and Use" icon={<StorageIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8, fontWeight: 700, mb: 2 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8, fontWeight: 700, mb: 2 }}>
               We collect several different types of information for various purposes to provide and improve our service to you:
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pl: 2, borderLeft: '3px solid #e2e8f0' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pl: 2, borderLeft: isDark ? '3px solid #334155' : '3px solid #e2e8f0' }}>
               {[
                 { name: 'Personal Data', detail: 'Email address, name, contact number, business details, and payment details.' },
                 { name: 'Device Information', detail: 'Browser type, IP address, and operating system details.' },
@@ -134,10 +137,10 @@ const PrivacyPolicy = () => {
                 { name: 'Location Data', detail: 'Approximate location based on IP address (only with your active consent).' }
               ].map((item, idx) => (
                 <Box key={idx} sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#10355f' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isDark ? '#90caf9' : '#10355f' }}>
                     {item.name}
                   </Typography>
-                  <Typography sx={{ color: '#64748b', fontSize: '0.925rem', lineHeight: 1.6 }}>
+                  <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', fontSize: '0.925rem', lineHeight: 1.6 }}>
                     {item.detail}
                   </Typography>
                 </Box>
@@ -146,10 +149,10 @@ const PrivacyPolicy = () => {
           </Section>
 
           <Section title="3. Use of Data" icon={<SettingsSuggestIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 2 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 2 }}>
               AllFix uses the collected data for various purposes, including but not limited to:
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pl: 2, borderLeft: '3px solid #e2e8f0' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pl: 2, borderLeft: isDark ? '3px solid #334155' : '3px solid #e2e8f0' }}>
               {[
                 'To provide, maintain, and monitor the performance of our Service',
                 'To notify you about changes, updates, or service alerts',
@@ -159,30 +162,30 @@ const PrivacyPolicy = () => {
                 'To detect, prevent, and quickly address technical or security issues'
               ].map((item, idx) => (
                 <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                  <Typography sx={{ color: '#017550', fontWeight: 'bold', mt: -0.2 }}>•</Typography>
-                  <Typography sx={{ color: '#64748b', fontSize: '0.925rem', lineHeight: 1.6 }}>{item}</Typography>
+                  <Typography sx={{ color: isDark ? '#34d399' : '#017550', fontWeight: 'bold', mt: -0.2 }}>•</Typography>
+                  <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', fontSize: '0.925rem', lineHeight: 1.6 }}>{item}</Typography>
                 </Box>
               ))}
             </Box>
           </Section>
 
           <Section title="4. Security of Data" icon={<ShieldIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
               The security of your data is of paramount importance to us. However, please remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While we strive to use commercially acceptable means and protocols to protect your Personal Data, we cannot guarantee its absolute security.
             </Typography>
           </Section>
 
           <Section title="5. Changes to This Privacy Policy" icon={<UpdateIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 2 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 2 }}>
               We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date at the top of this Privacy Policy page.
             </Typography>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8 }}>
               You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective immediately when they are published on this page.
             </Typography>
           </Section>
 
           <Section title="6. Contact Us" icon={<ContactMailIcon />}>
-            <Typography sx={{ color: '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 3 }}>
+            <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '0.975rem', lineHeight: 1.8, mb: 3 }}>
               If you have any questions or feedback regarding this Privacy Policy, please reach out to us:
             </Typography>
             <Box sx={{ 
@@ -190,21 +193,21 @@ const PrivacyPolicy = () => {
               flexDirection: 'column', 
               gap: 2, 
               p: 3, 
-              bgcolor: '#f1f5f9', 
+              bgcolor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f1f5f9', 
               borderRadius: '12px',
-              border: '1px dashed #cbd5e1'
+              border: isDark ? '1px dashed rgba(255, 255, 255, 0.2)' : '1px dashed #cbd5e1'
             }}>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#10355f' }}>Email</Typography>
-                <Typography sx={{ color: '#64748b', fontSize: '0.95rem' }}>concierge.fpdnexus@gmail.com</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isDark ? 'white' : '#10355f' }}>Email</Typography>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', fontSize: '0.95rem' }}>concierge.fpdnexus@gmail.com</Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#10355f' }}>Phone</Typography>
-                <Typography sx={{ color: '#64748b', fontSize: '0.95rem' }}>+63 920 9631 217 | +63 975 8336 289</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isDark ? 'white' : '#10355f' }}>Phone</Typography>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', fontSize: '0.95rem' }}>+63 920 9631 217 | +63 975 8336 289</Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#10355f' }}>Address</Typography>
-                <Typography sx={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isDark ? 'white' : '#10355f' }}>Address</Typography>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
                   139 Corporate Center, Valero, Makati City,<br/>Metro Manila, Philippines
                 </Typography>
               </Box>
@@ -227,54 +230,57 @@ interface SectionProps {
   icon: React.ReactNode;
   children: React.ReactNode;
 }
-const Section = ({ title, icon, children }: SectionProps) => (
-  <Box sx={{ 
-    mb: 4, 
-    p: { xs: 3, md: 4 }, 
-    bgcolor: 'white', 
-    borderRadius: '16px',
-    border: '1px solid rgba(16, 53, 95, 0.08)',
-    boxShadow: '0 4px 20px rgba(16, 53, 95, 0.02)',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    '&:hover': {
-      boxShadow: '0 12px 30px rgba(16, 53, 95, 0.06)',
-      transform: 'translateY(-2px)'
-    }
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        width: 42, 
-        height: 42, 
-        borderRadius: '10px', 
-        bgcolor: '#f0f7ff', 
-        color: '#10355f',
-        flexShrink: 0
-      }}>
-        {icon}
+const Section = ({ title, icon, children }: SectionProps) => {
+  const { isDark } = useTheme();
+  return (
+    <Box sx={{ 
+      mb: 4, 
+      p: { xs: 3, md: 4 }, 
+      bgcolor: isDark ? '#1e293b' : 'white', 
+      borderRadius: '16px',
+      border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+      boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.2)' : '0 4px 20px rgba(16, 53, 95, 0.02)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      '&:hover': {
+        boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.4)' : '0 12px 30px rgba(16, 53, 95, 0.06)',
+        transform: 'translateY(-2px)'
+      }
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          width: 42, 
+          height: 42, 
+          borderRadius: '10px', 
+          bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f0f7ff', 
+          color: isDark ? '#90caf9' : '#10355f',
+          flexShrink: 0
+        }}>
+          {icon}
+        </Box>
+        <Typography
+          component="h2"
+          variant="h6"
+          color={isDark ? 'white' : '#10355f'}
+          sx={{
+            fontWeight: 800,
+            fontSize: {
+              xs: '1.15rem',
+              sm: '1.25rem',
+            },
+            lineHeight: 1.2,
+          }}
+        >
+          {title}
+        </Typography>
       </Box>
-      <Typography
-        component="h2"
-        variant="h6"
-        color="#10355f"
-        sx={{
-          fontWeight: 800,
-          fontSize: {
-            xs: '1.15rem',
-            sm: '1.25rem',
-          },
-          lineHeight: 1.2,
-        }}
-      >
-        {title}
-      </Typography>
+      <Box sx={{ pl: { xs: 0, sm: 7.2 } }}>
+        {children}
+      </Box>
     </Box>
-    <Box sx={{ pl: { xs: 0, sm: 7.2 } }}>
-      {children}
-    </Box>
-  </Box>
-);
+  );
+};
 
 export default PrivacyPolicy;

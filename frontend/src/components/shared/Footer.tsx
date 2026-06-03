@@ -4,6 +4,7 @@ import { Box, Container, Grid, Typography, IconButton } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { servicesData } from '../../constants/servicesData';
 import api from '../../services/apiService';
+import { useTheme } from '../../context/ThemeContext';
 
 const svgIconMapping: Record<string, React.ReactNode> = {
   coolfix: <path d="M19.5 12h-15M17.5 16h-11M21.5 8h-15" strokeWidth="2" strokeLinecap="round" />,
@@ -20,6 +21,7 @@ const defaultSvgIcon = <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.
 
 export const Footer: React.FC = () => {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   const [services, setServices] = useState<any[]>(servicesData);
 
   useEffect(() => {
@@ -76,7 +78,18 @@ export const Footer: React.FC = () => {
   }, []);
 
   return (
-    <Box component="footer" sx={{ width: '100%', background: 'linear-gradient(135deg, #10355f 0%, #0d264a 55%, #1a3f70 100%)', pt: { xs: 8, lg: 10 }, pb: { xs: 4, lg: 6 }, color: 'white' }}>
+    <Box 
+      component="footer" 
+      sx={{ 
+        width: '100%', 
+        background: isDark 
+          ? 'linear-gradient(135deg, #090f1d 0%, #070d18 55%, #0c1524 100%)' 
+          : 'linear-gradient(135deg, #10355f 0%, #0d264a 55%, #1a3f70 100%)', 
+        pt: { xs: 8, lg: 10 }, 
+        pb: { xs: 4, lg: 6 }, 
+        color: 'white' 
+      }}
+    >
       <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 5, lg: 6 } }}>
         <Grid component="div" container spacing={{ xs: 4, sm: 6, lg: 8, xl: 10 }} sx={{ justifyContent: 'space-between' }}>
 
@@ -125,8 +138,8 @@ export const Footer: React.FC = () => {
           <Grid size={{ xs: 12, sm: 4, lg: 2 }}>
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.1em', mb: 3, color: 'white' }}>COMPANY</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Typography onClick={() => { navigate('/about'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', cursor: 'pointer', '&:hover': { color: 'white' } }}>About AllFix</Typography>
-              <Typography component="a" href="https://www.fpdasia.net/" target="_blank" rel="noopener noreferrer" sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', textDecoration: 'none', cursor: 'pointer', '&:hover': { color: 'white' } }}>FPD Asia</Typography>
+              <Typography onClick={() => { navigate('/about'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>About AllFix</Typography>
+              <Typography component="a" href="https://www.fpdasia.net/" target="_blank" rel="noopener noreferrer" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', textDecoration: 'none', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>FPD Asia</Typography>
             </Box>
           </Grid>
 
@@ -134,8 +147,8 @@ export const Footer: React.FC = () => {
           <Grid size={{ xs: 12, sm: 4, lg: 2 }}>
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.1em', mb: 3, color: 'white' }}>SUPPORT</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Typography onClick={() => { navigate('/register'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', cursor: 'pointer', '&:hover': { color: 'white' } }}>Book a Service</Typography>
-              <Typography onClick={() => { navigate('/register-vendor'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', cursor: 'pointer', '&:hover': { color: 'white' } }}>Become a Partner</Typography>
+              <Typography onClick={() => { navigate('/register'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Book a Service</Typography>
+              <Typography onClick={() => { navigate('/register-vendor'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Become a Partner</Typography>
             </Box>
           </Grid>
 
@@ -143,8 +156,8 @@ export const Footer: React.FC = () => {
           <Grid size={{ xs: 12, sm: 4, lg: 2 }}>
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.1em', mb: 3, color: 'white' }}>LEGAL</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Typography onClick={() => { navigate('/privacy'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', cursor: 'pointer', '&:hover': { color: 'white' } }}>Privacy Policy</Typography>
-              <Typography onClick={() => { navigate('/terms-of-use'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', cursor: 'pointer', '&:hover': { color: 'white' } }}>Terms of Use</Typography>
+              <Typography onClick={() => { navigate('/privacy'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Privacy Policy</Typography>
+              <Typography onClick={() => { navigate('/terms-of-use'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Terms of Use</Typography>
             </Box>
           </Grid>
         </Grid>

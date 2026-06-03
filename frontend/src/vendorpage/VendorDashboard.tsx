@@ -11,6 +11,7 @@ import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
+import { LineChart } from '../components/shared/LineChart';
 
 /**
  * Filters the vendor's profile services list against active database services.
@@ -67,30 +68,73 @@ function formatLocalYYYYMMDD(date: Date): string {
 function VendorHome() {
   const { profile } = useAuth();
   const [personnelCount, setPersonnelCount] = useState(0);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPersonnels = async () => {
+    const fetchData = async () => {
       try {
         if (profile?.id) {
-          const response = await api.get(`/api/vendors/${profile.id}/personnels`);
-          setPersonnelCount(response.data?.length ?? 0);
+          const [persRes, statsRes] = await Promise.all([
+            api.get(`/api/vendors/${profile.id}/personnels`),
+            api.get(`/api/vendors/${profile.id}/dashboard-stats`)
+          ]);
+          setPersonnelCount(persRes.data?.length ?? 0);
+          setStats(statsRes.data);
         }
       } catch (error) {
-        console.error('Failed to fetch personnel count:', error);
+        console.error('Failed to fetch vendor dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchPersonnels();
+    fetchData();
   }, [profile?.id]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array(3).fill(0).map((_, i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
+      </div>
+    );
+  }
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Total Jobs" value={(profile as any)?.total_jobs ?? 0} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
-        <StatCard title="Completion Rate" value={`${(profile as any)?.completion_rate ?? 0}%`} icon={<TrendingUp className="w-5 h-5" />} color="green" />
+      {/* Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Total Jobs" value={stats?.totalJobs ?? 0} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
+        <StatCard title="Total Income" value={formatCurrency(stats?.totalIncome ?? 0)} icon={<CreditCard className="w-5 h-5" />} color="green" />
         <StatCard title="Personnels" value={personnelCount} icon={<Users className="w-5 h-5" />} color="navy" />
+      </div>
+
+      {/* Graphs */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Total Income Trend</h3>
+          <LineChart
+            data={stats?.incomeTrend ?? []}
+            xKey="week"
+            lines={[{ dataKey: 'income', color: '#20b759', name: 'Income (₱)' }]}
+          />
+        </Card>
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Completion Rate Trend</h3>
+          <LineChart
+            data={stats?.completionTrend ?? []}
+            xKey="week"
+            lines={[{ dataKey: 'rate', color: '#041e41', name: 'Completion Rate (%)' }]}
+          />
+        </Card>
       </div>
     </div>
   );

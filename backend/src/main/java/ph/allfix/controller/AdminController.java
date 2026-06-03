@@ -104,15 +104,159 @@ public class AdminController {
         return ResponseEntity.ok(stats);
     }
 
+    private Date getBookingDate(Map<String, Object> booking, String fieldName) {
+        Object val = booking.get(fieldName);
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof Date) {
+            return (Date) val;
+        }
+        if (val.getClass().getName().contains("Timestamp")) {
+            try {
+                java.lang.reflect.Method method = val.getClass().getMethod("toDate");
+                return (Date) method.invoke(val);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        if (val instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) val;
+            if (map.containsKey("seconds")) {
+                long seconds = ((Number) map.get("seconds")).longValue();
+                return new Date(seconds * 1000L);
+            }
+        }
+        if (val instanceof Long || val instanceof Integer) {
+            long ms = ((Number) val).longValue();
+            if (ms < 100000000000L) {
+                return new Date(ms * 1000L);
+            } else {
+                return new Date(ms);
+            }
+        }
+        if (val instanceof String) {
+            try {
+                return Date.from(java.time.Instant.parse((String) val));
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        return null;
+    }
+
+    private Date getMondayOfWeek(Date date) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        if (cal.getTime().after(date)) {
+            cal.add(Calendar.WEEK_OF_YEAR, -1);
+        }
+        return cal.getTime();
+    }
+
     @GetMapping("/revenue-trend")
     public ResponseEntity<List<Map<String, Object>>> getRevenueTrend() {
-        // Returns empty array — populated once real bookings exist
-        return ResponseEntity.ok(Collections.emptyList());
+        System.out.println("[CAVEMAN] AdminController.getRevenueTrend: fetching revenue trend");
+        try {
+            List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "status", "completed");
+            Map<Date, Double> weeklyValues = new TreeMap<>();
+            
+            // Populate last 8 weeks (chronologically) with 0.0 to backfill
+            Calendar cal = Calendar.getInstance();
+            Date currentMonday = getMondayOfWeek(cal.getTime());
+            for (int i = 0; i < 8; i++) {
+                weeklyValues.put(currentMonday, 0.0);
+                Calendar c = Calendar.getInstance();
+                c.setTime(currentMonday);
+                c.add(Calendar.WEEK_OF_YEAR, -1);
+                currentMonday = c.getTime();
+            }
+            
+            for (Map<String, Object> booking : bookings) {
+                Date date = getBookingDate(booking, "completed_at");
+                if (date == null) {
+                    date = getBookingDate(booking, "created_at");
+                }
+                if (date == null) {
+                    continue;
+                }
+                
+                Date bMonday = getMondayOfWeek(date);
+                double price = booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() : 0.0;
+                double quantity = booking.get("quantity") != null ? ((Number) booking.get("quantity")).doubleValue() : 1.0;
+                double totalPayment = booking.get("total_price") != null ? ((Number) booking.get("total_price")).doubleValue() : (price * quantity);
+                
+                weeklyValues.put(bMonday, weeklyValues.getOrDefault(bMonday, 0.0) + totalPayment);
+            }
+            
+            List<Map<String, Object>> trend = new ArrayList<>();
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMM dd");
+            for (Map.Entry<Date, Double> entry : weeklyValues.entrySet()) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("week", sdf.format(entry.getKey()));
+                point.put("revenue", entry.getValue());
+                trend.add(point);
+            }
+            
+            System.out.println("[CAVEMAN] AdminController.getRevenueTrend: returning " + trend.size() + " points");
+            return ResponseEntity.ok(trend);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error in getRevenueTrend: " + e.getMessage());
+            return ResponseEntity.status(500).body(Collections.emptyList());
+        }
     }
 
     @GetMapping("/job-trend")
     public ResponseEntity<List<Map<String, Object>>> getJobTrend() {
-        return ResponseEntity.ok(Collections.emptyList());
+        System.out.println("[CAVEMAN] AdminController.getJobTrend: fetching bookings trend");
+        try {
+            List<Map<String, Object>> bookings = firestoreService.getAll("bookings");
+            Map<Date, Double> weeklyValues = new TreeMap<>();
+            
+            // Populate last 8 weeks (chronologically) with 0.0 to backfill
+            Calendar cal = Calendar.getInstance();
+            Date currentMonday = getMondayOfWeek(cal.getTime());
+            for (int i = 0; i < 8; i++) {
+                weeklyValues.put(currentMonday, 0.0);
+                Calendar c = Calendar.getInstance();
+                c.setTime(currentMonday);
+                c.add(Calendar.WEEK_OF_YEAR, -1);
+                currentMonday = c.getTime();
+            }
+            
+            for (Map<String, Object> booking : bookings) {
+                Date date = getBookingDate(booking, "created_at");
+                if (date == null) {
+                    date = getBookingDate(booking, "completed_at");
+                }
+                if (date == null) {
+                    continue;
+                }
+                
+                Date bMonday = getMondayOfWeek(date);
+                weeklyValues.put(bMonday, weeklyValues.getOrDefault(bMonday, 0.0) + 1.0);
+            }
+            
+            List<Map<String, Object>> trend = new ArrayList<>();
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMM dd");
+            for (Map.Entry<Date, Double> entry : weeklyValues.entrySet()) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("week", sdf.format(entry.getKey()));
+                point.put("bookings", entry.getValue());
+                trend.add(point);
+            }
+            
+            System.out.println("[CAVEMAN] AdminController.getJobTrend: returning " + trend.size() + " points");
+            return ResponseEntity.ok(trend);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error in getJobTrend: " + e.getMessage());
+            return ResponseEntity.status(500).body(Collections.emptyList());
+        }
     }
 
     @PostMapping("/vendors/create")

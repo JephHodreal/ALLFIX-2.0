@@ -417,7 +417,6 @@ const LandingPage = () => {
     { label: 'Why AllFix', href: '#why-allfix' },
     { label: 'Service Area', href: '#service-area' },
     { label: 'Testimonials', href: '#testimonials' },
-    { label: 'Become Our Partner', href: '/register-vendor' },
   ];
 
   const handleNavClick = (href: string) => {
@@ -455,108 +454,189 @@ const LandingPage = () => {
         <Navbar isLandingPage />
 
         {/* ===================== HERO SECTION ===================== */}
-        <Box sx={{ position: 'relative', pt: { xs: 8, sm: 9, lg: 11 }, pb: { xs: 4, sm: 5, lg: 6 }, minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', backgroundImage: "linear-gradient(135deg, #06101E 0%, #0B1E36 100%)" }}>
-          <Box sx={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")", backgroundRepeat: 'repeat', pointerEvents: 'none', zIndex: 0 }} />
-          <Box sx={{ position: 'absolute', top: 80, left: 40, width: 288, height: 288, background: 'radial-gradient(circle, rgba(96, 165, 250, 0.4) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(96px)', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
-          <Box sx={{ position: 'absolute', bottom: 80, right: 40, width: 288, height: 288, background: 'radial-gradient(circle, rgba(37, 99, 235, 0.4) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(96px)', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
-          <Box sx={{ position: 'absolute', top: '15%', right: '-10%', width: { xs: 300, sm: 450, lg: 550 }, height: { xs: 300, sm: 450, lg: 550 }, background: 'radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(120px)', opacity: 0.9, pointerEvents: 'none', zIndex: 1 }} />
+        <Box 
+          sx={{ 
+            position: 'relative', 
+            minHeight: '100vh', 
+            display: 'flex', 
+            alignItems: 'center', 
+            overflow: 'hidden',
+            pt: { xs: 8, md: 0 }, 
+            bgcolor: '#10355f'
+          }}
+        >
+          {/* BACKGROUND IMAGE */}
+          <Box
+            component="img"
+            src="https://images.unsplash.com/photo-1567361809214-b97d828071d9?q=80&w=897&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+            alt="AllFix Professional at Work"
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: { xs: '100%', md: '50%' }, 
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center center',
+              zIndex: 0,
+            }}
+          />
 
-          <Box sx={{ width: '100%', position: 'relative', zIndex: 10, px: { xs: 2, sm: 4, md: 5 } }}>
-            <Grid container spacing={4} sx={{ width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Grid size={{ xs: 12, lg: 7 }} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: { xs: 'center', lg: 'flex-start' }, gap: { xs: 2.2, sm: 2.5, lg: 3 }, textAlign: { xs: 'center', lg: 'left' }, pl: { xs: 0, lg: 4, xl: 8 } }}>
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.0, backgroundColor: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '9999px', px: 2.5, py: 0.8, mb: 0, backdropFilter: 'blur(10px)', width: 'fit-content' }}>
-                  <Box sx={{ width: 8, height: 8, bgcolor: '#4ade80', borderRadius: '50%' }} />
-                  <Typography sx={{ fontSize: { xs: '0.85rem', sm: '0.95rem', lg: '1.05rem' }, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'white' }}>
-                    Manila's #1 Home Services Platform
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: { xs: '2.8rem', sm: '3.6rem', lg: '4.4rem', xl: '5.2rem' }, fontWeight: 900, color: 'white', mb: 0.5, lineHeight: 1.15 }}>
-                  Hassle-Free <br /> Property Care, <br /> Done Right.
-                </Typography>
-                <Typography sx={{ fontSize: { xs: '1.15rem', sm: '1.25rem', lg: '1.35rem' }, color: 'rgba(191, 219, 254, 1)', mb: 2.5, lineHeight: 1.6, maxWidth: { xs: '90%', sm: '100%', lg: '620px' } }}>
-                  From aircon cleaning to plumbing, repairs to IT support — AllFix connects you with trusted, verified professionals across Metro Manila.
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'row', gap: { xs: 2, sm: 3, lg: 4 }, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.2, lg: 2 } }}>
-                    <CheckCircleIcon sx={{ width: { xs: 24, sm: 32, lg: 40 }, height: { xs: 24, sm: 32, lg: 40 }, color: '#4ade80', flexShrink: 0 }} />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography sx={{ color: 'white', fontWeight: 900, fontSize: { xs: '0.95rem', sm: '1.35rem', lg: '1.65rem' } }}>5,000+</Typography>
-                      <Typography sx={{ color: 'rgba(191, 219, 254, 1)', fontSize: { xs: '0.75rem', sm: '1.0rem', lg: '1.2rem' } }}>Verified Pros</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.2, lg: 2 } }}>
-                    <StarIcon sx={{ width: { xs: 24, sm: 32, lg: 40 }, height: { xs: 24, sm: 32, lg: 40 }, color: '#facc15', flexShrink: 0, fill: '#facc15' }} />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography sx={{ color: 'white', fontWeight: 900, fontSize: { xs: '0.95rem', sm: '1.35rem', lg: '1.65rem' } }}>4.9★</Typography>
-                      <Typography sx={{ color: 'rgba(191, 219, 254, 1)', fontSize: { xs: '0.75rem', sm: '1.0rem', lg: '1.2rem' } }}>Average Rating</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.2, lg: 2 } }}>
-                    <ShieldIcon sx={{ width: { xs: 24, sm: 32, lg: 40 }, height: { xs: 24, sm: 32, lg: 40 }, color: '#60a5fa', flexShrink: 0 }} />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography sx={{ color: 'white', fontWeight: 900, fontSize: { xs: '0.95rem', sm: '1.35rem', lg: '1.65rem' } }}>Insured &</Typography>
-                      <Typography sx={{ color: 'rgba(191, 219, 254, 1)', fontSize: { xs: '0.75rem', sm: '1.0rem', lg: '1.2rem' } }}>Accredited</Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </Grid>
+          {/* LEFT HALF / MOBILE OVERLAY */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: { xs: '100%', md: '50%' }, 
+              bgcolor: { 
+                xs: 'rgba(16, 53, 95, 0.90)', 
+                md: '#10355f'
+              },
+              zIndex: 1,
+            }}
+          />
 
-              <Grid size={{ xs: 12, lg: 5 }} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <Box
-                  sx={{
-                    width: '100%',
-                    maxWidth: { xs: '100%', sm: '520px', lg: '580px', xl: '640px' },
+          {/* RIGHT HALF DESKTOP/TABLET: Top header overlay for menu legibility */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: { xs: '100%', md: '50%' }, 
+              height: '64px',
+              bgcolor: 'rgba(15, 23, 42, 0.85)', 
+              backdropFilter: 'blur(8px)', 
+              WebkitBackdropFilter: 'blur(8px)', 
+              zIndex: 1,
+              display: { xs: 'none', md: 'block' } 
+            }}
+          />
+
+          <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 10, height: '100%', px: { xs: 3, sm: 6, md: 6, lg: 8 } }}>
+            <Grid 
+              container 
+              sx={{ 
+                width: '100%', 
+                minHeight: '100vh',
+                alignItems: 'center', 
+                alignContent: 'center'
+              }}
+            >
+             {/* TEXT CONTENT (LEFT SIDE) */}
+<Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', pr: { md: 4, lg: 8 }, pt: { xs: 6, md: 10, lg:12 }, pb: { xs: 5, md: 0 } }}>
+  
+  {/* Bold multi-colored brand accent line */}
+  <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
+    <Box sx={{ width: 64, height: 8, bgcolor: '#017550', borderRadius: '8px' }} />
+    <Box sx={{ width: 64, height: 8, bgcolor: '#fcbc26', borderRadius: '8px' }} />
+    <Box sx={{ width: 64, height: 8, bgcolor: '#d8242b', borderRadius: '8px' }} />
+  </Box>
+  <Typography 
+    sx={{ 
+      fontSize: { xs: '3rem', sm: '4rem', md: '4.2rem', lg: '5rem', xl: '5.5rem' }, 
+      fontWeight: 800, 
+      color: 'white', 
+      mb: 3, 
+      lineHeight: 1.05,
+      letterSpacing: '-0.03em' 
+    }}
+  >
+    Every Service You Need, <br />
+  <Box component="span" sx={{ color: '#ffffff' }}>
+    All in{' '}
+    <Box component="span" sx={{ color: '#017550' }}>O</Box>
+    <Box component="span" sx={{ color: '#fcbc26' }}>n</Box>
+    <Box component="span" sx={{ color: '#d8242b' }}>e</Box>
+    {' '}Place.
+  </Box>
+</Typography>
+  
+  <Typography 
+    sx={{ 
+      fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.25rem', lg: '1.35rem' }, 
+      color: 'rgba(255, 255, 255, 0.85)', 
+      mb: { xs: 4, md: 5 }, 
+      lineHeight: 1.6, 
+      maxWidth: '580px',
+      fontWeight: 400
+    }}
+  >
+    From deep cleaning and renovations to IT support, moving, and aircon repair—AllFix connects you with Metro Manila's most trusted professionals for literally any task.
+  </Typography>
+  
+</Grid> 
+
+              {/* CALL-TO-ACTION BUTTONS (RIGHT SIDE) */}
+              <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pb: { xs: 8, md: 0 } }}>
+                <Box 
+                  sx={{ 
+                    bgcolor: 'rgba(0, 0, 0, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: '16px', 
+                    p: { xs: 3, sm: 4 }, 
+                    width: '90%', 
+                    maxWidth: '380px', 
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mt: { xs: -3, lg: -14, xl: -20 }
+                    gap: 2,
+                    border: '1px solid rgba(255, 255, 255, 0.15)', 
+                    boxShadow: '0 24px 60px rgba(0, 0, 0, 0.4)',
+                    ml: { lg: 6, xl: 8 }, 
                   }}
                 >
-                  <img
-                    src="/images/cleaning-illustration.png"
-                    alt="AllFix Services Illustration"
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      filter: 'drop-shadow(0 25px 50px rgba(0, 0, 0, 0.45))',
-                      borderRadius: '24px',
-                      objectFit: 'contain'
-                    }}
-                  />
-                  
-                  <Button
-                    variant="contained"
-                    onClick={handleBookNowClick}
-                    sx={{
-                      mt: 2.5,
-                      width: '100%',
-                      maxWidth: '320px',
-                      bgcolor: '#041E41',
-                      color: '#FFFFFF',
-                      border: '2px solid #FFFFFF',
-                      fontWeight: 900,
-                      fontSize: '1.25rem',
-                      py: 1.6,
-                      px: 4,
-                      borderRadius: '50px',
-                      textTransform: 'none',
-                      boxShadow: 'none',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        bgcolor: '#FFFFFF',
-                        color: '#041E41',
-                        borderColor: '#FFFFFF',
-                        boxShadow: '0 8px 24px rgba(255, 255, 255, 0.2)'
-                      }
+                  <Button 
+                    variant="contained" 
+                    fullWidth 
+                    onClick={() => { navigate('/login'); window.scrollTo(0, 0); }}
+                    sx={{ 
+                      bgcolor: '#10355f', 
+                      color: 'white', 
+                      fontWeight: 900, 
+                      fontSize: '1rem', 
+                      py: 2, 
+                      borderRadius: '8px', 
+                      textTransform: 'none', 
+                      boxShadow: '0 8px 20px rgba(66, 95, 163, 0.3)', 
+                      transition: 'all 0.3s ease', 
+                      '&:hover': { 
+                        bgcolor: '#0a2342',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 12px 24px rgba(66, 95, 163, 0.5)',
+                      } 
                     }}
                   >
                     Book Now
                   </Button>
+                  <Button 
+                    variant="outlined" 
+                    fullWidth 
+                    onClick={() => { navigate('/register-vendor'); window.scrollTo(0, 0); }}
+                    sx={{ 
+                      borderColor: 'rgba(255, 255, 255, 0.5)', 
+                      color: 'white', 
+                      fontWeight: 700, 
+                      fontSize: '0.95rem', 
+                      py: 1.5, 
+                      borderRadius: '8px', 
+                      textTransform: 'none', 
+                      transition: 'all 0.3s ease', 
+                      '&:hover': { 
+                        borderColor: 'white',
+                        bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        transform: 'translateY(-2px)',
+                      } 
+                    }}
+                  >
+                    Become our Vendor
+                  </Button>
                 </Box>
               </Grid>
             </Grid>
-          </Box>
+          </Container>
         </Box>
 
 

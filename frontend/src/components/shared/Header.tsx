@@ -113,7 +113,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                 {loading && notifications.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 font-medium">Loading inbox...</div>
                 ) : notifications.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-455 font-semibold space-y-2">
+                  <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 font-semibold space-y-2">
                     <p className="text-lg">🔔</p>
                     <p className="text-slate-400">All caught up! No unread messages.</p>
                   </div>
@@ -125,7 +125,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                     >
                       <div className="w-2 h-2 rounded-full bg-brand-navy dark:bg-blue-400 mt-1.5 flex-shrink-0 animate-pulse" />
                       <div className="flex-grow min-w-0">
-                        <p className="text-xs text-slate-700 dark:text-slate-350 leading-relaxed font-medium break-words pr-6">
+                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium break-words pr-6">
                           {item.message}
                         </p>
                       </div>

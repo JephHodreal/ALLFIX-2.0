@@ -8,22 +8,37 @@ import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
+import { LineChart } from '../components/shared/LineChart';
 
 function PersonnelHome() {
   const { profile } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (profile?.id) {
-      api.get(`/api/bookings/personnel/${profile.id}`)
-        .then(r => setBookings(r.data || []))
-        .catch(() => {})
-        .finally(() => setLoading(false));
+      Promise.all([
+        api.get(`/api/bookings/personnel/${profile.id}`),
+        api.get(`/api/personnel/${profile.id}/dashboard-stats`)
+      ]).then(([bookingsRes, statsRes]) => {
+        setBookings(bookingsRes.data || []);
+        setStats(statsRes.data);
+      }).catch((err) => {
+        console.error('Failed to fetch personnel dashboard data:', err);
+      }).finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, [profile]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        {Array(2).fill(0).map((_, i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
+      </div>
+    );
+  }
 
   const activeJobs = bookings.filter(b => b.status === 'in_progress').length;
   const completedJobs = bookings.filter(b => b.status === 'completed').length;
@@ -33,6 +48,25 @@ function PersonnelHome() {
       <div className="grid grid-cols-2 gap-4">
         <StatCard title="Active Jobs" value={activeJobs} icon={<ClipboardList className="w-5 h-5" />} color="green" />
         <StatCard title="Completed Jobs" value={completedJobs} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Total Jobs Trend</h3>
+          <LineChart
+            data={stats?.totalJobsTrend ?? []}
+            xKey="week"
+            lines={[{ dataKey: 'jobs', color: '#041e41', name: 'Total Jobs' }]}
+          />
+        </Card>
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Completed Jobs Trend</h3>
+          <LineChart
+            data={stats?.completedJobsTrend ?? []}
+            xKey="week"
+            lines={[{ dataKey: 'completed', color: '#20b759', name: 'Completed Jobs' }]}
+          />
+        </Card>
       </div>
     </div>
   );

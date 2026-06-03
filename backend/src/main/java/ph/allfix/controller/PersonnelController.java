@@ -408,4 +408,129 @@ public class PersonnelController {
                 .body(Map.of("success", false, "message", "Internal server error: " + e.getMessage()));
         }
     }
+
+    private Date getBookingDate(Map<String, Object> booking, String fieldName) {
+        Object val = booking.get(fieldName);
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof Date) {
+            return (Date) val;
+        }
+        if (val.getClass().getName().contains("Timestamp")) {
+            try {
+                java.lang.reflect.Method method = val.getClass().getMethod("toDate");
+                return (Date) method.invoke(val);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        if (val instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) val;
+            if (map.containsKey("seconds")) {
+                long seconds = ((Number) map.get("seconds")).longValue();
+                return new Date(seconds * 1000L);
+            }
+        }
+        if (val instanceof Long || val instanceof Integer) {
+            long ms = ((Number) val).longValue();
+            if (ms < 100000000000L) {
+                return new Date(ms * 1000L);
+            } else {
+                return new Date(ms);
+            }
+        }
+        if (val instanceof String) {
+            try {
+                return Date.from(java.time.Instant.parse((String) val));
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        return null;
+    }
+
+    private Date getMondayOfWeek(Date date) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        if (cal.getTime().after(date)) {
+            cal.add(Calendar.WEEK_OF_YEAR, -1);
+        }
+        return cal.getTime();
+    }
+
+    @GetMapping("/{id}/dashboard-stats")
+    public ResponseEntity<?> getDashboardStats(@PathVariable String id) {
+        System.out.println("[CAVEMAN] PersonnelController.getDashboardStats: fetching stats for personnel " + id);
+        try {
+            List<Map<String, Object>> bookings = firestoreService.getWhere("bookings", "personnel_id", id);
+            
+            Map<Date, Integer> weeklyTotal = new TreeMap<>();
+            Map<Date, Integer> weeklyCompleted = new TreeMap<>();
+            
+            // Populate last 8 weeks with 0
+            Calendar cal = Calendar.getInstance();
+            Date currentMonday = getMondayOfWeek(cal.getTime());
+            for (int i = 0; i < 8; i++) {
+                weeklyTotal.put(currentMonday, 0);
+                weeklyCompleted.put(currentMonday, 0);
+                
+                Calendar c = Calendar.getInstance();
+                c.setTime(currentMonday);
+                c.add(Calendar.WEEK_OF_YEAR, -1);
+                currentMonday = c.getTime();
+            }
+            
+            for (Map<String, Object> booking : bookings) {
+                String status = (String) booking.get("status");
+                if (status == null) continue;
+                status = status.trim().toLowerCase();
+                
+                Date completedDate = getBookingDate(booking, "completed_at");
+                Date createdDate = getBookingDate(booking, "created_at");
+                Date bDate = (completedDate != null) ? completedDate : createdDate;
+                if (bDate == null) continue;
+                
+                Date bMonday = getMondayOfWeek(bDate);
+                
+                weeklyTotal.put(bMonday, weeklyTotal.getOrDefault(bMonday, 0) + 1);
+                if (status.equals("completed")) {
+                    weeklyCompleted.put(bMonday, weeklyCompleted.getOrDefault(bMonday, 0) + 1);
+                }
+            }
+            
+            List<Map<String, Object>> totalJobsTrend = new ArrayList<>();
+            List<Map<String, Object>> completedJobsTrend = new ArrayList<>();
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMM dd");
+            
+            for (Map.Entry<Date, Integer> entry : weeklyTotal.entrySet()) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("week", sdf.format(entry.getKey()));
+                point.put("jobs", entry.getValue());
+                totalJobsTrend.add(point);
+            }
+            
+            for (Map.Entry<Date, Integer> entry : weeklyCompleted.entrySet()) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("week", sdf.format(entry.getKey()));
+                point.put("completed", entry.getValue());
+                completedJobsTrend.add(point);
+            }
+            
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalJobsTrend", totalJobsTrend);
+            stats.put("completedJobsTrend", completedJobsTrend);
+            
+            System.out.println("[CAVEMAN] PersonnelController.getDashboardStats: successfully calculated stats for personnel " + id);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            System.err.println("[CAVEMAN] Error in getDashboardStats: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, ReactNode } from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Container,
@@ -18,28 +18,29 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { Navbar } from '../components/shared/Navbar';
 import { Footer } from '../components/shared/Footer';
+import { useTheme } from '../context/ThemeContext';
 
 const coreValues = [
   {
-    icon: <StarIcon sx={{ fontSize: 32, color: '#10355f' }} />,
+    icon: (color: string) => <StarIcon sx={{ fontSize: 32, color }} />,
     title: 'Excellence',
     description: 'We deliver exceptional quality in every service, ensuring customer satisfaction with certified professionals and verified expertise.',
     borderColor: '#3b82f6',
   },
   {
-    icon: <GroupsIcon sx={{ fontSize: 32, color: '#10355f' }} />,
+    icon: (color: string) => <GroupsIcon sx={{ fontSize: 32, color }} />,
     title: 'Integrity',
     description: 'We operate with transparency and honesty, building trust through reliable service delivery and genuine customer relationships.',
     borderColor: '#10b981',
   },
   {
-    icon: <LightbulbIcon sx={{ fontSize: 32, color: '#10355f' }} />,
+    icon: (color: string) => <LightbulbIcon sx={{ fontSize: 32, color }} />,
     title: 'Innovation',
     description: 'We embrace technology and modern solutions to make property care accessible, efficient, and hassle-free for every Filipino.',
     borderColor: '#f59e0b',
   },
   {
-    icon: <AssignmentIcon sx={{ fontSize: 32, color: '#10355f' }} />,
+    icon: (color: string) => <AssignmentIcon sx={{ fontSize: 32, color }} />,
     title: 'Accountability',
     description: 'We stand behind our work with service guarantees and are committed to making things right every single time.',
     borderColor: '#ef4444',
@@ -47,6 +48,8 @@ const coreValues = [
 ];
 
 const AboutUsPage = () => {
+  const { isDark } = useTheme();
+
   useEffect(() => {
     console.log("[CAVEMAN] AboutUsPage mounted. Loading company overview.");
   }, []);
@@ -71,7 +74,7 @@ const AboutUsPage = () => {
       {/* Seamless Navbar */}
       <Navbar />
 
-      <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', width: '100%', pb: { xs: 4, md: 8 } }}>
+      <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', minHeight: '100vh', width: '100%', pb: { xs: 4, md: 8 } }}>
         
         {/* Premium Hero Section */}
         <Box sx={{ 
@@ -162,15 +165,15 @@ const AboutUsPage = () => {
           <Box sx={{ 
             mb: 6, 
             p: { xs: 3, md: 5 }, 
-            bgcolor: 'white', 
+            bgcolor: isDark ? '#1e293b' : 'white', 
             borderRadius: '20px',
-            border: '1px solid rgba(16, 53, 95, 0.08)',
-            boxShadow: '0 10px 30px rgba(16, 53, 95, 0.03)'
+            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+            boxShadow: isDark ? '0 10px 30px rgba(0, 0, 0, 0.2)' : '0 10px 30px rgba(16, 53, 95, 0.03)'
           }}>
             <Typography
               component="h2"
               variant="h4"
-              color="#10355f"
+              color={isDark ? 'white' : '#10355f'}
               sx={{
                 fontWeight: 800,
                 mb: 4,
@@ -180,16 +183,16 @@ const AboutUsPage = () => {
             >
               Our Story
             </Typography>
-            <Grid container spacing={5} sx={{ alignItems: 'center' }}>
-              <Grid size={{ xs: 12, md: 6 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+              <div>
                 <Box sx={{ 
                   position: 'relative',
                   width: '100%',
                   height: '350px',
                   borderRadius: '16px',
                   overflow: 'hidden',
-                  boxShadow: '0 16px 32px rgba(16, 53, 95, 0.1)',
-                  border: '1px solid rgba(16, 53, 95, 0.12)'
+                  boxShadow: isDark ? '0 16px 32px rgba(0,0,0,0.3)' : '0 16px 32px rgba(16, 53, 95, 0.1)',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(16, 53, 95, 0.12)'
                 }}>
                   <Box
                     component="img"
@@ -207,27 +210,28 @@ const AboutUsPage = () => {
                     }}
                   />
                 </Box>
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography sx={{ mb: 2.5, color: '#475569', fontSize: '1rem', lineHeight: 1.8 }}>
+              </div>
+              <div>
+                <Typography sx={{ mb: 2.5, color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '1rem', lineHeight: 1.8 }}>
                   AllFix.ph was born from a simple observation: Filipinos deserve access to reliable, professional property care services without the stress and uncertainty. What started as a vision to solve this problem has grown into the Philippines' most trusted platform for home and office maintenance.
                 </Typography>
-                <Typography sx={{ color: '#475569', fontSize: '1rem', lineHeight: 1.8 }}>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '1rem', lineHeight: 1.8 }}>
                   Today, AllFix.ph connects thousands of property owners and managers with verified, skilled professionals across all major services—from air-conditioning to IT support, plumbing to sustainability solutions. We've built a community of experts dedicated to making property care simple, affordable, and accessible to every Filipino.
                 </Typography>
-              </Grid>
-            </Grid>
+              </div>
+            </div>
           </Box>
 
           {/* Mission & Vision Side-by-Side Grid */}
-          <Grid container spacing={4} sx={{ mb: 6 }}>
-            <Grid size={{ xs: 12, md: 6 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
               <Card sx={{ 
                 height: '100%', 
                 p: { xs: 3, md: 4 }, 
                 borderRadius: '20px', 
-                border: '1px solid rgba(16, 53, 95, 0.08)',
-                boxShadow: '0 10px 30px rgba(16, 53, 95, 0.03)',
+                bgcolor: isDark ? '#1e293b' : 'white',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+                boxShadow: isDark ? '0 10px 30px rgba(0, 0, 0, 0.2)' : '0 10px 30px rgba(16, 53, 95, 0.03)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -239,25 +243,26 @@ const AboutUsPage = () => {
                     width: 44, 
                     height: 44, 
                     borderRadius: '12px', 
-                    bgcolor: '#eff6ff', 
-                    color: '#2563eb'
+                    bgcolor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#eff6ff', 
+                    color: isDark ? '#60a5fa' : '#2563eb'
                   }}>
                     <TrackChangesIcon />
                   </Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#10355f' }}>Our Mission</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: isDark ? 'white' : '#10355f' }}>Our Mission</Typography>
                 </Box>
-                <Typography sx={{ color: '#475569', fontSize: '1.05rem', lineHeight: 1.8 }}>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '1.05rem', lineHeight: 1.8 }}>
                   To empower every Filipino home and business by providing access to trusted, professional property care services that enhance quality of life and operational efficiency.
                 </Typography>
               </Card>
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
+            </div>
+            <div>
               <Card sx={{ 
                 height: '100%', 
                 p: { xs: 3, md: 4 }, 
                 borderRadius: '20px', 
-                border: '1px solid rgba(16, 53, 95, 0.08)',
-                boxShadow: '0 10px 30px rgba(16, 53, 95, 0.03)',
+                bgcolor: isDark ? '#1e293b' : 'white',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+                boxShadow: isDark ? '0 10px 30px rgba(0, 0, 0, 0.2)' : '0 10px 30px rgba(16, 53, 95, 0.03)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -269,26 +274,26 @@ const AboutUsPage = () => {
                     width: 44, 
                     height: 44, 
                     borderRadius: '12px', 
-                    bgcolor: '#ecfdf5', 
-                    color: '#059669'
+                    bgcolor: isDark ? 'rgba(5, 150, 105, 0.1)' : '#ecfdf5', 
+                    color: isDark ? '#34d399' : '#059669'
                   }}>
                     <VisibilityIcon />
                   </Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#10355f' }}>Our Vision</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: isDark ? 'white' : '#10355f' }}>Our Vision</Typography>
                 </Box>
-                <Typography sx={{ color: '#475569', fontSize: '1.05rem', lineHeight: 1.8 }}>
+                <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '1.05rem', lineHeight: 1.8 }}>
                   To be the Philippines' most trusted and accessible platform for property care, setting industry standards for quality, reliability, and customer satisfaction.
                 </Typography>
               </Card>
-            </Grid>
-          </Grid>
+            </div>
+          </div>
 
           {/* Core Values Section */}
           <Box sx={{ mb: 8, width: '100%' }}>
             <Typography
               component="h2"
               variant="h4"
-              color="#10355f"
+              color={isDark ? 'white' : '#10355f'}
               sx={{
                 fontWeight: 900,
                 fontSize: {
@@ -304,18 +309,19 @@ const AboutUsPage = () => {
               Our Core Values
             </Typography>
             
-            <Grid container spacing={3}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               {coreValues.map((value, index) => (
-                <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
+                <div key={index}>
                   <Card sx={{ 
                     height: '100%',
+                    bgcolor: isDark ? '#1e293b' : 'white',
                     borderRadius: '20px',
-                    boxShadow: '0 4px 20px rgba(16, 53, 95, 0.02)',
-                    border: '1px solid rgba(16, 53, 95, 0.08)',
+                    boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.2)' : '0 4px 20px rgba(16, 53, 95, 0.02)',
+                    border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
                     borderTop: `4px solid ${value.borderColor}`,
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      boxShadow: '0 12px 30px rgba(16, 53, 95, 0.08)',
+                      boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.4)' : '0 12px 30px rgba(16, 53, 95, 0.08)',
                       transform: 'translateY(-4px)',
                     }
                   }}>
@@ -336,14 +342,14 @@ const AboutUsPage = () => {
                         width: 56,
                         height: 56,
                         borderRadius: '50%',
-                        bgcolor: '#f1f5f9'
+                        bgcolor: isDark ? '#334155' : '#f1f5f9'
                       }}>
-                        {value.icon}
+                        {value.icon(isDark ? '#90caf9' : '#10355f')}
                       </Box>
                       <Typography
                         component="h3"
                         variant="h6"
-                        color="#10355f"
+                        color={isDark ? '#90caf9' : '#10355f'}
                         sx={{
                           fontWeight: 800,
                           mb: 1.5,
@@ -353,28 +359,28 @@ const AboutUsPage = () => {
                       >
                         {value.title}
                       </Typography>
-                      <Typography sx={{ color: '#64748b', lineHeight: 1.7, fontSize: '0.9rem' }}>
+                      <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b', lineHeight: 1.7, fontSize: '0.9rem' }}>
                         {value.description}
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
+                </div>
               ))}
-            </Grid>
+            </div>
           </Box>
 
           {/* Why Choose AllFix Card Section */}
           <Box sx={{ 
             p: { xs: 4, md: 6 }, 
             borderRadius: '20px',
-            bgcolor: '#FFFFFF',
-            border: '1px solid rgba(16, 53, 95, 0.08)',
-            boxShadow: '0 10px 40px rgba(16, 53, 95, 0.04)'
+            bgcolor: isDark ? '#1e293b' : '#FFFFFF',
+            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(16, 53, 95, 0.08)',
+            boxShadow: isDark ? '0 10px 40px rgba(0, 0, 0, 0.2)' : '0 10px 40px rgba(16, 53, 95, 0.04)'
           }}>
             <Typography
               component="h2"
               variant="h4"
-              color="#10355f"
+              color={isDark ? 'white' : '#10355f'}
               sx={{
                 fontWeight: 900,
                 mb: 4,
@@ -389,7 +395,7 @@ const AboutUsPage = () => {
               {renderBrandedName('Why Choose All', '')}
             </Typography>
             
-            <Grid container spacing={3}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 'Verified & background-checked professionals across all services',
                 'Easy online booking with transparent pricing',
@@ -398,7 +404,7 @@ const AboutUsPage = () => {
                 'Eco-friendly and sustainable solutions available',
                 'Trusted by thousands of Filipino families and businesses since 2021',
               ].map((item, index) => (
-                <Grid size={{ xs: 12, md: 6 }} key={index}>
+                <div key={index}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                     <Box sx={{ 
                       display: 'flex', 
@@ -407,20 +413,20 @@ const AboutUsPage = () => {
                       width: 28, 
                       height: 28, 
                       borderRadius: '50%', 
-                      bgcolor: '#e6f7ed', 
-                      color: '#017550',
+                      bgcolor: isDark ? 'rgba(1, 117, 80, 0.1)' : '#e6f7ed', 
+                      color: isDark ? '#45d393' : '#017550',
                       flexShrink: 0,
                       mt: 0.2
                     }}>
                       <CheckCircleIcon sx={{ fontSize: 18 }} />
                     </Box>
-                    <Typography sx={{ color: '#475569', fontSize: '1rem', lineHeight: 1.6 }}>
+                    <Typography sx={{ color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#475569', fontSize: '1rem', lineHeight: 1.6 }}>
                       {item}
                     </Typography>
                   </Box>
-                </Grid>
+                </div>
               ))}
-            </Grid>
+            </div>
           </Box>
 
         </Container>
