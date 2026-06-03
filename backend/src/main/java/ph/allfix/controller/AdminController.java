@@ -285,6 +285,10 @@ public class AdminController {
             if (companyName == null) companyName = (String) body.get("company_name");
             String city = (String) body.get("city");
             List<?> services = (List<?>) body.get("services");
+            String accountName = (String) body.get("accountName");
+            if (accountName == null) accountName = (String) body.get("account_name");
+            String accountNumber = (String) body.get("accountNumber");
+            if (accountNumber == null) accountNumber = (String) body.get("account_number");
 
             // Validation
             if (firstName == null || firstName.isBlank() ||
@@ -411,6 +415,8 @@ public class AdminController {
                 profile.put("earnings_total", 0);
                 profile.put("available_slots", 0);
                 profile.put("services", services);
+                profile.put("account_name", accountName != null ? accountName : "");
+                profile.put("account_number", accountNumber != null ? accountNumber : "");
 
                 firestoreService.createWithId("vendors", uid, profile);
                 logger.info("Successfully saved vendor profile to Firestore with UID: {}", uid);
@@ -630,6 +636,12 @@ public class AdminController {
                 }
                 if (body.get("check_number") != null) {
                     firestoreService.updateField("bookings", bookingId, "payout_reference", body.get("check_number"));
+                }
+                if (body.get("account_name") != null) {
+                    firestoreService.updateField("bookings", bookingId, "payout_account_name", body.get("account_name"));
+                }
+                if (body.get("account_number") != null) {
+                    firestoreService.updateField("bookings", bookingId, "payout_account_number", body.get("account_number"));
                 }
                 if (body.get("attachment") != null) {
                     firestoreService.updateField("bookings", bookingId, "payout_attachment", body.get("attachment"));

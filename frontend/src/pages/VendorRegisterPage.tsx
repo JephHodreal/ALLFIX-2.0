@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, Upload, X, CreditCard } from 'lucide-react';
 import { registerUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
 import { VENDOR_SERVICES } from '../constants/services';
 import { WORK_TYPES_MAPPING } from '../constants/servicesData';
 import LampButton from '../components/shared/LampButton';
+import api from '../services/apiService';
 
 interface FormData {
   firstName: string; lastName: string; username: string; email: string; password: string; confirmPassword: string;
@@ -18,6 +19,10 @@ interface FormData {
   // Vendor-specific
   companyName: string;
   termsAccepted: boolean;
+  businessPermitUrl: string;
+  birCertificateUrl: string;
+  accountName: string;
+  accountNumber: string;
 }
 
 interface SelectedService {
@@ -38,6 +43,10 @@ const initialFormData: FormData = {
   barangay: '', barangayCode: '', unitHouseNo: '', street: '', postalCode: '',
   companyName: '',
   termsAccepted: false,
+  businessPermitUrl: '',
+  birCertificateUrl: '',
+  accountName: '',
+  accountNumber: '',
 };
 
 const LOCATION_API = import.meta.env.VITE_LOCATION_API || 'https://psgc.gitlab.io/api';
@@ -256,6 +265,42 @@ export default function VendorRegisterPage() {
     return /^\d{11}$/.test(phone.replace(/\D/g, ''));
   };
 
+  const [uploadingPermit, setUploadingPermit] = useState(false);
+  const [uploadingBIR, setUploadingBIR] = useState(false);
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, type: 'permit' | 'bir') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (type === 'permit') setUploadingPermit(true);
+    else setUploadingBIR(true);
+    setError('');
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result as string;
+        console.log(`[CAVEMAN] VendorRegisterPage: Uploading ${type} document...`);
+        const res = await api.post('/api/upload/image', {
+          image: base64Data,
+          folder: 'vendors/documents'
+        });
+        if (type === 'permit') {
+          update('businessPermitUrl', res.data.url);
+        } else {
+          update('birCertificateUrl', res.data.url);
+        }
+      } catch (err: any) {
+        console.error(`[CAVEMAN] VendorRegisterPage: Upload failed for ${type}`, err);
+        setError(`Failed to upload ${type === 'permit' ? 'Business Permit' : 'BIR Certificate'}. Please try again.`);
+      } finally {
+        if (type === 'permit') setUploadingPermit(false);
+        else setUploadingBIR(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const canNext = () => {
     let ok = false;
     if (step === 0) {
@@ -306,7 +351,11 @@ export default function VendorRegisterPage() {
         postal_code: form.postalCode,
         company_name: form.companyName,
         services: servicesPayload,
-        service_type: firstServiceName
+        service_type: firstServiceName,
+        business_permit_url: form.businessPermitUrl || '',
+        bir_certificate_url: form.birCertificateUrl || '',
+        account_name: form.accountName || '',
+        account_number: form.accountNumber || ''
       };
 
       console.log("[CAVEMAN] Submitting Vendor registration profile:", profile);
@@ -605,6 +654,123 @@ export default function VendorRegisterPage() {
                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base pl-10" placeholder="09XX XXX XXXX" required /></div>
                     {form.phone && !isPhoneValid(form.phone) && <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Business Permit
+                      </label>
+                      <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-28">
+                        {uploadingPermit ? (
+                          <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
+                        ) : form.businessPermitUrl ? (
+                          <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center">
+                            <img src={form.businessPermitUrl} alt="Business Permit" className="max-h-full object-contain" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                update('businessPermitUrl', '');
+                              }}
+                              className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black text-white rounded transition-colors z-10"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">
+                              Upload Business Permit
+                            </span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PNG, JPG, WEBP</span>
+                          </>
+                        )}
+                        {!form.businessPermitUrl && !uploadingPermit && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={(e) => handleUploadFile(e, 'permit')}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        BIR Certificate (Form 2303)
+                      </label>
+                      <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-28">
+                        {uploadingBIR ? (
+                          <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
+                        ) : form.birCertificateUrl ? (
+                          <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center">
+                            <img src={form.birCertificateUrl} alt="BIR Certificate" className="max-h-full object-contain" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                update('birCertificateUrl', '');
+                              }}
+                              className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black text-white rounded transition-colors z-10"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">
+                              Upload BIR Certificate
+                            </span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PNG, JPG, WEBP</span>
+                          </>
+                        )}
+                        {!form.birCertificateUrl && !uploadingBIR && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={(e) => handleUploadFile(e, 'bir')}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Account Name
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={form.accountName}
+                          onChange={(e) => update('accountName', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="Enter Bank or GCash Account Name..."
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Account Number
+                      </label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={form.accountNumber}
+                          onChange={(e) => update('accountNumber', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="Enter Bank or GCash Account Number..."
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <label className="flex items-start gap-3 cursor-pointer mt-4">

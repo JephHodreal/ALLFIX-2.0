@@ -2963,7 +2963,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-6 items-center">
                       {/* Left Column: payment method options */}
                       <div className="sm:col-span-5 space-y-2.5 sm:space-y-3.5">
-                        <p className="text-xs font-extrabold text-slate-455 uppercase tracking-widest">Select Gateway</p>
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">Select Gateway</p>
                         
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {methods.map((m) => {
@@ -2973,14 +2973,14 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                                 key={m.id}
                                 type="button"
                                 onClick={() => setPaymentMethod(m.paymentMethod)}
-                                className={`w-full p-3 rounded-2xl border transition-all flex items-center gap-3 text-left font-bold ${
+                                className={`w-full p-2.5 rounded-2xl border transition-all flex items-center gap-3 text-left font-bold ${
                                   isSelected
                                     ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 border-2 shadow-sm'
                                     : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
                                 }`}
                               >
                                 <div className="flex-1">
-                                  <p className="text-xs sm:text-sm font-extrabold">{m.paymentMethod}</p>
+                                  <p className="text-[11px] sm:text-xs font-extrabold">{m.paymentMethod}</p>
                                 </div>
                                 <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                                   isSelected ? 'border-brand-navy dark:border-blue-400' : 'border-slate-300 dark:border-slate-600'
@@ -3023,7 +3023,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                                   <img
                                     src={selectedMethodObj.qrImageUrl}
                                     alt={`${selectedMethodObj.paymentMethod} QR Code`}
-                                    className="w-44 h-44 xs:w-52 xs:h-52 sm:w-60 sm:h-60 object-contain transition-all"
+                                    className="w-48 h-48 xs:w-56 xs:h-56 sm:w-64 sm:h-64 object-contain transition-all"
                                   />
                                 </div>
                                 <p className="text-[10px] text-slate-550 leading-normal font-semibold">

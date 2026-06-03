@@ -118,6 +118,225 @@ function CustomersTab() {
   );
 }
 
+// ─── Vendor View Modal ──────────────────────────────────────────────────────
+function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any; onClose: () => void; onApprove?: (id: string) => void; onReject?: (id: string) => void }) {
+  const status = vendor.acc_approve || 'pending';
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-brand-navy dark:text-brand-green" />
+              {vendor.company_name || 'Vendor Profile'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Vendor ID: {vendor.id}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={status === 'approved' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          {/* Grid for basic info and address */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Contact Person Details */}
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                <User className="w-4 h-4" />
+                Account & Contact Info
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Contact Person</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.first_name} {vendor.last_name}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Username</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.username}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.email}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Phone Number</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.phone}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Address Details */}
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4" />
+                Business Location
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Street Address</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    {vendor.unit_house_no ? `${vendor.unit_house_no}, ` : ''}
+                    {vendor.street || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Barangay</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.barangay || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">City / Municipality</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.city || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Postal / Zip Code</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.postal_code || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Services Section */}
+          <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+              <Wrench className="w-4 h-4" />
+              Offered Services
+            </h4>
+            {!vendor.services || !Array.isArray(vendor.services) || vendor.services.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400 italic">No services listed.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {vendor.services.map((s: any, idx: number) => (
+                  <div key={idx} className="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                    <span className="text-sm font-bold text-slate-800 dark:text-white block mb-2">{s.service}</span>
+                    {s.sub_services && Array.isArray(s.sub_services) && s.sub_services.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {s.sub_services.map((sub: string, subIdx: number) => (
+                          <span key={subIdx} className="inline-block px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-350 rounded-lg">
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Registration Documents Section */}
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
+              Registration Documents
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Business Permit Card */}
+              <div className="border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col bg-white dark:bg-slate-800">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-white">Business Permit</span>
+                  {vendor.business_permit_url && (
+                    <a
+                      href={vendor.business_permit_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Full Size
+                    </a>
+                  )}
+                </div>
+                <div className="bg-slate-100 dark:bg-slate-900/50 flex-1 flex items-center justify-center min-h-[160px] p-4 relative group">
+                  {vendor.business_permit_url ? (
+                    <img
+                      src={vendor.business_permit_url}
+                      alt="Business Permit"
+                      className="max-h-48 object-contain rounded transition-transform group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="text-center p-6">
+                      <FileText className="w-8 h-8 text-slate-350 mx-auto mb-2" />
+                      <span className="text-xs text-slate-400 font-medium">No Business Permit uploaded</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* BIR Certificate Card */}
+              <div className="border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col bg-white dark:bg-slate-800">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-white">BIR Certificate (Form 2303)</span>
+                  {vendor.bir_certificate_url && (
+                    <a
+                      href={vendor.bir_certificate_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Full Size
+                    </a>
+                  )}
+                </div>
+                <div className="bg-slate-100 dark:bg-slate-900/50 flex-1 flex items-center justify-center min-h-[160px] p-4 relative group">
+                  {vendor.bir_certificate_url ? (
+                    <img
+                      src={vendor.bir_certificate_url}
+                      alt="BIR Certificate"
+                      className="max-h-48 object-contain rounded transition-transform group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="text-center p-6">
+                      <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <span className="text-xs text-slate-400 font-medium">No BIR Certificate uploaded</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50">
+          <Button variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+          {status === 'pending' && onApprove && onReject && (
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                onClick={() => onReject(vendor.id)}
+              >
+                Reject Vendor
+              </Button>
+              <Button
+                variant="success"
+                onClick={() => onApprove(vendor.id)}
+              >
+                Approve Vendor
+              </Button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Vendor Edit Modal ──────────────────────────────────────────────────────
 function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (data: any) => Promise<void>; onClose: () => void }) {
   const contactParts = (vendor.contact_person || '').split(' ');
@@ -374,6 +593,7 @@ function VendorsTab() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
+  const [viewItem, setViewItem] = useState<any>(null);
   const [personnelCounts, setPersonnelCounts] = useState<Record<string, number>>({});
 
   // Creation form states
@@ -387,7 +607,9 @@ function VendorsTab() {
     confirmPassword: '',
     phone: '',
     companyName: '',
-    city: ''
+    city: '',
+    accountName: '',
+    accountNumber: ''
   });
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
   const [createError, setCreateError] = useState('');
@@ -635,7 +857,9 @@ function VendorsTab() {
         confirmPassword: '',
         phone: '',
         companyName: '',
-        city: ''
+        city: '',
+        accountName: '',
+        accountNumber: ''
       });
       setSelectedServices([]);
     } catch (err: any) {
@@ -710,19 +934,26 @@ function VendorsTab() {
             const status = item.acc_approve || 'pending';
             return status === 'pending' ? (
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={(e: any) => { e.stopPropagation(); setViewItem(item); }}>View</Button>
                 <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id); }}>Approve</Button>
                 <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id); }}>Reject</Button>
               </div>
             ) : status === 'approved' ? (
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={(e: any) => { e.stopPropagation(); setViewItem(item); }}>View</Button>
                 <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
                 <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
               </div>
-            ) : <span className="text-xs text-slate-400">—</span>;
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={(e: any) => { e.stopPropagation(); setViewItem(item); }}>View</Button>
+              </div>
+            );
           }
         },
       ]} data={vendors} loading={loading} searchPlaceholder="Search vendors..." />
       {editItem && <VendorEditModal vendor={editItem} onSave={handleEditSave} onClose={() => setEditItem(null)} />}
+      {viewItem && <VendorViewModal vendor={viewItem} onClose={() => setViewItem(null)} onApprove={(id) => { handleApprove(id); setViewItem(null); }} onReject={(id) => { handleReject(id); setViewItem(null); }} />}
 
       {/* Create Modal */}
       <AnimatePresence>
@@ -893,6 +1124,33 @@ function VendorsTab() {
                             <option key={c.code} value={c.name}>{c.name}</option>
                           ))}
                         </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={createForm.accountName}
+                            onChange={(e) => updateCreateForm('accountName', e.target.value)}
+                            className="input-base pl-10 text-sm"
+                            placeholder="Enter Bank or GCash Account Name..."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={createForm.accountNumber}
+                            onChange={(e) => updateCreateForm('accountNumber', e.target.value)}
+                            className="input-base pl-10 text-sm"
+                            placeholder="Enter Bank or GCash Account Number..."
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -3452,20 +3710,15 @@ function TransactionsPage() {
               </div>
 
               {/* Footer */}
-              {selectedTx.payout_status !== 'Paid' && (
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
-                  <Button 
-                    onClick={() => {
-                      setPayoutFormFields(selectedTx);
-                      setShowPayoutModal(true);
-                    }}
-                    variant="success"
-                    className="font-bold"
-                  >
-                    Payout
-                  </Button>
-                </div>
-              )}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
+                <Button 
+                  onClick={() => setSelectedTx(null)}
+                  variant="ghost"
+                  className="font-bold"
+                >
+                  Close
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -3586,6 +3839,8 @@ function PayoutsPage() {
   // Form elements
   const [payoutDate, setPayoutDate] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
   
   const [uploading, setUploading] = useState(false);
@@ -3641,8 +3896,13 @@ function PayoutsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
     setError('');
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files are allowed as proof of payment.');
+      return;
+    }
+
+    setUploading(true);
     console.log('[CAVEMAN] PayoutsPage: Uploading supporting document:', file.name);
 
     const reader = new FileReader();
@@ -3665,12 +3925,30 @@ function PayoutsPage() {
     reader.readAsDataURL(file);
   };
 
-  const setPayoutFormFields = (tx: any) => {
+  const setPayoutFormFields = async (tx: any) => {
     setSelectedTx(tx);
     setPayoutDate(new Date().toISOString().split('T')[0]);
     setCheckNumber('');
+    setAccountNumber(tx.account_number || '');
+    setAccountName(tx.account_name || '');
     setAttachmentUrl('');
     setError('');
+
+    if (tx && tx.vendor_id) {
+      try {
+        console.log('[CAVEMAN] PayoutsPage: Fetching vendor details for vendor_id:', tx.vendor_id);
+        const res = await api.get(`/api/vendors/${tx.vendor_id}`);
+        if (res.data) {
+          const vAccName = res.data.account_name || '';
+          const vAccNo = res.data.account_number || '';
+          console.log('[CAVEMAN] PayoutsPage: Vendor details fetched. Name:', vAccName, 'No:', vAccNo);
+          if (vAccName) setAccountName(vAccName);
+          if (vAccNo) setAccountNumber(vAccNo);
+        }
+      } catch (err) {
+        console.error('[CAVEMAN] PayoutsPage: Failed to fetch vendor details', err);
+      }
+    }
   };
 
   const handleProcessPayoutSubmit = async (e: React.FormEvent) => {
@@ -3685,8 +3963,12 @@ function PayoutsPage() {
       setError('Please enter a Reference Number.');
       return;
     }
-    if (!attachmentUrl) {
-      setError('Please upload a proof of payment.');
+    if (!accountName.trim()) {
+      setError('Please enter an Account Name.');
+      return;
+    }
+    if (!accountNumber.trim()) {
+      setError('Please enter an Account Number.');
       return;
     }
 
@@ -3698,6 +3980,8 @@ function PayoutsPage() {
         amount: Number(selectedTx.vendor_earnings),
         month: getMonthYearString(selectedTx.completed_at),
         check_number: checkNumber.trim(),
+        account_name: accountName.trim(),
+        account_number: accountNumber.trim(),
         attachment: attachmentUrl,
         payout_date: new Date(payoutDate),
         booking_id: selectedTx.id,
@@ -3909,11 +4193,11 @@ function PayoutsPage() {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => { setPayoutFormFields(tx); setShowPayoutModal(true); }}
-                              icon={<CreditCard className="w-4 h-4" />}
-                              className="inline-flex text-brand-navy dark:text-brand-green hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1.5 font-bold"
+                              onClick={() => setSelectedTx(tx)}
+                              icon={<Eye className="w-4 h-4" />}
+                              className="text-brand-navy dark:text-brand-green font-bold text-xs"
                             >
-                              Payout
+                              View Details
                             </Button>
                           </div>
                         </td>
@@ -3961,13 +4245,13 @@ function PayoutsPage() {
 
                     <div className="flex justify-end gap-2">
                       <Button 
-                        onClick={() => { setPayoutFormFields(tx); setShowPayoutModal(true); }}
+                        onClick={() => setSelectedTx(tx)}
                         variant="ghost" 
                         size="sm" 
-                        icon={<CreditCard className="w-4 h-4" />}
+                        icon={<Eye className="w-4 h-4" />}
                         className="text-brand-navy dark:text-brand-green font-bold text-xs"
                       >
-                        Payout
+                        View Details
                       </Button>
                     </div>
                   </div>
@@ -4038,13 +4322,39 @@ function PayoutsPage() {
                     />
                   </div>
 
+                  {/* Account Name */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Account Name *</label>
+                    <input
+                      type="text"
+                      value={accountName}
+                      onChange={(e) => setAccountName(e.target.value)}
+                      required
+                      placeholder="Enter Bank or GCash Account Name..."
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
+                  </div>
+
+                  {/* Account Number */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Account Number *</label>
+                    <input
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      required
+                      placeholder="Enter Bank or GCash Account Number..."
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
+                  </div>
+
                   {/* Supporting proof document file upload */}
                   <div>
-                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof *</label>
+                    <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-1.5 font-bold">Attach Proof (Image Only)</label>
                     <div className="flex items-center gap-3">
                       <input 
                         type="file" 
-                        accept="image/*,.pdf" 
+                        accept="image/*" 
                         onChange={handleUploadFile}
                         id="payout-file-process"
                         className="hidden"
@@ -4054,10 +4364,10 @@ function PayoutsPage() {
                         htmlFor="payout-file-process"
                         className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
                       >
-                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose File'}
+                        <Download className="w-3.5 h-3.5" /> {uploading ? 'Uploading...' : 'Choose Image'}
                       </label>
                       <span className="text-xs text-slate-400 truncate max-w-[200px]">
-                        {attachmentUrl ? '✓ File loaded' : 'No document chosen'}
+                        {attachmentUrl ? '✓ Image loaded' : 'No image chosen'}
                       </span>
                     </div>
                     {attachmentUrl && (
@@ -4080,7 +4390,7 @@ function PayoutsPage() {
 
       {/* Booking/Transaction Details Modal */}
       <AnimatePresence>
-        {selectedTx && (
+        {selectedTx && !showPayoutModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs" onClick={() => setSelectedTx(null)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 15 }} 
@@ -4224,8 +4534,15 @@ function PayoutsPage() {
               </div>
 
               {/* Footer */}
-              {selectedTx.payout_status !== 'Paid' && (
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
+                <Button 
+                  onClick={() => setSelectedTx(null)}
+                  variant="ghost"
+                  className="font-bold"
+                >
+                  Close
+                </Button>
+                {selectedTx.payout_status !== 'Paid' && (
                   <Button 
                     onClick={() => {
                       setPayoutFormFields(selectedTx);
@@ -4236,8 +4553,8 @@ function PayoutsPage() {
                   >
                     Payout
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </motion.div>
           </div>
         )}

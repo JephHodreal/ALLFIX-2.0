@@ -34,7 +34,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/register", "/api/auth/register-admin", "/api/auth/check-invite-code", "/api/auth/verify", "/api/auth/me", "/api/auth/username/**", "/api/auth/check-username", "/api/auth/send-verification", "/api/health", "/api/vendors/approved", "/api/services", "/api/services/**", "/api/reviews/featured", "/api/support/contact").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/register-admin", "/api/auth/check-invite-code", "/api/auth/verify", "/api/auth/me", "/api/auth/username/**", "/api/auth/check-username", "/api/auth/send-verification", "/api/health", "/api/vendors/approved", "/api/services", "/api/services/**", "/api/reviews/featured", "/api/support/contact", "/api/upload/image").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(firebaseAuthFilter, UsernamePasswordAuthenticationFilter.class);
