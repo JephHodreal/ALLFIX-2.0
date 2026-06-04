@@ -275,7 +275,7 @@ function VendorBookings() {
         reference_number: referenceNumber.trim(),
         refund_method: refundMethod,
         receiver_gcash_number: refundMethod === 'GCash' ? receiverGcashNumber.trim() : '',
-        cancelled_by: 'Vendor',
+        cancelled_by: 'vendor',
       };
 
       await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);
@@ -480,6 +480,9 @@ function VendorBookings() {
               {(selectedBooking.refund_reference_number || selectedBooking.refund_method) && (
                 <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-350">
                   <p className="font-extrabold uppercase tracking-wide">Linked Refund Information</p>
+                  {selectedBooking.cancelled_by && (
+                    <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>
+                  )}
                   <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>
                   <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>
                   <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>
@@ -622,7 +625,7 @@ function VendorBookings() {
                     await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, {
                       refund_amount: totalAmt,
                       reason: cancellationReason.trim(),
-                      cancelled_by: 'Vendor',
+                      cancelled_by: 'vendor',
                     });
                     setSelectedBooking((prev: any) => ({
                       ...prev,

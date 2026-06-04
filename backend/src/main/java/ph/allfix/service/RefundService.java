@@ -233,17 +233,37 @@ public class RefundService {
         return refundId;
     }
 
-    public void rejectRefund(String refundId) throws Exception {
-        System.out.println("RefundService.rejectRefund: Rejecting refund ID: " + refundId);
-        firestoreService.updateField("refunds", refundId, "status", "rejected");
-        
+    public void rejectRefund(String refundId, Map<String, Object> details) throws Exception {
+        System.out.println("RefundService.rejectRefund: Rejecting refund ID: " + refundId + " with details: " + details);
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "rejected");
+        if (details != null && details.containsKey("rejection_reason")) {
+            updates.put("rejection_reason", details.get("rejection_reason"));
+        }
+        firestoreService.update("refunds", refundId, updates);
         Map<String, Object> refund = firestoreService.getById("refunds", refundId);
+        if (refund == null) {
+            System.out.println("RefundService.rejectRefund WARNING: Refund record not found for ID: " + refundId);
+            return;
+        }
         String bookingId = (String) refund.get("booking_id");
         if (bookingId != null) {
-            Map<String, Object> bookingUpdates = new HashMap<>();
-            bookingUpdates.put("refund_status", "rejected");
-            firestoreService.update("bookings", bookingId, bookingUpdates);
-            System.out.println("RefundService.rejectRefund: Updated booking refund_status to rejected for ID=" + bookingId);
+            try {
+                Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+                if (booking != null) {
+                    Map<String, Object> bookingUpdates = new HashMap<>();
+                    bookingUpdates.put("refund_status", "rejected");
+                    if (updates.containsKey("rejection_reason")) {
+                        bookingUpdates.put("reason_refundreject", updates.get("rejection_reason"));
+                    }
+                    firestoreService.update("bookings", bookingId, bookingUpdates);
+                    System.out.println("RefundService.rejectRefund: Updated booking refund_status to rejected for ID=" + bookingId);
+                } else {
+                    System.out.println("RefundService.rejectRefund WARNING: Booking ID=" + bookingId + " not found in database. Skipping update.");
+                }
+            } catch (Exception e) {
+                System.out.println("RefundService.rejectRefund WARNING: Failed to update booking document " + bookingId + ": " + e.getMessage());
+            }
         }
     }
 

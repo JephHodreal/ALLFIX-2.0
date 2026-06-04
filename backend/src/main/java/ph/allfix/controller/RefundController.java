@@ -78,10 +78,10 @@ public class RefundController {
     }
 
     @PatchMapping("/{id}/reject")
-    public ResponseEntity<?> reject(@PathVariable String id) {
-        System.out.println("RefundController.reject: Rejecting refund ID: " + id);
+    public ResponseEntity<?> reject(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
+        System.out.println("RefundController.reject: Rejecting refund ID: " + id + " with body: " + body);
         try {
-            refundService.rejectRefund(id);
+            refundService.rejectRefund(id, body);
             System.out.println("RefundController.reject: Successfully rejected refund ID: " + id);
             return ResponseEntity.ok(Map.of("message", "Refund rejected"));
         } catch (Exception e) {

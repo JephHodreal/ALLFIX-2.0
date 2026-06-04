@@ -1374,7 +1374,7 @@ function MyBookingsTab() {
         payment_method: selectedBooking.payment_method || '',
         payment_reference: selectedBooking.payment_reference || '',
         status: 'pending',
-        cancelled_by: 'Customer',
+        cancelled_by: 'customer',
         status_at_cancellation: selectedBooking.status || 'pending',
       };
       console.log('[CAVEMAN] Submitting refund request payload:', refundPayload);
@@ -1404,7 +1404,7 @@ function MyBookingsTab() {
   // ── Booking Details View ──
   if (selectedBooking) {
     const isCancellable = selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && !selectedBooking.cancellation_requested;
-    const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method;
+    const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method || selectedBooking.cancelled_by;
 
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
@@ -1552,6 +1552,7 @@ function MyBookingsTab() {
               {hasRefundInfo && (
                 <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-300">
                   <p className="font-extrabold uppercase tracking-wide">Refund Information</p>
+                  {selectedBooking.cancelled_by && <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>}
                   {selectedBooking.refund_amount && <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>}
                   {selectedBooking.refund_method && <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>}
                   {selectedBooking.refund_reference_number && <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>}
@@ -2964,7 +2965,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-6 items-center">
                       {/* Left Column: payment method options */}
-                      <div className="sm:col-span-5 space-y-2.5 sm:space-y-3.5">
+                      <div className="sm:col-span-4 space-y-2.5 sm:space-y-3.5">
                         <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">Select Gateway</p>
                         
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
@@ -2996,7 +2997,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       </div>
 
                       {/* Right Column: QR & Details Display Box */}
-                      <div className="sm:col-span-7 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col items-center gap-3 text-center min-h-[280px] justify-center">
+                      <div className="sm:col-span-8 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col items-center gap-3 text-center min-h-[280px] justify-center">
                         {selectedMethodObj ? (
                           <>
                             <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">
@@ -3048,7 +3049,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                     <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-2.5 flex items-start gap-2 text-amber-800 dark:text-amber-300">
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                       <p className="text-[10px] sm:text-xs font-semibold leading-normal text-left">
-                        “Once the booking status is confirmed, any cancellation refund will be subject to a deduction fee.”
+                        “Cancellations are subject to a deduction fee.”
                       </p>
                     </div>
                   </div>
@@ -3218,7 +3219,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                   <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-2.5 flex items-start gap-2 text-amber-800 dark:text-amber-300">
                     <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-[10px] sm:text-xs font-semibold leading-normal text-left">
-                      “Once the booking status is confirmed, any cancellation refund will be subject to a deduction fee.”
+                      “Cancellations are subject to a deduction fee.”
                     </p>
                   </div>
                 </div>
@@ -3263,7 +3264,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
               </div>
               <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Confirm Booking</h4>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed text-center">
-                “Once the booking status is confirmed, any cancellation refund will be subject to a deduction fee.”
+                “Cancellations are subject to a deduction fee.”
               </p>
               <div className="flex gap-3 pt-2">
                 <button

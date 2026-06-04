@@ -1357,7 +1357,7 @@ function BookingsTab() {
         reference_number: referenceNumber.trim(),
         refund_method: refundMethod,
         receiver_gcash_number: refundMethod === 'GCash' ? receiverGcashNumber.trim() : '',
-        cancelled_by: 'Admin',
+        cancelled_by: 'admin',
       };
 
       await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);
@@ -1530,6 +1530,9 @@ function BookingsTab() {
               {(selectedBooking.refund_reference_number || selectedBooking.refund_method) && (
                 <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-350">
                   <p className="font-extrabold uppercase tracking-wide">Linked Refund Information</p>
+                  {selectedBooking.cancelled_by && (
+                    <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>
+                  )}
                   <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>
                   <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>
                   <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>
@@ -4979,6 +4982,7 @@ function RefundsPage() {
   const [cancelledBy, setCancelledBy] = useState('');
   const [statusAtCancellation, setStatusAtCancellation] = useState('');
   const [deductionPercentage, setDeductionPercentage] = useState(0);
+  const [rejectionDetails, setRejectionDetails] = useState('');
 
   const selectedBooking = bookings.find(b => b.id === selectedBookingId);
   const totalPrice = selectedBooking ? (selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0) : 0;
@@ -4986,17 +4990,11 @@ function RefundsPage() {
   useEffect(() => {
     if (isProcessingExisting) {
       const selectedRefund = refunds.find(r => r.id === selectedRefundId);
-      const isAssignedCustomer = cancelledBy === 'Customer' && (statusAtCancellation === 'assigned' || statusAtCancellation === 'in_progress');
-      if (isAssignedCustomer) {
-        const basePrice = totalPrice || (selectedRefund ? selectedRefund.refund_amount : 0) || 0;
-        const dedAmt = basePrice * (deductionPercentage / 100);
-        setRefundAmount(String(basePrice - dedAmt));
-      } else {
-        const basePrice = totalPrice || (selectedRefund ? selectedRefund.refund_amount : 0) || 0;
-        setRefundAmount(String(basePrice));
-      }
+      const basePrice = totalPrice || (selectedRefund ? selectedRefund.refund_amount : 0) || 0;
+      const dedAmt = basePrice * (deductionPercentage / 100);
+      setRefundAmount(String(basePrice - dedAmt));
     }
-  }, [deductionPercentage, cancelledBy, statusAtCancellation, totalPrice, isProcessingExisting, selectedRefundId, refunds]);
+  }, [deductionPercentage, totalPrice, isProcessingExisting, selectedRefundId, refunds]);
 
   const loadData = async () => {
     console.log('[CAVEMAN] RefundsPage: loadData - Loading refunds and bookings');
@@ -5090,9 +5088,10 @@ function RefundsPage() {
     setReferenceNumber('');
     setAccountNumber('');
     setProofImageUrl('');
-    setCancelledBy('Admin');
+    setCancelledBy('admin');
     setStatusAtCancellation('');
     setDeductionPercentage(0);
+    setRejectionDetails('');
     setError('');
     setShowModal(true);
   };
@@ -5105,11 +5104,13 @@ function RefundsPage() {
     setCustomerName(refund.customer_name || '—');
     setRefundAmount(String(refund.refund_amount || 0));
     setReferenceNumber('');
-    setAccountNumber(refund.account_number || '');
-    setProofImageUrl('');
 
     const booking = bookings.find(b => b.id === refund.booking_id);
-    const cBy = booking?.cancelled_by || refund.cancelled_by || 'Customer';
+    setAccountNumber(refund.account_number || booking?.account_number || '');
+    setProofImageUrl('');
+    setRejectionDetails('');
+
+    const cBy = booking?.cancelled_by || refund.cancelled_by || 'customer';
     const sAtCancel = booking?.status_at_cancellation || refund.status_at_cancellation || 'pending';
     setCancelledBy(cBy);
     setStatusAtCancellation(sAtCancel);
@@ -5125,10 +5126,15 @@ function RefundsPage() {
           if (res.data && res.data.account_number) {
             console.log('[CAVEMAN] RefundsPage: Found latest account number:', res.data.account_number);
             setAccountNumber(res.data.account_number);
+          } else if (booking?.account_number) {
+            setAccountNumber(booking.account_number);
           }
         })
         .catch(err => {
           console.error('[CAVEMAN] RefundsPage: Failed to fetch latest customer account number', err);
+          if (booking?.account_number) {
+            setAccountNumber(booking.account_number);
+          }
         });
     }
   };
@@ -5150,9 +5156,8 @@ function RefundsPage() {
     setError('');
 
     try {
-      const isAssignedCustomer = isProcessingExisting && cancelledBy === 'Customer' && (statusAtCancellation === 'assigned' || statusAtCancellation === 'in_progress');
-      const deductionAmt = isAssignedCustomer ? (totalPrice * (deductionPercentage / 100)) : 0;
-      const deductionPct = isAssignedCustomer ? deductionPercentage : 0;
+      const deductionAmt = isProcessingExisting ? (totalPrice * (deductionPercentage / 100)) : 0;
+      const deductionPct = isProcessingExisting ? deductionPercentage : 0;
 
       const payload = {
         booking_id: selectedBookingId,
@@ -5194,10 +5199,16 @@ function RefundsPage() {
   };
 
   const handleReject = async (refundId: string) => {
+    if (!rejectionDetails.trim()) {
+      setError('Rejection details are required to reject the refund request. Please fill in the rejection reason above.');
+      alert('Rejection details are required to reject the refund request. Please fill in the rejection reason above.');
+      return;
+    }
     if (!window.confirm('Are you sure you want to reject this refund request?')) return;
-    console.log('[CAVEMAN] RefundsPage: Rejecting refund request ID:', refundId);
+    console.log('[CAVEMAN] RefundsPage: Rejecting refund request ID:', refundId, 'Reason:', rejectionDetails.trim());
+    setSubmitting(true);
     try {
-      await api.patch(`/api/refunds/${refundId}/reject`);
+      await api.patch(`/api/refunds/${refundId}/reject`, { rejection_reason: rejectionDetails.trim() });
       console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
       alert('Refund request rejected successfully!');
       setShowModal(false);
@@ -5205,6 +5216,25 @@ function RefundsPage() {
     } catch (err: any) {
       console.error('[CAVEMAN] RefundsPage: Reject failed', err);
       alert(err.response?.data?.message || 'Failed to reject refund request.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleQuickApprove = async (refund: any) => {
+    if (!window.confirm(`Approve this vendor-cancelled refund of ₱${Number(refund.refund_amount || 0).toFixed(2)} for ${refund.customer_name}? This will mark the refund as processed.`)) return;
+    console.log('[CAVEMAN] RefundsPage: Quick-approving vendor-cancelled refund ID:', refund.id);
+    try {
+      await api.patch(`/api/refunds/${refund.id}/approve`, {
+        cancelled_by: refund.cancelled_by || 'vendor',
+        status_at_cancellation: refund.status_at_cancellation || '',
+      });
+      console.log('[CAVEMAN] RefundsPage: Quick approve successful for vendor-cancelled refund');
+      alert('Vendor-cancelled refund approved and marked as processed!');
+      loadData();
+    } catch (err: any) {
+      console.error('[CAVEMAN] RefundsPage: Quick approve failed', err);
+      alert(err.response?.data?.message || 'Failed to approve refund.');
     }
   };
 
@@ -5251,7 +5281,19 @@ function RefundsPage() {
                   )}
                 </div>
               ) },
-              { key: 'reference_number', label: 'Ref Number', render: (item: any) => <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-350">{item.reference_number || '—'}</span> },
+              { key: 'cancelled_by', label: 'Cancelled By', render: (item: any) => {
+                const cb = item.cancelled_by || '—';
+                const colorMap: Record<string, string> = {
+                  customer: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+                  vendor: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+                  admin: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+                  system: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+                };
+                const cls = colorMap[cb.toLowerCase()] || 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
+                return cb === '—'
+                  ? <span className="text-xs text-slate-400">—</span>
+                  : <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cls}`}>{cb}</span>;
+              } },
               { key: 'account_number', label: 'Account Number', render: (item: any) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{item.account_number || '—'}</span> },
               { key: 'proof_image_url', label: 'Proof Image', render: (item: any) => item.proof_image_url ? (
                 <a href={item.proof_image_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-brand-navy dark:text-brand-green hover:underline font-bold">
@@ -5413,36 +5455,34 @@ function RefundsPage() {
                         />
                       </div>
 
-                      {cancelledBy === 'Customer' && (statusAtCancellation === 'assigned' || statusAtCancellation === 'in_progress') && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Percentage (%) *</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={deductionPercentage}
-                              onChange={e => {
-                                const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
-                                setDeductionPercentage(val);
-                              }}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                              placeholder="0"
-                              required
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Amount (₱)</label>
-                            <input
-                              type="text"
-                              value={`₱${(totalPrice * (deductionPercentage / 100)).toFixed(2)}`}
-                              readOnly
-                              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-rose-500 text-xs sm:text-sm font-black focus:outline-none"
-                            />
-                          </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Percentage (%) *</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={deductionPercentage}
+                            onChange={e => {
+                              const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                              setDeductionPercentage(val);
+                            }}
+                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                            placeholder="0"
+                            required
+                          />
                         </div>
-                      )}
+
+                        <div>
+                          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Amount (₱)</label>
+                          <input
+                            type="text"
+                            value={`₱${(totalPrice * (deductionPercentage / 100)).toFixed(2)}`}
+                            readOnly
+                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-rose-500 text-xs sm:text-sm font-black focus:outline-none"
+                          />
+                        </div>
+                      </div>
 
                       <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-2">
                         <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Refund Breakdown</p>
@@ -5482,7 +5522,7 @@ function RefundsPage() {
                         value={accountNumber}
                         onChange={e => setAccountNumber(e.target.value)}
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
-                        placeholder="Enter Customer's Account Number"
+                        placeholder={selectedBooking?.account_number || "Enter Customer's Account Number"}
                         required
                       />
                     </div>
@@ -5532,10 +5572,23 @@ function RefundsPage() {
                     </div>
                   </div>
 
+                  {isProcessingExisting && (
+                    <div>
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                        Rejection Details / Reason (Required if Rejecting)
+                      </label>
+                      <textarea
+                        value={rejectionDetails}
+                        onChange={e => setRejectionDetails(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
+                        placeholder="Provide details or reason for rejection if you choose to reject this request..."
+                        rows={3}
+                      />
+                    </div>
+                  )}
+
                   {(() => {
-                    const showRejectButton = isProcessingExisting &&
-                      cancelledBy === 'Customer' &&
-                      (statusAtCancellation === 'pending' || statusAtCancellation === 'Pending');
+                    const showRejectButton = isProcessingExisting;
 
                     return (
                       <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">

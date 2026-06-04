@@ -134,7 +134,7 @@ public class BookingService {
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", "cancelled");
         updates.put("cancellation_requested", true);
-        updates.put("cancelled_by", "Customer");
+        updates.put("cancelled_by", "customer");
         updates.put("status_at_cancellation", booking.get("status"));
         firestoreService.update("bookings", bookingId, updates);
 
@@ -166,7 +166,7 @@ public class BookingService {
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found");
 
-        String cancelledBy = (String) refundDetails.getOrDefault("cancelled_by", "Admin");
+        String cancelledBy = (String) refundDetails.getOrDefault("cancelled_by", "admin");
         String statusAtCancellation = (String) booking.get("status");
 
         // 1. Create a refund record in the refunds collection
@@ -212,12 +212,21 @@ public class BookingService {
         refundData.put("deduction_amount", deductionAmt);
         refundData.put("deduction_percentage", dedPercent);
         refundData.put("refund_amount", amount);
-        refundData.put("reference_number", refundDetails.get("reference_number"));
-        refundData.put("refund_method", refundDetails.get("refund_method"));
-        refundData.put("receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
-        refundData.put("status", "Processed");
-        refundData.put("notified", true);
-        refundData.put("processed_at", new Date());
+        
+        boolean isVendorCancel = "vendor".equalsIgnoreCase(cancelledBy);
+        
+        if (isVendorCancel) {
+            refundData.put("status", "pending");
+            refundData.put("notified", false);
+            refundData.put("created_at", new Date());
+        } else {
+            refundData.put("reference_number", refundDetails.get("reference_number"));
+            refundData.put("refund_method", refundDetails.get("refund_method"));
+            refundData.put("receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+            refundData.put("status", "Processed");
+            refundData.put("notified", true);
+            refundData.put("processed_at", new Date());
+        }
         
         String refundId = firestoreService.create("refunds", refundData);
 
@@ -229,13 +238,18 @@ public class BookingService {
         bookingUpdates.put("status_at_cancellation", statusAtCancellation);
         bookingUpdates.put("refund_id", refundId);
         bookingUpdates.put("refund_amount", amount);
-        bookingUpdates.put("refund_deduction_amount", deductionAmt);
-        bookingUpdates.put("refund_deduction_percentage", dedPercent);
-        bookingUpdates.put("refund_reference_number", refundDetails.get("reference_number"));
-        bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
-        bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
-        bookingUpdates.put("refund_processed_at", new Date());
-        bookingUpdates.put("refund_status", "Processed");
+        
+        if (isVendorCancel) {
+            bookingUpdates.put("refund_status", "pending");
+        } else {
+            bookingUpdates.put("refund_deduction_amount", deductionAmt);
+            bookingUpdates.put("refund_deduction_percentage", dedPercent);
+            bookingUpdates.put("refund_reference_number", refundDetails.get("reference_number"));
+            bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
+            bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+            bookingUpdates.put("refund_processed_at", new Date());
+            bookingUpdates.put("refund_status", "Processed");
+        }
         
         firestoreService.update("bookings", bookingId, bookingUpdates);
 
@@ -246,22 +260,45 @@ public class BookingService {
             System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in cancelWithRefund: " + e.getMessage());
         }
 
-        // 3. Notify the customer and vendor
-        String customerId = (String) booking.get("customer_id");
-        if (customerId != null) {
-            notificationService.notify(customerId, "customer", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
-        }
-        String vendorId = (String) booking.get("vendor_id");
-        if (vendorId != null) {
-            notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
-        }
+        if (!isVendorCancel) {
+            // 3. Notify the customer and vendor
+            String customerId = (String) booking.get("customer_id");
+            if (customerId != null) {
+                notificationService.notify(customerId, "customer", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+            }
+            String vendorId = (String) booking.get("vendor_id");
+            if (vendorId != null) {
+                notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+            }
 
-        // Trigger Email Notification
-        try {
-            refundService.sendRefundEmailNotification(refundId);
-        } catch (Exception e) {
-            System.err.println("ERROR: Failed to send cancellation refund email: " + e.getMessage());
-            e.printStackTrace();
+            // Trigger Email Notification
+            try {
+                refundService.sendRefundEmailNotification(refundId);
+            } catch (Exception e) {
+                System.err.println("ERROR: Failed to send cancellation refund email: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            // For vendor cancel: notify customer that their refund request has been submitted and is pending admin review.
+            String customerId = (String) booking.get("customer_id");
+            if (customerId != null) {
+                notificationService.notify(customerId, "customer", "Your booking has been cancelled by the vendor. A refund request has been submitted and is pending admin review.");
+            }
+            
+            // Notify admins
+            try {
+                List<Map<String, Object>> admins = firestoreService.getAll("admins");
+                for (Map<String, Object> admin : admins) {
+                    String adminId = (String) admin.get("id");
+                    if (adminId == null) adminId = (String) admin.get("uid");
+                    if (adminId != null) {
+                        notificationService.notify(adminId, "admin",
+                            "Booking " + bookingId + " cancelled by vendor. A refund request of ₱" + amount + " is pending review.");
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to notify admins of vendor-cancelled booking refund request: " + e.getMessage());
+            }
         }
     }
 
@@ -442,7 +479,7 @@ public class BookingService {
          refundData.put("status", "pending"); // Admin must process it
          refundData.put("notified", false);
          refundData.put("is_automatic_expiration", true);
-         refundData.put("cancelled_by", "System");
+         refundData.put("cancelled_by", "system");
          refundData.put("status_at_cancellation", booking.get("status") != null ? booking.get("status") : "pending");
          refundData.put("created_at", new Date());
  
@@ -457,7 +494,7 @@ public class BookingService {
          updates.put("refund_id", refundId);
          updates.put("refund_amount", totalPrice);
          updates.put("is_automatic_expiration", true);
-         updates.put("cancelled_by", "System");
+         updates.put("cancelled_by", "system");
          updates.put("status_at_cancellation", booking.get("status") != null ? booking.get("status") : "pending");
          updates.put("expired_at", new Date());
          
