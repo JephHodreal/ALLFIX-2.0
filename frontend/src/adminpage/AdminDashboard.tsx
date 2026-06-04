@@ -1702,7 +1702,12 @@ function BookingsTab() {
   return (
     <DataTable
       columns={[
-        { key: 'service_type', label: 'Service', sortable: true },
+        {
+          key: 'sub_service',
+          label: 'Service',
+          sortable: true,
+          render: (item: any) => item.sub_service || item.service_type
+        },
         { key: 'scheduled_date', label: 'Date', sortable: true },
         { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
         {
@@ -1737,7 +1742,7 @@ function PaymentsTab() {
   useEffect(() => { api.get('/api/payments/pending').then(r => setPayments(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
   return payments.length === 0 && !loading ? <EmptyState title="No pending payments" description="All payments have been processed." /> : (
     <DataTable columns={[
-      { key: 'service_type', label: 'Service' },
+      { key: 'sub_service', label: 'Service', render: (item: any) => item.sub_service || item.service_type },
       { key: 'payment_reference', label: 'Reference' },
       { key: 'scheduled_date', label: 'Date' },
       {
