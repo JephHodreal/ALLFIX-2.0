@@ -223,6 +223,9 @@ public class BookingService {
             refundData.put("reference_number", refundDetails.get("reference_number"));
             refundData.put("refund_method", refundDetails.get("refund_method"));
             refundData.put("receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+            if (refundDetails.containsKey("proof_image_url")) {
+                refundData.put("proof_image_url", refundDetails.get("proof_image_url"));
+            }
             refundData.put("status", "Processed");
             refundData.put("notified", true);
             refundData.put("processed_at", new Date());
@@ -247,6 +250,9 @@ public class BookingService {
             bookingUpdates.put("refund_reference_number", refundDetails.get("reference_number"));
             bookingUpdates.put("refund_method", refundDetails.get("refund_method"));
             bookingUpdates.put("refund_receiver_gcash_number", refundDetails.get("receiver_gcash_number"));
+            if (refundDetails.containsKey("proof_image_url")) {
+                bookingUpdates.put("refund_proof_image_url", refundDetails.get("proof_image_url"));
+            }
             bookingUpdates.put("refund_processed_at", new Date());
             bookingUpdates.put("refund_status", "Processed");
         }

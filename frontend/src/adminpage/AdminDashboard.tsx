@@ -1306,6 +1306,38 @@ function BookingsTab() {
   const [receiverGcashNumber, setReceiverGcashNumber] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [proofImageUrl, setProofImageUrl] = useState('');
+
+  // Handle direct file upload / base64 reading
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log('[CAVEMAN] BookingsTab: handleFileChange - Selected file:', file.name);
+    setUploadingImage(true);
+    setRefundError('');
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        console.log('[CAVEMAN] BookingsTab: Uploading base64 image to server...');
+        const res = await api.post('/api/upload/image', {
+          image: base64,
+          folder: 'refunds'
+        });
+        setProofImageUrl(res.data.url);
+        console.log('[CAVEMAN] BookingsTab: Upload success. URL:', res.data.url);
+      } catch (err: any) {
+        console.error('[CAVEMAN] BookingsTab: Upload failed', err);
+        setRefundError('Failed to upload image. Please try again.');
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     api.get('/api/bookings')
@@ -1358,6 +1390,7 @@ function BookingsTab() {
         refund_method: refundMethod,
         receiver_gcash_number: refundMethod === 'GCash' ? receiverGcashNumber.trim() : '',
         cancelled_by: 'admin',
+        proof_image_url: proofImageUrl,
       };
 
       await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);
@@ -1372,6 +1405,7 @@ function BookingsTab() {
         refund_reference_number: payload.reference_number,
         refund_method: payload.refund_method,
         refund_receiver_gcash_number: payload.receiver_gcash_number,
+        refund_proof_image_url: payload.proof_image_url,
       }));
 
       // Update bookings list too!
@@ -1386,12 +1420,14 @@ function BookingsTab() {
                 refund_reference_number: payload.reference_number,
                 refund_method: payload.refund_method,
                 refund_receiver_gcash_number: payload.receiver_gcash_number,
+                refund_proof_image_url: payload.proof_image_url,
               }
             : b
         )
       );
 
       setShowRefundForm(false);
+      setProofImageUrl('');
       alert('Booking cancelled and refund details linked successfully!');
     } catch (err: any) {
       setRefundError(err.response?.data?.message || 'Failed to submit refund.');
@@ -1411,6 +1447,7 @@ function BookingsTab() {
                 setSelectedBooking(null);
                 setShowRefundForm(false);
                 setShowCancelConfirm(false);
+                setProofImageUrl('');
               }}
               className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400"
             >
@@ -1538,6 +1575,14 @@ function BookingsTab() {
                   <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>
                   {selectedBooking.refund_receiver_gcash_number && (
                     <p><span className="font-bold">Receiver GCash Number:</span> {selectedBooking.refund_receiver_gcash_number}</p>
+                  )}
+                  {selectedBooking.refund_proof_image_url && (
+                    <p className="mt-1 flex items-center gap-1.5">
+                      <span className="font-bold">Proof Image:</span>{' '}
+                      <a href={selectedBooking.refund_proof_image_url} target="_blank" rel="noopener noreferrer" className="text-brand-navy dark:text-brand-green hover:underline font-bold inline-flex items-center gap-1">
+                        View Image <Eye className="w-3.5 h-3.5" />
+                      </a>
+                    </p>
                   )}
                 </div>
               )}
@@ -1672,12 +1717,57 @@ function BookingsTab() {
               </div>
             </div>
 
+            {/* Proof of Refund Image File Input */}
+            <div className="pt-2">
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                Proof of Refund Image (Optional)
+              </label>
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
+                {uploadingImage ? (
+                  <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading Image...</div>
+                ) : proofImageUrl ? (
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden">
+                    <img src={proofImageUrl} alt="Proof of Refund" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProofImageUrl('');
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-lg transition-colors z-10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 mb-2">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      Click to upload receipt or transaction proof image
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">PNG, JPG, or WEBP formats allowed</p>
+                  </>
+                )}
+                {!proofImageUrl && !uploadingImage && (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleFileChange}
+                  />
+                )}
+              </div>
+            </div>
+
             <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
               <Button
                 variant="ghost"
                 onClick={() => {
                   setShowRefundForm(false);
                   setRefundError('');
+                  setProofImageUrl('');
                 }}
                 disabled={refundSubmitting}
               >
