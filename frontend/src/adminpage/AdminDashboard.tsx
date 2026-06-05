@@ -716,7 +716,12 @@ function VendorsTab() {
 
   const handleApprove = async (id: string) => { await api.post(`/api/admin/vendors/${id}/approve`); setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'approved', is_approved: true } : v)); };
   const handleReject = async (id: string) => { await api.post(`/api/admin/vendors/${id}/reject`); setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'rejected', is_approved: false } : v)); };
-  const handleDelete = async (id: string) => { await api.delete(`/api/vendors/${id}`); setVendors(vs => vs.filter(v => v.id !== id)); };
+  const handleDelete = async (id: string) => { 
+    if (window.confirm('Are you sure you want to delete this vendor?')) {
+      await api.delete(`/api/vendors/${id}`); 
+      setVendors(vs => vs.filter(v => v.id !== id)); 
+    }
+  };
   const handleEditSave = async (data: any) => {
     await api.put(`/api/vendors/${editItem.id}`, data);
     setVendors(vs => vs.map(v => v.id === editItem.id ? { ...v, ...data } : v));
