@@ -158,6 +158,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-surface-light dark:bg-surface-dark">
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
+        <button 
+          onClick={() => navigate('/')} 
+          className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-semibold text-sm">Back to Home</span>
+        </button>
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-brand-yellow/5 rounded-full blur-3xl" />
         <div className="text-center relative z-10">
