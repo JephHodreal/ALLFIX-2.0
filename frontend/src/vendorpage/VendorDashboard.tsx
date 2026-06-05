@@ -20,7 +20,7 @@ import { LineChart } from '../components/shared/LineChart';
  */
 export function getFilteredVendorServices(vendorServices: any[], dbServices: any[]): any[] {
   if (!dbServices || dbServices.length === 0) return [];
-  
+
   return vendorServices
     .map((svc: any) => {
       // Find matching service in database (case-insensitive)
@@ -31,7 +31,7 @@ export function getFilteredVendorServices(vendorServices: any[], dbServices: any
 
       // Filter subservices: must exist in both vendor profile and database (case-insensitive)
       const dbSubNames = (dbMatch.subServices || []).map((sub: any) => (sub.name || sub).toLowerCase());
-      const validSubServices = (svc.sub_services || []).filter((subName: string) => 
+      const validSubServices = (svc.sub_services || []).filter((subName: string) =>
         dbSubNames.includes(subName.toLowerCase())
       );
 
@@ -178,12 +178,12 @@ function VendorBookings() {
       setLoading(true);
       api.get(`/api/bookings/vendor/${profile.id}`)
         .then(r => setBookings(r.data || []))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoading(false));
 
       api.get(`/api/personnel?vendor_id=${profile.id}`)
         .then(r => setPersonnel(r.data || []))
-        .catch(() => {});
+        .catch(() => { });
     } else {
       setLoading(false);
     }
@@ -244,7 +244,7 @@ function VendorBookings() {
   const handleCompleteBooking = async () => {
     try {
       await api.patch(`/api/bookings/${selectedBooking.id}/complete`);
-      
+
       // Update selected booking in state
       setSelectedBooking((prev: any) => ({
         ...prev,
@@ -279,7 +279,7 @@ function VendorBookings() {
       };
 
       await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, payload);
-      
+
       // Update selected booking in state
       setSelectedBooking((prev: any) => ({
         ...prev,
@@ -297,14 +297,14 @@ function VendorBookings() {
         prevList.map((b: any) =>
           b.id === selectedBooking.id
             ? {
-                ...b,
-                status: 'cancelled',
-                cancellation_requested: true,
-                refund_amount: payload.refund_amount,
-                refund_reference_number: payload.reference_number,
-                refund_method: payload.refund_method,
-                refund_receiver_gcash_number: payload.receiver_gcash_number,
-              }
+              ...b,
+              status: 'cancelled',
+              cancellation_requested: true,
+              refund_amount: payload.refund_amount,
+              refund_reference_number: payload.reference_number,
+              refund_method: payload.refund_method,
+              refund_receiver_gcash_number: payload.receiver_gcash_number,
+            }
             : b
         )
       );
@@ -345,13 +345,13 @@ function VendorBookings() {
     // showAllPersonnel fallback also excludes actively-busy personnel
     const displayPersonnelList = showAllPersonnel
       ? personnel.filter((p: any) => {
-          if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
-          if (activePersonnelIds.has(p.id) || activePersonnelIds.has(p.uid)) {
-            console.log(`[CAVEMAN] (showAll) Excluding busy personnel: ${p.first_name} ${p.last_name}`);
-            return false;
-          }
-          return true;
-        })
+        if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
+        if (activePersonnelIds.has(p.id) || activePersonnelIds.has(p.uid)) {
+          console.log(`[CAVEMAN] (showAll) Excluding busy personnel: ${p.first_name} ${p.last_name}`);
+          return false;
+        }
+        return true;
+      })
       : matchedPersonnel;
 
     return (
@@ -702,8 +702,8 @@ function VendorBookings() {
                     {showAllPersonnel ? "All Approved Personnel" : "Qualified Personnel"}
                   </span>
                   {!showAllPersonnel && personnel.length > matchedPersonnel.length && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setShowAllPersonnel(true)}
                       className="text-xs text-brand-navy dark:text-brand-green font-bold hover:underline"
                     >
@@ -711,8 +711,8 @@ function VendorBookings() {
                     </button>
                   )}
                   {showAllPersonnel && matchedPersonnel.length > 0 && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setShowAllPersonnel(false)}
                       className="text-xs text-brand-navy dark:text-brand-green font-bold hover:underline"
                     >
@@ -722,8 +722,8 @@ function VendorBookings() {
                 </div>
 
                 {displayPersonnelList.map((p: any) => (
-                  <div 
-                    key={p.id} 
+                  <div
+                    key={p.id}
                     className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/50 dark:hover:bg-slate-900 flex justify-between items-center transition-all"
                   >
                     <div>
@@ -802,6 +802,8 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [newSlot, setNewSlot] = useState({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeError, setTimeError] = useState<string>('');
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<number[]>([]);
 
   const vendorProfile = profile as any;
   const vendorServices = getFilteredVendorServices(vendorProfile?.services || [], dbServices);
@@ -885,8 +887,17 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
   const handleAddSlot = async () => {
     setTimeError('');
-    if (!selectedDate || !newSlot.service || newSlot.total_slots < 1) {
+    if (!newSlot.service || newSlot.total_slots < 1) {
       alert('Fill all fields');
+      return;
+    }
+
+    if (!isSelectionMode && !selectedDate) {
+      alert('No date selected');
+      return;
+    }
+    if (isSelectionMode && selectedDates.length === 0) {
+      alert('No dates selected');
       return;
     }
 
@@ -909,31 +920,51 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
     // Validate time not in past
     const now = new Date();
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    if (isToday) {
-      const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), fromHour, fromMin);
-      if (fromDate < now) {
-        alert('Cannot create slot with past time');
-        return;
+    const datesToProcess = isSelectionMode
+      ? selectedDates.map(d => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d))
+      : [selectedDate!];
+
+    for (const d of datesToProcess) {
+      const isToday = d.toDateString() === now.toDateString();
+      if (isToday) {
+        const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), fromHour, fromMin);
+        if (fromDate < now) {
+          alert(`Cannot create slot with past time for today (${d.getDate()})`);
+          return;
+        }
       }
     }
 
-    const dateStr = formatLocalYYYYMMDD(selectedDate);
     try {
-      await api.post('/api/slots', {
-        vendor_id: vendorProfile.id,
-        slot_date: dateStr,
-        service_type: newSlot.service,
-        sub_service: newSlot.sub_service || null,
-        time_from: newSlot.time_from,
-        time_to: newSlot.time_to,
-        total_slots: newSlot.total_slots,
-      });
+      await Promise.all(datesToProcess.map(d => {
+        const dateStr = formatLocalYYYYMMDD(d);
+        return api.post('/api/slots', {
+          vendor_id: vendorProfile.id,
+          slot_date: dateStr,
+          service_type: newSlot.service,
+          sub_service: newSlot.sub_service || null,
+          time_from: newSlot.time_from,
+          time_to: newSlot.time_to,
+          total_slots: newSlot.total_slots,
+        });
+      }));
       await fetchSlotsAndBookings();
       setShowModal(false);
       setNewSlot({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
+      setIsSelectionMode(false);
+      setSelectedDates([]);
     } catch (err) {
-      alert('Failed to create slot');
+      alert('Failed to create slots for some or all dates');
+    }
+  };
+
+  const handleDeleteSlot = async (slotId: string) => {
+    if (!confirm('Are you sure you want to delete this slot? All availability for this time will be removed.')) return;
+    try {
+      await api.delete(`/api/slots/${slotId}`);
+      await fetchSlotsAndBookings();
+    } catch (err) {
+      alert('Failed to delete slot');
     }
   };
 
@@ -960,21 +991,75 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Manage and view your service slot capacities</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
-              <button 
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80 flex-wrap justify-end">
+              <button
+                onClick={() => {
+                  setIsSelectionMode(!isSelectionMode);
+                  if (isSelectionMode) setSelectedDates([]);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all duration-200 ${isSelectionMode
+                    ? 'bg-brand-navy text-white shadow-sm'
+                    : 'hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+              >
+                {isSelectionMode ? 'Cancel Select' : 'Select'}
+              </button>
+              {isSelectionMode && selectedDates.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowModal(true);
+                      setTimeError('');
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to delete all slots for the ${selectedDates.length} selected days?`)) return;
+                      try {
+                        const dateStrings = selectedDates.map(day => formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)));
+                        const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
+                        
+                        if (slotsToDelete.length === 0) {
+                          alert('No slots found on the selected dates.');
+                          return;
+                        }
+                        
+                        for (const slot of slotsToDelete) {
+                          await api.delete(`/api/slots/${slot.id}`);
+                        }
+                        await fetchSlotsAndBookings();
+                        setSelectedDates([]);
+                        setIsSelectionMode(false);
+                      } catch (err) {
+                        alert('Failed to delete some or all slots');
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-sm transition-all whitespace-nowrap"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+              {(!isSelectionMode || selectedDates.length === 0) && (
+                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+              )}
+              <button
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
                 className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
                 title="Previous Month"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentMonth(new Date())}
                 className="px-3 py-1.5 rounded-lg text-xs font-black hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
               >
                 Today
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
                 className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
                 title="Next Month"
@@ -989,13 +1074,12 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => {
               const isWeekend = index === 0 || index === 6;
               return (
-                <div 
-                  key={d} 
-                  className={`text-center text-[10px] font-black uppercase tracking-wider py-2 rounded-lg ${
-                    isWeekend 
-                      ? 'text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-slate-900/10' 
+                <div
+                  key={d}
+                  className={`text-center text-[10px] font-black uppercase tracking-wider py-2 rounded-lg ${isWeekend
+                      ? 'text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-slate-900/10'
                       : 'text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'
-                  }`}
+                    }`}
                 >
                   {d}
                 </div>
@@ -1008,8 +1092,8 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
             {days.map((day, i) => {
               if (!day) {
                 return (
-                  <div 
-                    key={`empty-${i}`} 
+                  <div
+                    key={`empty-${i}`}
                     className="aspect-square bg-transparent rounded-2xl border border-transparent"
                   />
                 );
@@ -1029,34 +1113,58 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                   whileTap={!disabled ? { scale: 0.97 } : {}}
                   onClick={() => {
                     if (disabled) return;
-                    setSelectedDate(dateObj);
-                    setShowModal(true);
-                    setTimeError('');
+                    if (isSelectionMode) {
+                      setSelectedDates(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+                    } else {
+                      setSelectedDate(dateObj);
+                      setShowModal(true);
+                      setTimeError('');
+                    }
                   }}
-                  className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${
-                    disabled
+                  className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${disabled
                       ? 'bg-slate-50/40 dark:bg-slate-900/10 border-slate-100/50 dark:border-slate-800/10 text-slate-300 dark:text-slate-700 cursor-not-allowed'
-                      : hasSlots
-                        ? 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 border-emerald-400/20 text-white shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20'
-                        : isToday
-                          ? 'bg-white dark:bg-slate-950 border-brand-green border-2 text-slate-900 dark:text-white shadow-sm font-bold'
-                          : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
+                      : isSelectionMode && selectedDates.includes(day)
+                        ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
+                        : hasSlots
+                          ? 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 border-emerald-400/20 text-white shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20'
+                          : isToday
+                            ? 'bg-white dark:bg-slate-950 border-brand-green border-2 text-slate-900 dark:text-white shadow-sm font-bold'
+                            : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
                 >
                   <div className="flex justify-between items-start">
-                    <span className={`text-sm font-black ${hasSlots ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+                    <span className={`text-sm font-black ${(hasSlots || (isSelectionMode && selectedDates.includes(day))) ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
                       {day}
                     </span>
-                    {isToday && !hasSlots && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
+                    {hasSlots && dateSlots.length > 0 && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSlot(dateSlots[0].id);
+                        }}
+                        className="text-white/80 hover:text-rose-500 transition-colors p-1"
+                        title="Delete slot"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
 
                   {hasSlots && (
-                    <div className="mt-auto">
-                      <div className="text-[10px] font-black bg-white/20 dark:bg-black/20 text-white rounded-md px-1 py-0.5 inline-block backdrop-blur-sm max-w-full truncate">
+                    <div className="mt-auto flex flex-col gap-0.5 overflow-hidden">
+                      <div className="text-[11px] font-black text-white/95 px-0.5 mb-0.5">
                         {totalAvailable} {totalAvailable === 1 ? 'slot' : 'slots'}
                       </div>
+                      {dateSlots.slice(0, 2).map((s, idx) => (
+                        <div key={idx} className="text-[11px] font-bold bg-white/20 dark:bg-black/20 text-white rounded px-1.5 py-0.5 truncate" title={`${s.time_from} - ${s.time_to}`}>
+                          {s.time_from} - {s.time_to}
+                        </div>
+                      ))}
+                      {dateSlots.length > 2 && (
+                        <div className="text-[10px] font-bold text-white/80 px-1">
+                          +{dateSlots.length - 2} more
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
@@ -1112,7 +1220,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                                 const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
                                 const safeTotal = Math.max(0, total);
                                 const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
-                                
+
                                 return (
                                   <div key={i} className="p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 group">
                                     <div className="flex justify-between items-start gap-4">
@@ -1125,26 +1233,33 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                                           </div>
                                         )}
                                       </div>
-                                      <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${
-                                        safeAvail > 0 
-                                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40' 
-                                          : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
-                                      }`}>
-                                        {safeAvail > 0 ? 'Active' : 'Fully Booked'} • {safeAvail}/{safeTotal}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${safeAvail > 0
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
+                                            : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
+                                          }`}>
+                                          {safeAvail > 0 ? 'Active' : 'Fully Booked'} • {safeAvail}/{safeTotal}
+                                        </span>
+                                        <button
+                                          onClick={() => handleDeleteSlot(s.id)}
+                                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                                          title="Delete slot"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
                                     </div>
 
                                     {/* Sleek thin progress bar to represent remaining slots visually */}
                                     <div className="mt-3 space-y-1">
                                       <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                        <div 
-                                          className={`h-full rounded-full transition-all duration-500 ${
-                                            percentAvail > 50 
-                                              ? 'bg-emerald-500' 
-                                              : percentAvail > 20 
-                                                ? 'bg-amber-500' 
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-500 ${percentAvail > 50
+                                              ? 'bg-emerald-500'
+                                              : percentAvail > 20
+                                                ? 'bg-amber-500'
                                                 : 'bg-rose-500'
-                                          }`}
+                                            }`}
                                           style={{ width: `${percentAvail}%` }}
                                         />
                                       </div>
@@ -1185,7 +1300,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                       </div>
                       <div>
                         <h3 className="text-lg font-black text-slate-900 dark:text-white">Add Booking Slot</h3>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">For {selectedDate?.toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{isSelectionMode ? `For ${selectedDates.length} selected days` : `For ${selectedDate?.toLocaleDateString('en-US', { dateStyle: 'long' })}`}</p>
                       </div>
                     </div>
                     <button
@@ -1199,9 +1314,9 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Main Service</label>
-                      <select 
-                        value={newSlot.service} 
-                        onChange={(e) => { setNewSlot({ ...newSlot, service: e.target.value, sub_service: '' }); }} 
+                      <select
+                        value={newSlot.service}
+                        onChange={(e) => { setNewSlot({ ...newSlot, service: e.target.value, sub_service: '' }); }}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                       >
                         <option value="">Select main service...</option>
@@ -1212,9 +1327,9 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                     {newSlot.service && vendorServices.find((s: any) => s.service === newSlot.service)?.sub_services.length > 0 && (
                       <div>
                         <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Sub-Service</label>
-                        <select 
-                          value={newSlot.sub_service} 
-                          onChange={(e) => setNewSlot({ ...newSlot, sub_service: e.target.value })} 
+                        <select
+                          value={newSlot.sub_service}
+                          onChange={(e) => setNewSlot({ ...newSlot, sub_service: e.target.value })}
                           className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                         >
                           <option value="">Select sub-service...</option>
@@ -1227,22 +1342,22 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                       <div>
                         <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Time From</label>
                         <div className="relative">
-                          <input 
-                            type="time" 
-                            value={newSlot.time_from} 
-                            onChange={(e) => { setNewSlot({ ...newSlot, time_from: e.target.value }); setTimeError(''); }} 
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all" 
+                          <input
+                            type="time"
+                            value={newSlot.time_from}
+                            onChange={(e) => { setNewSlot({ ...newSlot, time_from: e.target.value }); setTimeError(''); }}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                           />
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Time To</label>
                         <div className="relative">
-                          <input 
-                            type="time" 
-                            value={newSlot.time_to} 
-                            onChange={(e) => { setNewSlot({ ...newSlot, time_to: e.target.value }); setTimeError(''); }} 
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all" 
+                          <input
+                            type="time"
+                            value={newSlot.time_to}
+                            onChange={(e) => { setNewSlot({ ...newSlot, time_to: e.target.value }); setTimeError(''); }}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                           />
                         </div>
                       </div>
@@ -1257,27 +1372,27 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Available Slots Capacity</label>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="20" 
-                        value={newSlot.total_slots} 
-                        onChange={(e) => setNewSlot({ ...newSlot, total_slots: parseInt(e.target.value) || 5 })} 
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all" 
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={newSlot.total_slots}
+                        onChange={(e) => setNewSlot({ ...newSlot, total_slots: parseInt(e.target.value) || 5 })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button 
-                      variant="ghost" 
-                      className="flex-1 text-slate-500 font-bold" 
+                    <Button
+                      variant="ghost"
+                      className="flex-1 text-slate-500 font-bold"
                       onClick={() => { setShowModal(false); setTimeError(''); }}
                     >
                       Cancel
                     </Button>
-                    <Button 
-                      className="flex-1 bg-brand-green hover:bg-[#005e3f] text-white font-bold" 
+                    <Button
+                      className="flex-1 bg-brand-green hover:bg-[#005e3f] text-white font-bold"
                       onClick={handleAddSlot}
                     >
                       Add Slot
@@ -1356,7 +1471,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   const [usernameValid, setUsernameValid] = useState(false);
 
   useEffect(() => {
-    if (profile?.id) api.get(`/api/personnel?vendor_id=${profile.id}`).then(r => setPersonnel(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    if (profile?.id) api.get(`/api/personnel?vendor_id=${profile.id}`).then(r => setPersonnel(r.data || [])).catch(() => { }).finally(() => setLoading(false));
     else setLoading(false);
   }, [profile]);
 
@@ -1512,31 +1627,37 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         { key: 'last_name', label: 'Last Name', sortable: true },
         { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone', render: (item: any) => item.phone || '—' },
-        { key: 'last_login', label: 'Last Login', sortable: true, render: (item: any) => {
-          if (!item.last_login) return 'Never';
-          const date = item.last_login.seconds ? new Date(item.last_login.seconds * 1000) : new Date(item.last_login);
-          return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
-        } },
-        { key: 'acc_approve', label: 'Status', render: (item: any) => {
-          const status = item.acc_approve || 'pending';
-          return <span className={status === 'approved' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>;
-        }},
-        { key: 'actions', label: 'Actions', render: (item: any) => {
-          const status = item.acc_approve || 'pending';
-          return status === 'pending' ? (
-            <div className="flex gap-2">
-              <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id); }}>Approve</Button>
-              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id); }}>Reject</Button>
-            </div>
-          ) : status === 'approved' ? (
-            <div className="flex gap-2">
-              <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
-              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
-            </div>
-          ) : <span className="text-xs text-slate-400">—</span>;
-        }}
+        {
+          key: 'last_login', label: 'Last Login', sortable: true, render: (item: any) => {
+            if (!item.last_login) return 'Never';
+            const date = item.last_login.seconds ? new Date(item.last_login.seconds * 1000) : new Date(item.last_login);
+            return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
+          }
+        },
+        {
+          key: 'acc_approve', label: 'Status', render: (item: any) => {
+            const status = item.acc_approve || 'pending';
+            return <span className={status === 'approved' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>;
+          }
+        },
+        {
+          key: 'actions', label: 'Actions', render: (item: any) => {
+            const status = item.acc_approve || 'pending';
+            return status === 'pending' ? (
+              <div className="flex gap-2">
+                <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id); }}>Approve</Button>
+                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id); }}>Reject</Button>
+              </div>
+            ) : status === 'approved' ? (
+              <div className="flex gap-2">
+                <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
+                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+              </div>
+            ) : <span className="text-xs text-slate-400">—</span>;
+          }
+        }
       ]} data={personnel.filter(p => p.temp_delete !== 1)} loading={loading} searchPlaceholder="Search personnel..." emptyTitle="No personnel added" />
 
       {editItem && (
@@ -1906,10 +2027,10 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
     setSelectedServices(selectedServices.map(s => {
       if (s.service === serviceName) {
         const has = s.sub_services.includes(subName);
-        const newSubServices = has 
-          ? s.sub_services.filter(x => x !== subName) 
+        const newSubServices = has
+          ? s.sub_services.filter(x => x !== subName)
           : [...s.sub_services, subName];
-        
+
         const currentWts = s.work_types || [];
         const newWts = has
           ? currentWts.filter((wt: any) => wt.subService !== subName)
@@ -1972,7 +2093,7 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
       const mergedServices = selectedServices.map(sel => {
         const existing = currentServices.find(c => c.service === sel.service);
         const existingCustomWts = (existing?.work_types || []).filter((wt: any) => wt.status === 'pending' || wt.status === 'rejected');
-        
+
         const finalWts = [...(sel.work_types || [])];
         existingCustomWts.forEach((vwt: any) => {
           if (!finalWts.some((wt: any) => wt.name.toLowerCase() === vwt.name.toLowerCase() && wt.subService.toLowerCase() === vwt.subService.toLowerCase())) {
@@ -2105,7 +2226,7 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
 
   const dbServiceMatch = dbServices.find(s => s.name.toLowerCase() === service.service.toLowerCase());
   const dbSubServiceMatch = dbServiceMatch?.subServices?.find((sub: any) => (sub.name || sub).toLowerCase() === subServiceName.toLowerCase());
-  
+
   const existingWorkTypes = dbSubServiceMatch?.workTypes || [];
   const prices = dbSubServiceMatch?.prices || {};
 
@@ -2130,8 +2251,8 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
     setLoadingRequests(true);
     api.get(`/api/services/requests/work-type/vendor/${p.id}`)
       .then(res => {
-        const filtered = (res.data || []).filter((req: any) => 
-          req.serviceId.toLowerCase() === (dbServiceMatch?.id || service.service).toLowerCase() && 
+        const filtered = (res.data || []).filter((req: any) =>
+          req.serviceId.toLowerCase() === (dbServiceMatch?.id || service.service).toLowerCase() &&
           req.subServiceId.toLowerCase() === subServiceName.toLowerCase()
         );
         setVendorRequests(filtered);
@@ -2185,7 +2306,7 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
       const proposedName = row.name.trim();
       const existsApproved = allActiveWts.some((wt: string) => wt.toLowerCase() === proposedName.toLowerCase());
       const existsPending = vendorRequests.some((req: any) => req.name.toLowerCase() === proposedName.toLowerCase() && req.status === 'pending');
-      
+
       if (existsApproved) {
         setError(`"${proposedName}" is already approved and active for this sub-service.`);
         return;
@@ -2212,7 +2333,7 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
           })
         )
       );
-      
+
       setSuccess('Your request(s) have been submitted successfully and are pending admin approval.');
       setProposedRows([]);
       fetchVendorRequests();
@@ -2259,7 +2380,7 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
               <div>
                 <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">Configure Work Types</h4>
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                  
+
                   {/* Active Work Types (Read Only) */}
                   {allActiveWts.map((wt: string) => (
                     <div
@@ -2324,13 +2445,12 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
                           />
                         </div>
                         <div className="flex-shrink-0">
-                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
-                            req.status === 'approved' 
-                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                              : req.status === 'rejected' 
-                                ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' 
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${req.status === 'approved'
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                              : req.status === 'rejected'
+                                ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                                 : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                          }`}>
+                            }`}>
                             {req.status}
                           </span>
                         </div>
@@ -2629,7 +2749,7 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
   const [activeTab, setActiveTab] = useState<'offered' | 'proposals'>('offered');
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSubService, setSelectedSubService] = useState<{ svc: any; subName: string } | null>(null);
-  
+
   // Proposals & Requests lists
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [proposals, setProposals] = useState<any[]>([]);
@@ -2705,21 +2825,19 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
       <div className="flex border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab('offered')}
-          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
-            activeTab === 'offered'
+          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${activeTab === 'offered'
               ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           My Offered Services
         </button>
         <button
           onClick={() => setActiveTab('proposals')}
-          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
-            activeTab === 'proposals'
+          className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${activeTab === 'proposals'
               ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           Proposals & Request History
         </button>
@@ -2776,7 +2894,7 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
                             key={sub}
                             className="flex items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 transition-all hover:bg-brand-navy/5 hover:border-brand-navy/20 dark:hover:bg-brand-green/10 dark:hover:border-brand-green/20 cursor-pointer"
                           >
-                            <div 
+                            <div
                               className="flex items-center gap-2.5 flex-grow"
                               onClick={() => setSelectedSubService({ svc, subName: sub })}
                             >
@@ -2786,7 +2904,7 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
                               </span>
                             </div>
                             <div className="flex items-center gap-2.5">
-                              <span 
+                              <span
                                 onClick={() => setSelectedSubService({ svc, subName: sub })}
                                 className="text-xs text-brand-navy dark:text-brand-green font-bold flex items-center gap-1"
                               >
@@ -2824,23 +2942,26 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
               <DataTable
                 columns={[
                   { key: 'name', label: 'Proposed Item Name', sortable: true },
-                  { key: 'type', label: 'Proposal Level', sortable: true, render: (item: any) => (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-brand-navy/10 text-brand-navy dark:bg-brand-green/10 dark:text-brand-green font-bold">
-                      {item.type}
-                    </span>
-                  )},
+                  {
+                    key: 'type', label: 'Proposal Level', sortable: true, render: (item: any) => (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-brand-navy/10 text-brand-navy dark:bg-brand-green/10 dark:text-brand-green font-bold">
+                        {item.type}
+                      </span>
+                    )
+                  },
                   { key: 'parent', label: 'Context / Parent', render: (item: any) => item.parent || '—' },
-                  { key: 'status', label: 'Status', render: (item: any) => (
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
-                      item.status === 'approved' 
-                        ? 'badge-completed' 
-                        : item.status === 'rejected' 
-                          ? 'badge-cancelled' 
-                          : 'badge-pending'
-                    }`}>
-                      {item.status}
-                    </span>
-                  )},
+                  {
+                    key: 'status', label: 'Status', render: (item: any) => (
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${item.status === 'approved'
+                          ? 'badge-completed'
+                          : item.status === 'rejected'
+                            ? 'badge-cancelled'
+                            : 'badge-pending'
+                        }`}>
+                        {item.status}
+                      </span>
+                    )
+                  },
                 ]}
                 data={proposals}
                 searchPlaceholder="Search request history..."

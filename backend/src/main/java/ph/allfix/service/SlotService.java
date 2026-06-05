@@ -105,6 +105,10 @@ public class SlotService {
         return firestoreService.create("vendor_slots", data);
     }
 
+    public void deleteSlot(String slotId) throws Exception {
+        firestoreService.delete("vendor_slots", slotId);
+    }
+
     public void decrementSlot(String vendorId, String date) throws Exception {
         decrementSlot(vendorId, date, null, null, null);
     }

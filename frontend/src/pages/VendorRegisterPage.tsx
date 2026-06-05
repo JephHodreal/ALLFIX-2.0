@@ -490,18 +490,51 @@ export default function VendorRegisterPage() {
                 <div className="space-y-4">
                   <p className="text-xs text-slate-400 mb-2"><MapPin className="w-3 h-3 inline mr-1" />Region: National Capital Region (NCR) — auto-filled</p>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City / Municipality</label>
-                    <select value={form.cityCode} onChange={(e) => { const c = cities.find(x => x.code === e.target.value); update('cityCode', e.target.value); update('city', c?.name || ''); }} className="input-base" disabled={citiesLoading}>
-                      <option value="">{citiesLoading ? 'Loading...' : 'Select city...'}</option>
-                      {cities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cities / Municipalities (Service Areas)</label>
+                    <div className="max-h-48 overflow-y-auto pr-1 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
+                      {citiesLoading ? (
+                        <p className="text-sm p-2 text-slate-500">Loading cities...</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                          {cities.map(c => {
+                            const selectedCities = form.city ? form.city.split(', ') : [];
+                            const isSelected = selectedCities.includes(c.name);
+                            return (
+                              <label key={c.code} className="flex items-center gap-2 p-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    let updated = [...selectedCities];
+                                    if (e.target.checked) {
+                                      updated.push(c.name);
+                                    } else {
+                                      updated = updated.filter(city => city !== c.name);
+                                    }
+                                    update('city', updated.join(', '));
+                                    update('cityCode', updated.length > 0 ? 'selected' : '');
+                                  }}
+                                  className="w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
+                                />
+                                <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {form.city && (
+                      <p className="text-xs text-brand-green mt-1 font-medium">Selected: {form.city.split(', ').length} cities</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Barangay</label>
-                    <select value={form.barangayCode} onChange={(e) => { const b = barangays.find(x => x.code === e.target.value); update('barangayCode', e.target.value); update('barangay', b?.name || ''); }} className="input-base" disabled={!form.cityCode}>
-                      <option value="">Select barangay...</option>
-                      {barangays.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Barangay (Optional)</label>
+                    <input 
+                      value={form.barangay} 
+                      onChange={(e) => { update('barangay', e.target.value); update('barangayCode', e.target.value || 'skipped'); }} 
+                      className="input-base" 
+                      placeholder="e.g. Brgy. San Lorenzo" 
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit / House No.</label>

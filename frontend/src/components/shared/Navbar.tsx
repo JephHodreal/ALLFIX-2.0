@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Box, Typography, Button, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Box, Typography, Button, IconButton, Container } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../../context/AuthContext';
@@ -21,13 +21,13 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     if (!isAuthenticated || !role) {
       navigate('/');
     } else if (role === 'customer') {
-      navigate('/customer/bookings');
+      navigate('/customer');
     } else if (role === 'admin') {
-      navigate('/admin/bookings');
+      navigate('/admin/services');
     } else if (role === 'vendor') {
-      navigate('/vendor/bookings');
+      navigate('/vendor/services');
     } else if (role === 'personnel') {
-      navigate('/personnel/bookings');
+      navigate('/personnel');
     } else {
       navigate('/');
     }
@@ -55,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     }
   }, [location.pathname, location.hash]);
 
+  // Removed "Become Our Partner" from the navLinks array
   const navLinks = [
     { label: 'Services', href: '#services' },
     { label: 'How It Works', href: '#how-it-works' },
@@ -78,7 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
         window.scrollTo({ top: offsetTop, behavior: 'smooth' });
       }
     } else {
-      // Navigate to landing page with hash
       navigate('/' + href);
     }
   };
@@ -95,116 +95,123 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
         borderBottom: isScrolled ? '1px solid rgba(255, 255, 255, 0.2)' : 'none',
       }}
     >
-      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', px: { xs: 2, sm: 4, md: 5 }, minHeight: '64px' }}>
-        <Box 
-          onClick={() => { navigate('/'); window.scrollTo(0, 0); }}
-          sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: { xs: 0, lg: 8, xl: 16 }, flex: { xs: '1 1 auto', lg: 'none' }, cursor: 'pointer' }}
-        >
-          <Box component="img" src="/ALLFIXLOGO.png" alt="AllFix.ph Logo" sx={{ width: { xs: 35, lg: 45 }, height: { xs: 35, lg: 45 }, objectFit: 'contain' }} />
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h5" sx={{ color: isScrolled ? '#10355f' : 'white', fontWeight: 'bold', lineHeight: 1, mb: 0.3, transition: 'color 0.3s ease', fontSize: { xs: '1.1rem', lg: '1.3rem' } }}>
-              All<span style={{ color: '#017550' }}>F</span><span style={{ color: '#fcbc26' }}>i</span><span style={{ color: '#d8242b' }}>x</span>.ph
-            </Typography>
-            <Typography variant="overline" sx={{ color: isScrolled ? '#10355f' : 'white', lineHeight: 1, fontSize: '0.6rem', letterSpacing: 0.5, transition: 'color 0.3s ease' }}>
-              PROPERTY CARE EXPERTS
-            </Typography>
+      {/* Wrapped in Container to perfectly align with Hero text on the left */}
+      <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 6, lg: 8 } }}>
+        <Toolbar disableGutters sx={{ display: 'flex', justifyContent: 'space-between', minHeight: '64px' }}>
+
+          {/* Logo Section */}
+          <Box
+            onClick={() => { navigate('/'); window.scrollTo(0, 0); }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
+          >
+            <Box component="img" src="/ALLFIXLOGO.png" alt="AllFix.ph Logo" sx={{ width: { xs: 35, lg: 45 }, height: { xs: 35, lg: 45 }, objectFit: 'contain' }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h5" sx={{ color: isScrolled ? '#10355f' : 'white', fontWeight: 'bold', lineHeight: 1, mb: 0.3, transition: 'color 0.3s ease', fontSize: { xs: '1.1rem', lg: '1.3rem' } }}>
+                All<span style={{ color: '#017550' }}>F</span><span style={{ color: '#fcbc26' }}>i</span><span style={{ color: '#d8242b' }}>x</span>.ph
+              </Typography>
+              <Typography variant="overline" sx={{ color: isScrolled ? '#10355f' : 'white', lineHeight: 1, fontSize: '0.6rem', letterSpacing: 0.5, transition: 'color 0.3s ease' }}>
+                Your personal concierge
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        <Box sx={{ display: { xs: 'none', lg: 'flex' }, gap: 0.5, mr: { xl: 4, lg: 2 } }}>
-          {isLandingPage ? (
-            navLinks.map((link) => (
-              <Button 
-                key={link.label} 
-                onClick={() => handleNavClick(link.href)} 
-                sx={{ 
-                  px: 2, 
-                  py: 1, 
-                  borderRadius: 1, 
-                  fontSize: '0.95rem', 
-                  fontWeight: 600, 
-                  textTransform: 'none', 
-                  color: isScrolled ? '#10355f' : 'rgba(255,255,255,0.9)', 
-                  '&:hover': { 
-                    backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.1)', 
-                    color: isScrolled ? '#10355f' : 'white' 
-                  } 
-                }}
-              >
-                {link.label}
-              </Button>
-            ))
-          ) : (
-            <Button 
-              onClick={handleBackHome} 
-              sx={{ 
-                px: 2.5, 
-                py: 1, 
-                borderRadius: '30px', 
-                fontSize: '0.95rem', 
-                fontWeight: 700, 
-                textTransform: 'none', 
-                color: isScrolled ? '#10355f' : 'rgba(255,255,255,0.9)', 
-                border: isScrolled ? '1px solid #10355f' : '1px solid rgba(255,255,255,0.4)',
-                '&:hover': { 
-                  backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.1)', 
-                  color: isScrolled ? '#10355f' : 'white',
-                  borderColor: isScrolled ? '#10355f' : 'white',
-                } 
-              }}
-            >
-              Back to Homepage
-            </Button>
-          )}
-        </Box>
-
-        <IconButton onClick={() => setMobileOpen(!mobileOpen)} sx={{ display: { xs: 'flex', lg: 'none' }, color: isScrolled ? '#10355f' : 'white' }}>
-          {mobileOpen ? <CloseIcon /> : <MenuIcon />}
-        </IconButton>
-      </Toolbar>
-
-      {mobileOpen && (
-        <Box sx={{ bgcolor: isScrolled ? 'rgba(255, 255, 255, 0.95)' : 'rgba(16, 53, 95, 0.8)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.2)', display: { xs: 'block', lg: 'none' } }}>
-          <Box sx={{ px: 2, py: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {/* Navigation Links */}
+          <Box sx={{ display: { xs: 'none', lg: 'flex' }, gap: 0.5 }}>
             {isLandingPage ? (
               navLinks.map((link) => (
-                <Button 
-                  key={link.label} 
-                  onClick={() => handleNavClick(link.href)} 
-                  fullWidth 
-                  sx={{ 
-                    justifyContent: 'flex-start', 
-                    px: 2, 
-                    py: 1, 
-                    borderRadius: 1, 
-                    fontSize: '0.95rem', 
-                    fontWeight: 600, 
-                    textTransform: 'none', 
-                    color: isScrolled ? '#10355f' : 'white', 
-                    '&:hover': { 
-                      backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.2)' 
-                    } 
+                <Button
+                  key={link.label}
+                  onClick={() => handleNavClick(link.href)}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    color: isScrolled ? '#10355f' : 'rgba(255,255,255,0.9)',
+                    '&:hover': {
+                      backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.1)',
+                      color: isScrolled ? '#10355f' : 'white'
+                    }
                   }}
                 >
                   {link.label}
                 </Button>
               ))
             ) : (
-              <Button 
-                onClick={handleBackHome} 
-                fullWidth 
-                sx={{ 
-                  justifyContent: 'flex-start', 
-                  px: 2, 
-                  py: 1, 
-                  borderRadius: 1, 
-                  fontSize: '0.95rem', 
-                  fontWeight: 700, 
-                  textTransform: 'none', 
-                  color: isScrolled ? '#10355f' : 'white', 
-                  '&:hover': { 
-                    backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.2)' 
-                  } 
+              <Button
+                onClick={handleBackHome}
+                sx={{
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: '30px',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  color: isScrolled ? '#10355f' : 'rgba(255,255,255,0.9)',
+                  border: isScrolled ? '1px solid #10355f' : '1px solid rgba(255,255,255,0.4)',
+                  '&:hover': {
+                    backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.1)',
+                    color: isScrolled ? '#10355f' : 'white',
+                    borderColor: isScrolled ? '#10355f' : 'white',
+                  }
+                }}
+              >
+                Back to Homepage
+              </Button>
+            )}
+          </Box>
+
+          <IconButton onClick={() => setMobileOpen(!mobileOpen)} sx={{ display: { xs: 'flex', lg: 'none' }, color: isScrolled ? '#10355f' : 'white' }}>
+            {mobileOpen ? <CloseIcon /> : <MenuIcon />}
+          </IconButton>
+        </Toolbar>
+      </Container>
+
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <Box sx={{ bgcolor: isScrolled ? 'rgba(255, 255, 255, 0.95)' : 'rgba(16, 53, 95, 0.8)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.2)', display: { xs: 'block', lg: 'none' } }}>
+          <Box sx={{ px: 2, py: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {isLandingPage ? (
+              navLinks.map((link) => (
+                <Button
+                  key={link.label}
+                  onClick={() => handleNavClick(link.href)}
+                  fullWidth
+                  sx={{
+                    justifyContent: 'flex-start',
+                    px: 2,
+                    py: 1,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    color: isScrolled ? '#10355f' : 'white',
+                    '&:hover': {
+                      backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.2)'
+                    }
+                  }}
+                >
+                  {link.label}
+                </Button>
+              ))
+            ) : (
+              <Button
+                onClick={handleBackHome}
+                fullWidth
+                sx={{
+                  justifyContent: 'flex-start',
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  color: isScrolled ? '#10355f' : 'white',
+                  '&:hover': {
+                    backgroundColor: isScrolled ? 'rgba(16, 53, 95, 0.1)' : 'rgba(255,255,255,0.2)'
+                  }
                 }}
               >
                 Back to Homepage
@@ -216,3 +223,4 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     </AppBar>
   );
 };
+

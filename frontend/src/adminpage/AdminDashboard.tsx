@@ -1151,21 +1151,41 @@ function VendorsTab() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City / Municipality</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <select
-                          value={createForm.city}
-                          onChange={(e) => updateCreateForm('city', e.target.value)}
-                          className="input-base pl-10 text-sm py-3"
-                          disabled={citiesLoading}
-                        >
-                          <option value="">{citiesLoading ? 'Loading cities...' : 'Select City/Municipality'}</option>
-                          {cities.map(c => (
-                            <option key={c.code} value={c.name}>{c.name}</option>
-                          ))}
-                        </select>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cities / Municipalities</label>
+                      <div className="max-h-48 overflow-y-auto pr-1 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
+                        {citiesLoading ? (
+                          <p className="text-sm p-2 text-slate-500">Loading cities...</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                            {cities.map(c => {
+                              const selectedCities = createForm.city ? createForm.city.split(', ') : [];
+                              const isSelected = selectedCities.includes(c.name);
+                              return (
+                                <label key={c.code} className="flex items-center gap-2 p-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      let updated = [...selectedCities];
+                                      if (e.target.checked) {
+                                        updated.push(c.name);
+                                      } else {
+                                        updated = updated.filter(city => city !== c.name);
+                                      }
+                                      updateCreateForm('city', updated.join(', '));
+                                    }}
+                                    className="w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
+                                  />
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
+                      {createForm.city && (
+                        <p className="text-xs text-brand-green mt-1 font-medium">Selected: {createForm.city.split(', ').length} cities</p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
