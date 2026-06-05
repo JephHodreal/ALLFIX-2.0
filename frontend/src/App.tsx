@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CssBaseline } from '@mui/material'
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -21,6 +21,23 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 
 export function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Redirect to main dashboard/home upon hard refresh
+    const path = location.pathname;
+    if (path.startsWith('/admin/')) {
+      navigate('/admin', { replace: true });
+    } else if (path.startsWith('/customer/')) {
+      navigate('/customer', { replace: true });
+    } else if (path.startsWith('/vendor/')) {
+      navigate('/vendor', { replace: true });
+    } else if (path.startsWith('/personnel/')) {
+      navigate('/personnel', { replace: true });
+    }
+  }, []); // Only runs on initial mount
+
   return (
     <>
       <CssBaseline />

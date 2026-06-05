@@ -3,15 +3,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, CalendarDays, Star, ClipboardList,
-  CreditCard, RefreshCcw, LifeBuoy, Settings, LogOut, ChevronLeft, ChevronRight,
-  Home, Wrench, UserCog, Building2, ShoppingCart, User, MapPin, ChevronDown,
-  Eye, BarChart3, History, Truck, BookOpen, Receipt,
-  Ticket, Tag, Package, UserCheck, Wallet
+  CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
+  Home, Wrench, UserCog, Building2, User,
+  History, Receipt, Ticket, Tag, UserCheck, Wallet, MessageSquare,
+  Bell, HelpCircle, ChevronDown
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { UserRole } from '../../context/AuthContext';
 
-interface SidebarItem { label: string; path: string; icon: React.ReactNode; }
+interface SidebarItem { label: string; path: string; icon: React.ReactNode; end?: boolean; }
 interface SidebarSection { title?: string; items: SidebarItem[]; }
 interface SidebarProps { role: UserRole; collapsed: boolean; onToggle: () => void; }
 
@@ -20,70 +20,94 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
     {
       title: 'Overview',
       items: [
-        { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
         { label: 'Calendar', path: '/admin/calendar', icon: <CalendarDays className="w-5 h-5" /> },
-      ],
-    },
-    {
-      title: 'Communications',
-      items: [
-        { label: 'Reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" /> },
-      ],
-    },
-    {
-      title: 'People',
-      items: [
-        { label: 'Customers', path: '/admin/customers', icon: <Users className="w-5 h-5" /> },
-        { label: 'Service Providers', path: '/admin/vendors', icon: <Building2 className="w-5 h-5" /> },
-        { label: 'Service Personnel', path: '/admin/personnel', icon: <UserCog className="w-5 h-5" /> },
+        { label: 'Messages', path: '/admin/messages', icon: <MessageSquare className="w-5 h-5" /> },
       ],
     },
     {
       title: 'Operations',
       items: [
         { label: 'Bookings', path: '/admin/bookings', icon: <ClipboardList className="w-5 h-5" /> },
-        { label: 'Services Management', path: '/admin/services', icon: <Wrench className="w-5 h-5" /> },
+        { label: 'Service Management', path: '/admin/services', icon: <Wrench className="w-5 h-5" /> },
       ],
     },
     {
-      title: 'Finance & Promos',
+      title: 'Finance',
       items: [
         { label: 'Transactions', path: '/admin/transactions', icon: <Receipt className="w-5 h-5" /> },
         { label: 'Payouts', path: '/admin/payouts', icon: <CreditCard className="w-5 h-5" /> },
         { label: 'Refunds', path: '/admin/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
+        { label: 'Payment Methods', path: '/admin/payments', icon: <Wallet className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/admin/vouchers', icon: <Ticket className="w-5 h-5" /> },
         { label: 'Assigned Vouchers', path: '/admin/assigned-vouchers', icon: <Tag className="w-5 h-5" /> },
-        { label: 'Payment Methods', path: '/admin/payments', icon: <Wallet className="w-5 h-5" /> },
+      ],
+    },
+    {
+      title: 'People & Communication',
+      items: [
+        { label: 'Service Providers', path: '/admin/vendors', icon: <Building2 className="w-5 h-5" /> },
+        { label: 'Service Personnel', path: '/admin/personnel', icon: <UserCog className="w-5 h-5" /> },
+        { label: 'Customers', path: '/admin/customers', icon: <Users className="w-5 h-5" /> },
+        { label: 'Notifications', path: '/admin/notifications', icon: <Bell className="w-5 h-5" /> },
+        { label: 'Reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" /> },
       ],
     },
   ],
   customer: [
     {
+      title: 'Main',
       items: [
-        { label: 'Home', path: '/customer', icon: <Home className="w-5 h-5" /> },
-        { label: 'Bookings', path: '/customer/bookings', icon: <ClipboardList className="w-5 h-5" /> },
-        { label: 'Cart', path: '/customer/cart', icon: <ShoppingCart className="w-5 h-5" /> },
-        { label: 'Vouchers', path: '/customer/vouchers', icon: <Ticket className="w-5 h-5" /> },
+        { label: 'Home', path: '/customer', icon: <Home className="w-5 h-5" />, end: true },
+      ],
+    },
+    {
+      title: 'Activity',
+      items: [
+        { label: 'Bookings', path: '/customer/cart', icon: <ClipboardList className="w-5 h-5" /> },
+        { label: 'Booking History', path: '/customer/bookings', icon: <History className="w-5 h-5" /> },
         { label: 'Refunds', path: '/customer/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
+        { label: 'Vouchers', path: '/customer/vouchers', icon: <Ticket className="w-5 h-5" /> },
+        { label: 'Notifications', path: '/customer/notifications', icon: <Bell className="w-5 h-5" /> },
+      ],
+    },
+    {
+      title: 'Account & Care',
+      items: [
         { label: 'Profile', path: '/customer/profile', icon: <User className="w-5 h-5" /> },
+        { label: 'Get Help/Support', path: '/customer/support', icon: <HelpCircle className="w-5 h-5" /> },
       ],
     },
   ],
   vendor: [
     {
+      title: 'Main',
       items: [
-        { label: 'Dashboard', path: '/vendor', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Schedule & Area', path: '/vendor/schedule', icon: <CalendarDays className="w-5 h-5" /> },
+        { label: 'Dashboard', path: '/vendor', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
         { label: 'Bookings', path: '/vendor/bookings', icon: <ClipboardList className="w-5 h-5" /> },
+        { label: 'Schedule & Area', path: '/vendor/schedule', icon: <CalendarDays className="w-5 h-5" /> },
         { label: 'Services', path: '/vendor/services', icon: <Wrench className="w-5 h-5" /> },
+      ],
+    },
+    {
+      title: 'People & Communication',
+      items: [
         { label: 'Personnels', path: '/vendor/personnel', icon: <UserCheck className="w-5 h-5" /> },
+        { label: 'Messages', path: '/vendor/messages', icon: <MessageSquare className="w-5 h-5" /> },
+        { label: 'Notifications', path: '/vendor/notifications', icon: <Bell className="w-5 h-5" /> },
       ],
     },
   ],
   personnel: [
     {
+      title: 'Personnel Menu',
       items: [
-        { label: 'Dashboard', path: '/personnel', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Dashboard', path: '/personnel', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
         { label: 'My Bookings', path: '/personnel/bookings', icon: <ClipboardList className="w-5 h-5" /> },
         { label: 'Profile', path: '/personnel/profile', icon: <User className="w-5 h-5" /> },
       ],
@@ -91,67 +115,196 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
   ],
 };
 
-function SidebarSectionGroup({ section, role, collapsed }: { section: SidebarSection; role: UserRole; collapsed: boolean }) {
+const mobileTabs = [
+  { label: 'Home', path: '/customer', icon: <Home className="w-5 h-5" />, end: true },
+  { label: 'Bookings', path: '/customer/cart', icon: <ClipboardList className="w-5 h-5" />, end: false },
+  { label: 'Booking History', path: '/customer/bookings', icon: <History className="w-5 h-5" />, end: false },
+  { label: 'Messages', path: '/customer/messages', icon: <MessageSquare className="w-5 h-5" />, end: false },
+];
+
+function SidebarTooltip({
+  text,
+  children,
+  fullWidth = true,
+}: {
+  text: string;
+  children: React.ReactNode;
+  fullWidth?: boolean;
+}) {
+  return (
+    <div className={`relative group/tooltip flex items-center ${fullWidth ? 'w-full' : ''}`}>
+      {children}
+      <div
+        className="
+          absolute pointer-events-none opacity-0 group-hover/tooltip:opacity-100
+          transition-all duration-150 ease-out scale-95 group-hover/tooltip:scale-100
+          bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999]
+          left-11 top-1/2 -translate-y-1/2
+        "
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+export function LogoutButton({ showText = true }: { showText?: boolean }) {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const buttonContent = (
+    <button
+      onClick={handleLogout}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-slate-600 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-400 transition-all duration-200 active:scale-[0.98] focus:outline-none"
+    >
+      <LogOut className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0 transition-colors" />
+      {showText && (
+        <span className="text-xs font-bold tracking-tight whitespace-nowrap">Logout</span>
+      )}
+    </button>
+  );
+
+  return (
+    <div className="relative w-full overflow-visible">
+      {!showText ? (
+        <SidebarTooltip text="Logout">{buttonContent}</SidebarTooltip>
+      ) : (
+        buttonContent
+      )}
+    </div>
+  );
+}
+
+// ─── Admin-only: collapsible section (works in both collapsed & expanded sidebar) ───
+function AdminSidebarSectionGroup({
+  section,
+  collapsed,
+}: {
+  section: SidebarSection;
+  collapsed: boolean;
+}) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="mb-1">
-      {section.title && !collapsed && (
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex items-center justify-between w-full px-3 py-1.5 mb-0.5 group"
-        >
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-            {section.title}
-          </span>
-          <motion.span
-            animate={{ rotate: open ? 0 : -90 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </motion.span>
-        </button>
-      )}
-      {section.title && collapsed && (
-        <div className="mx-auto my-2 w-6 border-t border-slate-200 dark:border-slate-700" />
-      )}
-      <AnimatePresence initial={false}>
-        {(open || collapsed) && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden space-y-0.5"
-          >
-            {section.items.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === `/${role}`}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? 'bg-brand-navy text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`
-                }
+    <div className="mb-2 overflow-visible">
+
+      {/* ── Section header ── */}
+      {section.title && (
+        collapsed ? (
+          // Collapsed sidebar → clickable divider line as toggle
+          <div className="flex justify-center my-3 px-3 overflow-visible">
+            <SidebarTooltip
+              text={`${section.title} — ${open ? 'Click to collapse' : 'Click to expand'}`}
+              fullWidth={false}
+            >
+              <button
+                onClick={() => setOpen((v) => !v)}
+                className="flex items-center justify-center w-8 focus:outline-none"
               >
-                <span className="flex-shrink-0">{item.icon}</span>
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="text-sm font-medium whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </NavLink>
-            ))}
+                <div
+                  className={`w-8 border-t-2 rounded-full transition-colors duration-150 ${open
+                      ? 'border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-600'
+                      : 'border-indigo-300 dark:border-indigo-700 hover:border-indigo-400 dark:hover:border-indigo-500'
+                    }`}
+                />
+              </button>
+            </SidebarTooltip>
+          </div>
+        ) : (
+          // Expanded sidebar → section title button with chevron
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-1.5 mb-1 rounded-lg group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors duration-150 focus:outline-none"
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors whitespace-nowrap">
+              {section.title}
+            </span>
+            <motion.div
+              animate={{ rotate: open ? 0 : -90 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="flex-shrink-0"
+            >
+              <ChevronDown className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors" />
+            </motion.div>
+          </button>
+        )
+      )}
+
+      {/* ── Items — single shared path, gated by `open` ── */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="section-items"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1 pb-2">
+              {section.items.map((item) => {
+                const linkContent = (
+                  <NavLink
+                    to={item.path}
+                    end={item.end ?? false}
+                    className={({ isActive }) => `
+                      group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
+                      ${isActive
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm shadow-slate-900/10'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
+                      }
+                    `}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeIndicator"
+                            className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
+                          />
+                        )}
+                        <span
+                          className={`flex-shrink-0 transition-colors ${isActive
+                              ? 'text-white dark:text-slate-900'
+                              : 'text-slate-400 dark:text-slate-500 group-hover/item:text-slate-600 dark:group-hover/item:text-slate-300'
+                            }`}
+                        >
+                          {item.icon}
+                        </span>
+                        <AnimatePresence mode="wait">
+                          {!collapsed && (
+                            <motion.span
+                              initial={{ opacity: 0, x: -4 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -4 }}
+                              transition={{ duration: 0.15 }}
+                              className="text-xs font-bold tracking-tight whitespace-nowrap"
+                            >
+                              {item.label}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                  </NavLink>
+                );
+
+                return collapsed ? (
+                  <SidebarTooltip key={item.path} text={item.label}>
+                    <div className="w-full">{linkContent}</div>
+                  </SidebarTooltip>
+                ) : (
+                  <React.Fragment key={item.path}>{linkContent}</React.Fragment>
+                );
+              })}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -159,60 +312,230 @@ function SidebarSectionGroup({ section, role, collapsed }: { section: SidebarSec
   );
 }
 
+// ─── Non-admin: standard section (unchanged) ───
+function SidebarSectionGroup({
+  section,
+  role,
+  collapsed,
+}: {
+  section: SidebarSection;
+  role: UserRole;
+  collapsed: boolean;
+}) {
+  return (
+    <div className="mb-4 overflow-visible">
+      {section.title && (
+        collapsed ? (
+          <div className="flex justify-center my-3 px-3 overflow-visible">
+            <SidebarTooltip text={`${section.title} Section`} fullWidth={false}>
+              <div className="w-8 border-t-2 border-slate-200 dark:border-slate-800/80 rounded-full cursor-help transition-colors hover:border-slate-400 dark:hover:border-slate-600" />
+            </SidebarTooltip>
+          </div>
+        ) : (
+          <div className="px-3 py-1 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+              {section.title}
+            </span>
+          </div>
+        )
+      )}
+
+      <div className="space-y-1 overflow-visible">
+        {section.items.map((item) => {
+          const linkContent = (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end ?? false}
+              className={({ isActive }) => `
+                group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
+                ${isActive
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm shadow-slate-900/10'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
+                }
+              `}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeIndicator"
+                      className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
+                    />
+                  )}
+                  <span
+                    className={`flex-shrink-0 transition-colors ${isActive
+                        ? 'text-white dark:text-slate-900'
+                        : 'text-slate-400 dark:text-slate-500 group-hover/item:text-slate-600 dark:group-hover/item:text-slate-300'
+                      }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <AnimatePresence mode="wait">
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -4 }}
+                        transition={{ duration: 0.15 }}
+                        className="text-xs font-bold tracking-tight whitespace-nowrap"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
+            </NavLink>
+          );
+
+          return collapsed ? (
+            <SidebarTooltip key={item.path} text={item.label}>
+              <div className="w-full">{linkContent}</div>
+            </SidebarTooltip>
+          ) : (
+            linkContent
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Sidebar ───
 export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
-  const [isHovered, setIsHovered] = useState(false);
   const sections = menuSections[role] || [];
-  const handleLogout = async () => { await logoutUser(); navigate('/login'); };
 
-  const effectiveCollapsed = !isHovered;
+  const logoContent = (
+    <div
+      onClick={collapsed ? onToggle : undefined}
+      className={`flex items-center gap-2.5 select-none relative h-[45px] transition-all duration-200 overflow-visible ${collapsed ? 'w-[45px] justify-center cursor-pointer' : 'w-full justify-start cursor-default'
+        }`}
+    >
+      <img
+        src="/ALLFIXLOGO.png"
+        alt="AllFix.ph Logo"
+        className={`w-[45px] h-[45px] object-contain rounded-full flex-shrink-0 transition-all duration-200 ${collapsed ? 'group-hover/logo-btn:opacity-0 group-hover/logo-btn:scale-85' : 'opacity-100'
+          }`}
+      />
+      {collapsed && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 opacity-0 group-hover/logo-btn:opacity-100 bg-slate-100 dark:bg-slate-800 transition-all duration-200 scale-90 group-hover/logo-btn:scale-100 z-10">
+          <PanelLeftOpen className="w-[22px] h-[22px]" />
+        </div>
+      )}
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-col overflow-hidden text-left"
+          >
+            <span className="text-[1.15rem] font-bold tracking-normal leading-none mb-0.5 text-slate-900 dark:text-white transition-colors duration-300">
+              All<span className="text-[#017550]">F</span>
+              <span className="text-[#fcbc26]">i</span>
+              <span className="text-[#d8242b]">x</span>.ph
+            </span>
+            <span className="text-[0.58rem] font-bold tracking-wider leading-none text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">
+              YOUR PERSONAL CONCIERGE
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: effectiveCollapsed ? 72 : 260 }}
-      transition={{ duration: 0.3 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="fixed left-0 top-0 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-40 flex flex-col"
-    >
-      <div className="h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-8 h-8 object-contain" />
-          </div>
-          <AnimatePresence>
-            {!effectiveCollapsed && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="text-lg font-bold text-brand-navy dark:text-white whitespace-nowrap overflow-hidden flex items-center"
-              >
-                <span>All</span>
-                <span className="text-brand-green">F</span>
-                <span className="text-brand-yellow">i</span>
-                <span className="text-brand-red">x</span>
-                <span>.ph</span>
-              </motion.span>
+    <>
+      {/* ── Desktop Sidebar ── */}
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? 72 : 280 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className={`fixed left-0 top-0 h-screen bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
+          }`}
+      >
+        {/* Header */}
+        <div className="h-20 flex items-center justify-between px-3.5 border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 overflow-visible relative">
+          <div className="group/logo-btn flex items-center overflow-visible w-full">
+            {collapsed ? (
+              <SidebarTooltip text="Open Sidebar" fullWidth={false}>
+                {logoContent}
+              </SidebarTooltip>
+            ) : (
+              logoContent
             )}
-          </AnimatePresence>
+          </div>
+          {!collapsed && (
+            <div className="flex-shrink-0 ml-1 overflow-visible absolute right-3.5 top-1/2 -translate-y-1/2 z-20">
+              <SidebarTooltip text="Close Sidebar" fullWidth={false}>
+                <button
+                  onClick={onToggle}
+                  className="w-9 h-9 rounded-full text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 focus:outline-none"
+                >
+                  <PanelLeftClose className="w-[22px] h-[22px]" />
+                </button>
+              </SidebarTooltip>
+            </div>
+          )}
         </div>
-      </div>
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
-        {sections.map((section, i) => (
-          <SidebarSectionGroup key={i} section={section} role={role} collapsed={effectiveCollapsed} />
-        ))}
-      </nav>
-      <div className="border-t border-slate-200 dark:border-slate-700 p-2 space-y-1">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-brand-red transition-all"
+
+        {/* Nav */}
+        <nav
+          className={`flex-1 py-4 px-3 custom-scrollbar overflow-visible ${collapsed ? 'overflow-y-visible' : 'overflow-y-auto overflow-x-hidden'
+            }`}
         >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!effectiveCollapsed && <span className="text-sm font-medium">Logout</span>}
-        </button>
+          {sections.map((section, i) =>
+            role === 'admin' ? (
+              <AdminSidebarSectionGroup key={i} section={section} collapsed={collapsed} />
+            ) : (
+              <SidebarSectionGroup key={i} section={section} role={role} collapsed={collapsed} />
+            )
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-slate-200/80 dark:border-slate-800/80 p-3 flex-shrink-0 bg-white dark:bg-slate-900 overflow-visible">
+          <LogoutButton showText={!collapsed} />
+        </div>
+      </motion.aside>
+
+      {/* ── Mobile Bottom Tab Bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
+        {mobileTabs.map((tab) => (
+          <NavLink
+            key={tab.path}
+            to={tab.path}
+            end={tab.end}
+            className={({ isActive }) => `
+              flex flex-col items-center justify-center flex-1 h-full py-1 gap-1 relative group select-none transition-all duration-150 active:scale-95
+              ${isActive ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400 dark:text-slate-500'}
+            `}
+          >
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'
+                    }`}
+                >
+                  {tab.icon}
+                </span>
+                <span className="text-[10px] tracking-tight font-bold transition-colors">
+                  {tab.label}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeMobileTabIndicator"
+                    className="absolute top-0 left-4 right-4 h-[3px] rounded-b-md bg-indigo-500 dark:bg-indigo-400"
+                  />
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
       </div>
-    </motion.aside>
+    </>
   );
 }
