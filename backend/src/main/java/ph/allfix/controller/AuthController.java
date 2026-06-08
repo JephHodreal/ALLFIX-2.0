@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import ph.allfix.service.FirebaseAuthService;
 import ph.allfix.service.FirestoreService;
 import ph.allfix.service.EmailVerificationService;
+import ph.allfix.service.SequenceGeneratorService;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
@@ -18,11 +19,13 @@ public class AuthController {
     private final FirebaseAuthService authService;
     private final FirestoreService firestoreService;
     private final EmailVerificationService emailVerificationService;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
-    public AuthController(FirebaseAuthService authService, FirestoreService firestoreService, EmailVerificationService emailVerificationService) {
+    public AuthController(FirebaseAuthService authService, FirestoreService firestoreService, EmailVerificationService emailVerificationService, SequenceGeneratorService sequenceGeneratorService) {
         this.authService = authService;
         this.firestoreService = firestoreService;
         this.emailVerificationService = emailVerificationService;
+        this.sequenceGeneratorService = sequenceGeneratorService;
     }
 
     @PostMapping("/register")
@@ -70,10 +73,13 @@ public class AuthController {
                 collection = "customers";
             }
 
-            firestoreService.createWithId(collection, uid, profile);
+            String customId = sequenceGeneratorService.generateNextId(collection);
+            profile.put("auth_uid", uid);
+            firestoreService.createWithId(collection, customId, profile);
             authService.setRole(uid, role);
+            authService.setFirestoreId(uid, customId);
 
-            return ResponseEntity.ok(Map.of("message", "Profile saved", "role", role));
+            return ResponseEntity.ok(Map.of("message", "Profile saved", "role", role, "custom_id", customId));
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", e.getReason()));
         } catch (Exception e) {
@@ -127,12 +133,22 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Missing uid or inviteCode"));
             }
 
+            // Enforce: only verified emails can be persisted to Firestore.
+            var user = authService.getUser(uid);
+            if (!user.isEmailVerified()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "Email is not verified yet. Please verify your email first."));
+            }
+
             if ("ALLFIX_ADMIN_TEST".equals(inviteCode)) {
+                String customId = sequenceGeneratorService.generateNextId("admins");
                 authService.setRole(uid, "admin");
+                authService.setFirestoreId(uid, customId);
 
                 Map<String, Object> profile = new HashMap<>(body);
                 profile.remove("inviteCode");
-                firestoreService.createWithId("admins", uid, profile);
+                profile.put("auth_uid", uid);
+                firestoreService.createWithId("admins", customId, profile);
 
                 return ResponseEntity.ok(Map.of("message", "Admin profile saved"));
             }
@@ -148,11 +164,14 @@ public class AuthController {
             adminConfig.put("used", true);
             firestoreService.createWithId("adminConfig", "inviteCode", adminConfig); // overwrite to mark used
 
+            String customId = sequenceGeneratorService.generateNextId("admins");
             authService.setRole(uid, "admin");
+            authService.setFirestoreId(uid, customId);
 
             Map<String, Object> profile = new HashMap<>(body);
             profile.remove("inviteCode");
-            firestoreService.createWithId("admins", uid, profile);
+            profile.put("auth_uid", uid);
+            firestoreService.createWithId("admins", customId, profile);
 
             return ResponseEntity.ok(Map.of("message", "Admin profile saved"));
         } catch (Exception e) {
@@ -168,6 +187,8 @@ public class AuthController {
             String uid = decoded.getUid();
             Map<String, Object> claims = decoded.getClaims();
             String role = (String) claims.getOrDefault("role", "customer");
+            String firestoreId = (String) claims.get("firestore_id");
+            String targetId = (firestoreId != null) ? firestoreId : uid;
 
             String collection = switch (role) {
                 case "vendor" -> "vendors";
@@ -176,21 +197,21 @@ public class AuthController {
                 default -> "customers";
             };
 
-            Map<String, Object> profile = firestoreService.getById(collection, uid);
+            Map<String, Object> profile = firestoreService.getById(collection, targetId);
             if (profile == null && !"vendors".equals(collection)) {
-                profile = firestoreService.getById("vendors", uid);
+                profile = firestoreService.getById("vendors", targetId);
                 if (profile != null) role = "vendor";
             }
             if (profile == null && !"personnel".equals(collection)) {
-                profile = firestoreService.getById("personnel", uid);
+                profile = firestoreService.getById("personnel", targetId);
                 if (profile != null) role = "personnel";
             }
             if (profile == null && !"admins".equals(collection)) {
-                profile = firestoreService.getById("admins", uid);
+                profile = firestoreService.getById("admins", targetId);
                 if (profile != null) role = "admin";
             }
             if (profile == null && !"customers".equals(collection)) {
-                profile = firestoreService.getById("customers", uid);
+                profile = firestoreService.getById("customers", targetId);
                 if (profile != null) role = "customer";
             }
 
@@ -212,6 +233,8 @@ public class AuthController {
             String uid = decoded.getUid();
             Map<String, Object> claims = decoded.getClaims();
             String role = (String) claims.getOrDefault("role", "customer");
+            String firestoreId = (String) claims.get("firestore_id");
+            String targetId = (firestoreId != null) ? firestoreId : uid;
 
             String collection = switch (role) {
                 case "vendor" -> "vendors";
@@ -221,14 +244,14 @@ public class AuthController {
             };
 
             // Double check in case role in token is outdated
-            if (firestoreService.getById(collection, uid) == null) {
-                if (firestoreService.getById("vendors", uid) != null) collection = "vendors";
-                else if (firestoreService.getById("personnel", uid) != null) collection = "personnel";
-                else if (firestoreService.getById("admins", uid) != null) collection = "admins";
+            if (firestoreService.getById(collection, targetId) == null) {
+                if (firestoreService.getById("vendors", targetId) != null) collection = "vendors";
+                else if (firestoreService.getById("personnel", targetId) != null) collection = "personnel";
+                else if (firestoreService.getById("admins", targetId) != null) collection = "admins";
                 else collection = "customers";
             }
 
-            firestoreService.updateField(collection, uid, "last_login", com.google.cloud.firestore.FieldValue.serverTimestamp());
+            firestoreService.updateField(collection, targetId, "last_login", com.google.cloud.firestore.FieldValue.serverTimestamp());
             return ResponseEntity.ok(Map.of("message", "Last login updated"));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("message", "Invalid token"));
@@ -243,6 +266,8 @@ public class AuthController {
             String uid = decoded.getUid();
             Map<String, Object> claims = decoded.getClaims();
             String role = (String) claims.getOrDefault("role", "customer");
+            String firestoreId = (String) claims.get("firestore_id");
+            String targetId = (firestoreId != null) ? firestoreId : uid;
 
             String collection = switch (role) {
                 case "vendor" -> "vendors";
@@ -252,15 +277,15 @@ public class AuthController {
             };
 
             // Double check in case role in token is outdated
-            if (firestoreService.getById(collection, uid) == null) {
-                if (firestoreService.getById("vendors", uid) != null) collection = "vendors";
-                else if (firestoreService.getById("personnel", uid) != null) collection = "personnel";
-                else if (firestoreService.getById("admins", uid) != null) collection = "admins";
+            if (firestoreService.getById(collection, targetId) == null) {
+                if (firestoreService.getById("vendors", targetId) != null) collection = "vendors";
+                else if (firestoreService.getById("personnel", targetId) != null) collection = "personnel";
+                else if (firestoreService.getById("admins", targetId) != null) collection = "admins";
                 else collection = "customers";
             }
 
-            firestoreService.updateField(collection, uid, "requires_password_reset", false);
-            firestoreService.updateField(collection, uid, "last_login", com.google.cloud.firestore.FieldValue.serverTimestamp());
+            firestoreService.updateField(collection, targetId, "requires_password_reset", false);
+            firestoreService.updateField(collection, targetId, "last_login", com.google.cloud.firestore.FieldValue.serverTimestamp());
             return ResponseEntity.ok(Map.of("message", "Password reset status updated successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("message", "Invalid token"));
