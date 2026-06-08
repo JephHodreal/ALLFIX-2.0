@@ -1,32 +1,373 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Box, Typography, Button, Container, Grid, AppBar, Toolbar, IconButton, TextField, MenuItem, CssBaseline } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Container,
+  Grid,
+  TextField,
+  CssBaseline,
+  IconButton
+} from '@mui/material';
+
+// --- Shared Components & Context ---
 import { Navbar } from '../components/shared/Navbar';
 import { Footer } from '../components/shared/Footer';
 import { useAuth } from '../context/AuthContext';
+import { servicesData } from '../constants/servicesData';
+import api from '../services/apiService';
 
-// --- Dynamic Testimonial Data fetched from Database ---
-
-// --- CORE ICONS ---
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
+// --- Icons ---
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StarIcon from '@mui/icons-material/Star';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import DescriptionIcon from '@mui/icons-material/Description';
 import ShieldIcon from '@mui/icons-material/Shield';
-import PersonIcon from '@mui/icons-material/Person';
 
-import { servicesData } from '../constants/servicesData';
-import api from '../services/apiService';
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
 
-type NavigationPillsProps = {
-  services: Array<any>;
+interface Testimonial {
+  initials: string;
+  name: string;
+  role: string;
+  highlight: string;
+  highlightColor: string;
+  highlightText: string;
+  avatarBg: string;
+  avatarText: string;
+  text: string;
+  mini: string;
+}
+
+interface HowItWorksStep {
+  title: string;
+  desc: string;
+  img: string;
+}
+
+interface MapCity {
+  id: string;
+  points: string;
+  lx: number;
+  ly: number;
+}
+
+interface CityDetail {
+  image: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  services: string[];
+}
+
+export interface ServiceItem {
+  id: string;
+  brand: string;
+  tagline: string;
+  description: string;
+  image: string;
+  accent: string;
+  accentDark: string;
+  headerBg: string;
+  headerBgLight: string;
+  pillText: string;
+  services: string[];
+  subServices?: any[]; // Accepts both strings and backend objects to prevent overlap errors
+  icon: React.ElementType;
+}
+
+// ==========================================
+// STATIC DATA
+// ==========================================
+
+const testimonials: Testimonial[] = [
+  {
+    initials: 'MS',
+    name: 'Maria Santos',
+    role: 'Homeowner, Makati City',
+    highlight: 'CoolFix – AC Cleaning',
+    highlightColor: '#eaf2fc',
+    highlightText: '#23406e',
+    avatarBg: '#eaf2fc',
+    avatarText: '#23406e',
+    text: '"Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!"',
+    mini: 'Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE...'
+  },
+  {
+    initials: 'RC',
+    name: 'Engr. Roberto Cruz',
+    role: 'Property Manager, Pasig',
+    highlight: 'SaniFix – Deep Cleaning',
+    highlightColor: '#eaf2fc',
+    highlightText: '#23406e',
+    avatarBg: '#eaf2fc',
+    avatarText: '#23406e',
+    text: '"We\'ve been managing commercial properties for 10 years, and AllFix SaniFix is the most reliable, professional team we\'ve worked with. Highly recommended for offices!"',
+    mini: "We've been managing commercial properties for 10 years, and AllFix SaniFix is the most..."
+  },
+  {
+    initials: 'AR',
+    name: 'Anna Reyes',
+    role: 'IT Manager, Mandaluyong',
+    highlight: 'TechFix – IT Support',
+    highlightColor: '#e1d5fa',
+    highlightText: '#6c3fcf',
+    avatarBg: '#e1d5fa',
+    avatarText: '#6c3fcf',
+    text: '"TechFix set up our entire CCTV and network infrastructure in one day. The technician was knowledgeable and courteous. Will book again!"',
+    mini: 'TechFix set up our entire CCTV and network infrastructure in one day. The technicia...'
+  },
+  {
+    initials: 'MG',
+    name: 'Mark Gonzales',
+    role: 'Homeowner, Quezon City',
+    highlight: 'HomeFix – Renovation',
+    highlightColor: '#ffe082',
+    highlightText: '#23406e',
+    avatarBg: '#ffe082',
+    avatarText: '#23406e',
+    text: '"HomeFix transformed our bathroom in just 4 days. The tiling was perfect, no leaks, and the team cleaned up after. Excellent work!"',
+    mini: 'HomeFix transformed our bathroom in just 4 days. The tiling was perfect, no leaks, and...'
+  },
+];
+
+const howItWorksSteps: HowItWorksStep[] = [
+  {
+    title: "Choose a Service",
+    desc: "Browse our list of specialized brands and select the service that fits your exact property needs.",
+    img: ""
+  },
+  {
+    title: "Book a Service",
+    desc: "Set your preferred date and time, provide your location, and secure your booking with upfront pricing.",
+    img: ""
+  },
+  {
+    title: "Sit Back, It's Done",
+    desc: "Our vetted professionals handle the rest. Track their progress and enjoy a hassle-free experience.",
+    img: ""
+  }
+];
+
+const serviceSubServices: Record<string, string[]> = {
+  'CoolFix': ['AC Cleaning', 'Installation', 'Gas Recharge', 'Emergency Repair'],
+  'SaniFix': ['Deep Cleaning', 'Sanitization', 'Disinfection', 'Odor Removal'],
+  'HomeFix': ['Renovation', 'Repairs', 'Handyman', 'Maintenance'],
+  'MoveFix': ['Packing', 'Loading', 'Transport', 'Unpacking'],
+  'GreenFix': ['Waste Audit', 'Recycling', 'Composting', 'Eco Consultation'],
+  'HealthFix': ['Air Quality', 'Water Testing', 'Pest Control', 'Wellness Checks'],
+  'SpaceFix': ['Interior Design', 'Space Planning', 'Organization', 'Furniture Setup'],
+  'PoolFix': ['Cleaning', 'Maintenance', 'Filter Replacement', 'Water Testing'],
+  'TechFix': ['PC Setup', 'WiFi Help', 'Smart Home', 'Device Repair'],
+};
+
+const allServices: string[] = ['CoolFix', 'SaniFix', 'HomeFix', 'MoveFix', 'GreenFix', 'HealthFix', 'SpaceFix', 'PoolFix', 'TechFix'];
+
+const mapCities: MapCity[] = [
+  { id: 'Valenzuela', points: '80,60 150,50 180,100 130,130 90,110', lx: 125, ly: 85 },
+  { id: 'North Caloocan', points: '150,50 240,30 280,80 250,130 180,100', lx: 220, ly: 75 },
+  { id: 'Navotas', points: '60,90 90,110 80,150 100,190 70,220 40,160', lx: 55, ly: 155 },
+  { id: 'Malabon', points: '90,110 130,130 120,160 100,190 80,150', lx: 105, ly: 145 },
+  { id: 'South Caloocan', points: '130,130 180,100 200,140 170,180 120,160', lx: 160, ly: 145 },
+  { id: 'Quezon City', points: '180,100 250,130 280,80 360,110 370,180 330,280 250,310 240,270 240,240 210,240 180,180 200,140', lx: 260, ly: 190 },
+  { id: 'Marikina', points: '360,110 420,120 390,200 350,190 370,180', lx: 380, ly: 155 },
+  { id: 'Manila', points: '100,190 120,160 170,180 180,180 210,240 190,270 190,310 150,330 130,320 70,220', lx: 135, ly: 245 },
+  { id: 'San Juan', points: '210,240 240,240 240,270 190,270', lx: 215, ly: 255 },
+  { id: 'Mandaluyong', points: '190,270 240,270 250,310 190,310', lx: 220, ly: 290 },
+  { id: 'Pasig', points: '240,240 330,280 350,260 340,340 290,330 270,330 250,310 240,270', lx: 300, ly: 300 },
+  { id: 'Makati', points: '150,330 190,310 250,310 270,330 260,350 260,360 210,390 140,370', lx: 200, ly: 340 },
+  { id: 'Pasay', points: '60,300 130,320 150,330 140,370 120,410 50,390', lx: 95, ly: 355 },
+  { id: 'Taguig', points: '270,330 340,340 320,430 240,460 210,390 260,360', lx: 275, ly: 390 },
+  { id: 'Parañaque', points: '120,410 140,370 210,390 240,460 220,510 110,480', lx: 175, ly: 440 },
+  { id: 'Las Piñas', points: '110,480 220,510 180,570 80,540', lx: 145, ly: 520 },
+  { id: 'Muntinlupa', points: '180,570 220,510 240,460 260,480 250,560 210,680 150,650', lx: 205, ly: 590 },
+];
+
+const cityDetails: Record<string, CityDetail> = {
+  "Default": {
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+    title: "Metro Manila Coverage",
+    subtitle: "Planning & Operations",
+    description: "Hover over a pin on the map to see specific services, coverage details, and availability in your city.",
+    services: []
+  },
+  "Valenzuela": {
+    image: "https://s3.cloudstoragesg.com/dotph/asset/97f98052-ee52-404c-8c7a-3f4be1b4a529.jpg",
+    title: "Valenzuela Service Area",
+    subtitle: "Growing Coverage",
+    description: "Professional home and commercial services available throughout Valenzuela with quick response times.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "TechFix"]
+  },
+  "North Caloocan": {
+    image: "https://www.dmcihomes.com/uploads/news/why-invest-in-dmci-homes-the-calinea-place-1693457748303.jpg",
+    title: "North Caloocan Service Area",
+    subtitle: "Full Coverage",
+    description: "Comprehensive AllFix services for residential and commercial properties in Caloocan.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "HealthFix", "TechFix", "SpaceFix"]
+  },
+  "South Caloocan": {
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Andres_Bonifacio_Monument%2C_Caloocan%2C_Aug_2025.jpg/1280px-Andres_Bonifacio_Monument%2C_Caloocan%2C_Aug_2025.jpg",
+    title: "South Caloocan Service Area",
+    subtitle: "Full Coverage",
+    description: "Comprehensive AllFix services for residential and commercial properties in Caloocan.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "HealthFix", "TechFix"]
+  },
+  "Navotas": {
+    image: "https://upload.wikimedia.org/wikipedia/en/thumb/2/2d/JfNavotasCityHallAlmacenRoadsMetroManilafvf_15.JPG/250px-JfNavotasCityHallAlmacenRoadsMetroManilafvf_15.JPG",
+    title: "Navotas Service Area",
+    subtitle: "Coastal Coverage",
+    description: "Specialized services tailored for Navotas residential communities and fish port areas.",
+    services: ["SaniFix", "CoolFix", "HealthFix"]
+  },
+  "Malabon": {
+    image: "https://pia.gov.ph/wp-content/uploads/2025/04/malabon-city-hall-jeannie-sandoval.jpg",
+    title: "Malabon Service Area",
+    subtitle: "Standard Coverage",
+    description: "Reliable home maintenance and repair services throughout Malabon.",
+    services: ["CoolFix", "HomeFix", "SaniFix", "MoveFix"]
+  },
+  "Quezon City": {
+    image: "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Heart_of_Quezon_City.jpg",
+    title: "Quezon City Service Area",
+    subtitle: "Full Coverage",
+    description: "Fast and reliable home repairs, cleaning, and maintenance available across all barangays in Quezon City.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "MoveFix", "GreenFix", "HealthFix", "SpaceFix", "PoolFix", "TechFix"]
+  },
+  "Marikina": {
+    image: "https://upload.wikimedia.org/wikipedia/commons/3/34/Marikina_City_Clock_Tower_Arch%2C_May_2026_%281%29.jpg",
+    title: "Marikina Service Area",
+    subtitle: "Premium Coverage",
+    description: "Expert services for Marikina's upscale residential and commercial establishments.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "SpaceFix", "TechFix", "HealthFix"]
+  },
+  "Manila": {
+    image: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/15/7e/97/7e/manila-city-hall-taken.jpg?w=1400&h=-1&s=1",
+    title: "City of Manila Coverage",
+    subtitle: "Historic & Commercial",
+    description: "Comprehensive property care available for both heritage homes and modern high-rises in Manila.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "MoveFix", "TechFix"]
+  },
+  "San Juan": {
+    image: "https://www.colliers.com/-/media/images/colliers/asia/philippines/colliers-blog/viewpoint_san-juan-real-estate_hero-image.ashx?bid=5d5b8e667264442389b47df6d025a604",
+    title: "San Juan Service Area",
+    subtitle: "Standard Coverage",
+    description: "Dedicated home services for San Juan's growing residential communities.",
+    services: ["CoolFix", "HomeFix", "SaniFix", "TechFix"]
+  },
+  "Mandaluyong": {
+    image: "https://res.klook.com/image/upload/fl_lossy.progressive,q_60/Mobile/City/zfh0bwhox5wp3ldchujt.jpg",
+    title: "Mandaluyong Service Area",
+    subtitle: "Full Coverage",
+    description: "Premium maintenance and cleaning services for Mandaluyong's business and residential districts.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "HealthFix", "SpaceFix", "TechFix"]
+  },
+  "Pasig": {
+    image: "https://res.klook.com/image/upload/fl_lossy.progressive,q_60/Mobile/City/vgm9gpuvopozgoporoo7.jpg",
+    title: "Pasig City Services",
+    subtitle: "Full Coverage",
+    description: "Rapid response times for Ortigas Center and neighboring residential barangays.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "MoveFix", "TechFix", "HealthFix", "SpaceFix"]
+  },
+  "Makati": {
+    image: "https://www.vistaresidences.com.ph/assets/img/why-makati-city-is-best-place-to-live-in-for-working-people.png",
+    title: "Makati City Service Area",
+    subtitle: "Premium Coverage",
+    description: "Expert personnel ready to serve residential and commercial properties in the central business district.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "SpaceFix", "HealthFix", "TechFix", "PoolFix"]
+  },
+  "Pasay": {
+    image: "https://federalland.ph/app/uploads/2025/07/snapshot-of-the-bay-area-pasay-city-philippines.jpg.webp",
+    title: "Pasay Service Area",
+    subtitle: "Commercial Coverage",
+    description: "Specialized services for Pasay's commercial and entertainment establishments.",
+    services: ["CoolFix", "SaniFix", "TechFix", "HomeFix"]
+  },
+  "Taguig": {
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/View_from_Grand_Hyatt_Manila_overlooking_Bonifacio_Global_City_and_Makati_skylines_at_sunset.jpg/330px-View_from_Grand_Hyatt_Manila_overlooking_Bonifacio_Global_City_and_Makati_skylines_at_sunset.jpg",
+    title: "Taguig & BGC Area",
+    subtitle: "Corporate & Residential",
+    description: "Top-tier maintenance and deep cleaning tailored for BGC condominiums and commercial spaces.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "SpaceFix", "TechFix", "HealthFix", "PoolFix"]
+  },
+  "Parañaque": {
+    image: "https://res.klook.com/image/upload/fl_lossy.progressive,q_60/Mobile/City/ompe3zwy9qhcj1lrehxa.jpg",
+    title: "Parañaque Service Area",
+    subtitle: "Full Coverage",
+    description: "Complete home and property maintenance services throughout Parañaque.",
+    services: ["CoolFix", "SaniFix", "HomeFix", "MoveFix", "GreenFix", "TechFix"]
+  },
+  "Las Piñas": {
+    image: "https://www.dmcihomes.com/uploads/optimized/Robinsons-Las-Pinas-Mall-one-of-the-city-s-key-lifestyle-centers-68b8fe1a0f3fc.jpg",
+    title: "Las Piñas Service Area",
+    subtitle: "Coastal Coverage",
+    description: "Professional services for Las Piñas residential and commercial properties.",
+    services: ["CoolFix", "HomeFix", "SaniFix", "MoveFix"]
+  },
+  "Muntinlupa": {
+    image: "https://www.visitphilippines.org/wp-content/uploads/2016/04/Visit-Philippines-Muntinlupa.jpg",
+    title: "Muntinlupa Service Area",
+    subtitle: "Growing Coverage",
+    description: "Expanding AllFix services for Muntinlupa's developing communities and industrial areas.",
+    services: ["CoolFix", "HomeFix", "SaniFix"]
+  }
+};
+
+// Map Helper Method
+const getCityDetails = (cityId: string): CityDetail => {
+  let details = cityDetails[cityId];
+
+  if (!details) {
+    if (cityId === "Default") return cityDetails["Default"];
+    details = {
+      image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      title: `${cityId} Service Area`,
+      subtitle: "Standard Coverage",
+      description: `Comprehensive AllFix property care and maintenance services are fully available throughout ${cityId}.`,
+      services: ["CoolFix", "SaniFix", "HomeFix", "TechFix"]
+    };
+  } else {
+    details = { ...details };
+  }
+
+  try {
+    const normalizeId = (id: string) =>
+      id.toLowerCase()
+        .replace(/ñ/g, 'n')
+        .replace(/\s+/g, '-');
+
+    const localKey = `area_services_${normalizeId(cityId)}`;
+    const saved = localStorage.getItem(localKey);
+    console.log(`[getCityDetails] Checking localStorage for key: ${localKey}`);
+    console.log(`[getCityDetails] Raw saved value:`, saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const activeServices = Object.keys(parsed).filter(k => parsed[k]);
+      console.log(`[getCityDetails] Parsed active services:`, activeServices);
+      details.services = activeServices;
+    }
+  } catch (e) {
+    console.error(`[getCityDetails] Error parsing localStorage:`, e);
+  }
+
+  return details;
+};
+
+const POPUP_W = 300;
+const POPUP_H = 310;
+
+// ==========================================
+// SUB COMPONENTS
+// ==========================================
+
+interface NavigationPillsProps {
+  services: ServiceItem[];
   activeServiceIdx: number;
   setActiveServiceIdx: (idx: number) => void;
-};
+}
 
 const NavigationPills: React.FC<NavigationPillsProps> = ({ services, activeServiceIdx, setActiveServiceIdx }) => {
   return (
@@ -49,9 +390,7 @@ const NavigationPills: React.FC<NavigationPillsProps> = ({ services, activeServi
         return (
           <Box
             key={svc.brand}
-            onClick={() => {
-              setActiveServiceIdx(idx);
-            }}
+            onClick={() => setActiveServiceIdx(idx)}
             sx={{
               minWidth: 0,
               px: 1.2,
@@ -84,8 +423,13 @@ const NavigationPills: React.FC<NavigationPillsProps> = ({ services, activeServi
   );
 };
 
-const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick: (service: any) => void }) => {
-  const [hovered, setHovered] = useState(false);
+interface ServiceCardProps {
+  service: ServiceItem;
+  onServiceClick: (service: ServiceItem) => void;
+}
+
+const ServiceCard: React.FC<ServiceCardProps> = ({ service, onServiceClick }) => {
+  const [hovered, setHovered] = useState<boolean>(false);
   const Icon = service.icon;
 
   return (
@@ -108,7 +452,6 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
       onMouseLeave={() => setHovered(false)}
       onClick={() => onServiceClick(service)}
     >
-      {/* Image showcase */}
       <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img
           src={service.image}
@@ -162,7 +505,6 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
         )}
       </div>
 
-      {/* Header */}
       <div
         style={{
           position: 'relative',
@@ -181,7 +523,6 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ padding: '12px 24px 20px 24px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <h3 style={{ fontWeight: 900, fontSize: '1.25rem', color: '#000', marginBottom: '2px' }}>{service.brand}</h3>
         <p style={{ fontSize: '0.85rem', fontWeight: 600, color: service.accent, marginBottom: '12px' }}>{service.tagline}</p>
@@ -205,30 +546,17 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
   );
 };
 
-// Map Topology Data
-const mapCities = [
-  { id: 'Valenzuela', points: '80,60 150,50 180,100 130,130 90,110', lx: 125, ly: 85 },
-  { id: 'Caloocan', points: '150,50 240,30 280,80 250,130 180,100', lx: 220, ly: 75 },
-  { id: 'Navotas', points: '60,90 90,110 80,150 100,190 70,220 40,160', lx: 55, ly: 155 },
-  { id: 'Malabon', points: '90,110 130,130 120,160 100,190 80,150', lx: 105, ly: 145 },
-  { id: 'Caloocan', points: '130,130 180,100 200,140 170,180 120,160', lx: 160, ly: 145 },
-  { id: 'Quezon City', points: '180,100 250,130 280,80 360,110 370,180 330,280 250,310 240,270 240,240 210,240 180,180 200,140', lx: 260, ly: 190 },
-  { id: 'Marikina', points: '360,110 420,120 390,200 350,190 370,180', lx: 380, ly: 155 },
-  { id: 'Manila', points: '100,190 120,160 170,180 180,180 210,240 190,270 190,310 150,330 130,320 70,220', lx: 135, ly: 245 },
-  { id: 'San Juan', points: '210,240 240,240 240,270 190,270', lx: 215, ly: 255 },
-  { id: 'Mandaluyong', points: '190,270 240,270 250,310 190,310', lx: 220, ly: 290 },
-  { id: 'Pasig', points: '240,240 330,280 350,260 340,340 290,330 270,330 250,310 240,270', lx: 300, ly: 300 },
-  { id: 'Makati', points: '150,330 190,310 250,310 270,330 260,350 260,360 210,390 140,370', lx: 200, ly: 340 },
-  { id: 'Pasay', points: '60,300 130,320 150,330 140,370 120,410 50,390', lx: 95, ly: 355 },
-  { id: 'Taguig', points: '270,330 340,340 320,430 240,460 210,390 260,360', lx: 275, ly: 390 },
-  { id: 'Parañaque', points: '120,410 140,370 210,390 240,460 220,510 110,480', lx: 175, ly: 440 },
-  { id: 'Las Piñas', points: '110,480 220,510 180,570 80,540', lx: 145, ly: 520 },
-  { id: 'Muntinlupa', points: '180,570 220,510 240,460 260,480 250,560 210,680 150,650', lx: 205, ly: 590 },
-];
 
-const LandingPage = () => {
+// ==========================================
+// MAIN PAGE COMPONENT
+// ==========================================
+
+const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth() as { isAuthenticated: boolean, role: string };
+
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
-  const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [testimonialIdx, setTestimonialIdx] = useState<number>(0);
 
   // Direct Message states
   const [contactName, setContactName] = useState('');
@@ -263,7 +591,7 @@ const LandingPage = () => {
       setContactEmail('');
       setContactMessage('');
     } catch (err: any) {
-      console.error('[CAVEMAN] Contact form submission failed:', err);
+      console.error('Contact form submission failed:', err);
       const errMsg = err.response?.data?.message || 'Failed to send message. Please try again later.';
       setContactStatus('error');
       setContactStatusMsg(errMsg);
@@ -307,10 +635,8 @@ const LandingPage = () => {
 
   useEffect(() => {
     const fetchFeatured = () => {
-      console.log('[CAVEMAN] Fetching/polling featured reviews from database for Client Stories...');
       api.get('/api/reviews/featured')
         .then(res => {
-          // Double-check featured status to be absolutely bulletproof
           const liveFeatured = (res.data || []).filter((r: any) => r.featured === true || r.featured === 'true');
           const mapped = mapReviewsToTestimonials(liveFeatured);
 
@@ -318,106 +644,73 @@ const LandingPage = () => {
             const prevIds = prev.map(p => p.id).join(',');
             const newIds = mapped.map(m => m.id).join(',');
             if (prevIds !== newIds) {
-              console.log('[CAVEMAN] Successfully loaded featured reviews and updated state:', mapped.length);
               return mapped;
             }
             return prev;
           });
         })
         .catch(err => {
-          console.error('[CAVEMAN] Failed to fetch featured reviews:', err);
+          console.error('Failed to fetch featured reviews:', err);
         });
     };
 
     fetchFeatured();
     const interval = setInterval(fetchFeatured, 5000);
-    return () => {
-      console.log('[CAVEMAN] Cleaning up featured reviews polling interval');
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   const displayTestimonials = dynamicTestimonials;
 
   useEffect(() => {
     if (displayTestimonials.length > 0 && testimonialIdx >= displayTestimonials.length) {
-      console.log(`[CAVEMAN] testimonialIdx ${testimonialIdx} out of bounds (length ${displayTestimonials.length}), resetting to 0`);
       setTestimonialIdx(0);
     }
   }, [displayTestimonials.length, testimonialIdx]);
 
   const handlePrev = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === 0 ? displayTestimonials.length - 1 : prev - 1) : 0));
   const handleNext = () => setTestimonialIdx((prev) => (displayTestimonials.length > 0 ? (prev === displayTestimonials.length - 1 ? 0 : prev + 1) : 0));
-  const { isAuthenticated, role } = useAuth();
 
-  const handleBookNowClick = () => {
-    console.log("[CAVEMAN] Book Now button clicked! Auth state:", { isAuthenticated, role });
-    if (isAuthenticated) {
-      if (role === 'customer') {
-        navigate('/customer/book');
-      } else {
-        navigate(role === 'admin' ? '/admin/bookings' : role === 'vendor' ? '/vendor/bookings' : '/personnel/bookings');
-      }
-    } else {
-      navigate('/login');
-    }
-    window.scrollTo(0, 0);
-  };
-
-  useEffect(() => {
-    console.log("[CAVEMAN] LandingPage hero section optimized with increased font sizes, reduced margins, tightened spacing, and preserved illustration size!");
-  }, []);
-
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeServiceIdx, setActiveServiceIdx] = useState(0);
-  const [activeHowItWorksIdx, setActiveHowItWorksIdx] = useState(0);
+  const [activeHowItWorksIdx, setActiveHowItWorksIdx] = useState<number>(0);
   const [selectedHowItWorksStep, setSelectedHowItWorksStep] = useState<number | null>(null);
-  const [cyclingIconIdx, setCyclingIconIdx] = useState(0);
-  const [colorCycleIdx, setColorCycleIdx] = useState(0);
-  const [services, setServices] = useState(servicesData);
-  const navigate = useNavigate();
 
-  const howItWorksSteps = [
-    {
-      title: "Choose a Service",
-      desc: "Select the type of work you need from our specialized brands. Browse by category or search directly.",
-      img: "/images/step1.png"
-    },
-    {
-      title: "Book a Service",
-      desc: "Schedule your service instantly with just a few clicks. Fast, easy, and convenient booking tailored to your calendar.",
-      img: "/images/step2.png"
-    },
-    {
-      title: "Sit Back, It's Done",
-      desc: "A background-checked AllFix pro arrives on schedule, completes the job, and you pay only when satisfied.",
-      img: "/images/step3.png"
-    }
-  ];
+  // --- Service Area Map State ---
+  const mapWrapperRef = useRef<HTMLDivElement | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [popupCity, setPopupCity] = useState<CityDetail | null>(null);
+  const [popupPos, setPopupPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [imageLoadState, setImageLoadState] = useState<Record<string, boolean>>({});
+  const [selectedPopupService, setSelectedPopupService] = useState<string | null>(null);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [activeMapCity, setActiveMapCity] = useState<string>("Default");
+
+  const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [activeServiceIdx, setActiveServiceIdx] = useState<number>(0);
+  const [services, setServices] = useState<ServiceItem[]>(servicesData as ServiceItem[]);
 
   useEffect(() => {
     api.get('/api/services')
       .then(res => {
         const backendServices = res.data;
-        const merged: any[] = [];
+        const merged: ServiceItem[] = [];
 
         backendServices.forEach((backendService: any) => {
           const id = backendService.id || backendService.name.toLowerCase().replace(/\s+/g, '');
           const frontendMatch = servicesData.find(
             svc => svc.id.toLowerCase() === id.toLowerCase() || svc.brand.toLowerCase() === backendService.name.toLowerCase()
           );
+
           if (frontendMatch) {
             merged.push({
-              ...frontendMatch,
+              ...(frontendMatch as ServiceItem),
               id,
               description: backendService.description,
               tagline: backendService.tagline || frontendMatch.tagline,
               image: backendService.imageUrl || backendService.image || frontendMatch.image,
+              services: backendService.subServices ? backendService.subServices.map((sub: any) => sub.name || sub) : [],
               subServices: backendService.subServices || frontendMatch.subServices || [],
-            });
+            } as ServiceItem);
           } else {
-            // Backend-only service (dynamically added via admin)
             merged.push({
               id,
               icon: AutoAwesomeIcon,
@@ -430,16 +723,15 @@ const LandingPage = () => {
               headerBg: '#10355f',
               headerBgLight: '#2E5BA8',
               pillText: '#2E5BA8',
-              services: backendService.subServices ? backendService.subServices.map((sub: any) => sub.name) : [],
+              services: backendService.subServices ? backendService.subServices.map((sub: any) => sub.name || sub) : [],
               subServices: backendService.subServices || [],
-            });
+            } as ServiceItem);
           }
         });
 
-        // Add remaining frontend services not in backend
         servicesData.forEach((fs) => {
           if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase())) {
-            merged.push(fs);
+            merged.push(fs as ServiceItem);
           }
         });
 
@@ -450,62 +742,164 @@ const LandingPage = () => {
       .catch(err => console.error("Failed to load services", err));
   }, []);
 
+  // Preload map images
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const preloadImages = () => {
+      Object.entries(cityDetails).forEach(([city, details]) => {
+        const img = new Image();
+        img.onload = () => setImageLoadState((prev) => ({ ...prev, [city]: true }));
+        img.onerror = () => setImageLoadState((prev) => ({ ...prev, [city]: false }));
+        img.src = details.image;
+      });
+    };
+    preloadImages();
+  }, []);
+
+  // Responsive check
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 900);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+
+      // Map popup closing logic on scroll
+      const testimonialsEl = document.getElementById('testimonials');
+      const whyAllFixEl = document.getElementById('why-allfix');
+      let shouldClose = false;
+
+      if (testimonialsEl) {
+        const rect = testimonialsEl.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) shouldClose = true;
+      }
+      if (whyAllFixEl) {
+        const rect = whyAllFixEl.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) shouldClose = true;
+      }
+      if (shouldClose) {
+        setPopupCity(null);
+        setSelectedPopupService(null);
+        setSelectedPinId(null);
+        setActiveMapCity("Default");
+      }
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    // If services array is empty, do nothing
-    if (services.length === 0) return;
-    const iconInterval = setInterval(() => {
-      setCyclingIconIdx((prev) => (prev >= services.length - 1 ? 0 : prev + 1));
-    }, 3000);
-    return () => clearInterval(iconInterval);
-  }, [services.length]);
+  // --- Map Interaction Handlers ---
+  const positionPopup = (pinEl: HTMLElement) => {
+    const pinRect = pinEl.getBoundingClientRect();
+    const vw = window.innerWidth;
 
-  useEffect(() => {
-    const colorInterval = setInterval(() => {
-      setColorCycleIdx((prev) => (prev === 2 ? 0 : prev + 1));
-    }, 1500);
-    return () => clearInterval(colorInterval);
-  }, []);
+    const pinCenterX = pinRect.left + pinRect.width / 2;
+    const pinCenterY = pinRect.top + pinRect.height / 2;
 
+    let y = pinCenterY - POPUP_H - 16;
+    if (y < 80) y = pinCenterY + pinRect.height + 16;
 
-  const navLinks = [
-    { label: 'Services', href: '#services' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Why AllFix', href: '#why-allfix' },
-    { label: 'Service Area', href: '#service-area' },
-    { label: 'Testimonials', href: '#testimonials' },
-  ];
+    let x = pinCenterX - POPUP_W / 2;
+    x = Math.max(12, Math.min(x, vw - POPUP_W - 12));
 
-  const handleNavClick = (href: string) => {
-    setMobileOpen(false);
-    if (href.startsWith('/')) {
-      window.scrollTo(0, 0);
-      window.location.pathname = href;
-      return;
-    }
-    const el = document.querySelector(href);
-    if (el) {
-      const offsetTop = el.getBoundingClientRect().top + window.scrollY - 20;
-      window.scrollTo({ top: offsetTop, behavior: 'smooth' });
-    }
+    setPopupPos({ x, y });
   };
 
-  const footerPills = [
-    { name: 'CoolFix', icon: <path d="M19.5 12h-15M17.5 16h-11M21.5 8h-15" strokeWidth="2" strokeLinecap="round" /> },
-    { name: 'SaniFix', icon: <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'HomeFix', icon: <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 9.36l-7.1 7.1a1 1 0 01-1.42 0l-1.4-1.4a1 1 0 010-1.42l7.1-7.1a6 6 0 019.36-7.94l-3.77 3.77z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'MoveFix', icon: <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'GreenFix', icon: <path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10zM11 20v-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'HealthFix', icon: <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'SpaceFix', icon: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> },
-    { name: 'PetFix', icon: <><circle cx="5.5" cy="8.5" r="1.5" strokeWidth="2" /><circle cx="10" cy="5" r="1.5" strokeWidth="2" /><circle cx="14" cy="5" r="1.5" strokeWidth="2" /><circle cx="18.5" cy="8.5" r="1.5" strokeWidth="2" /><path d="M12 18c-3 0-5-1.5-5-4 0-1.5 2-4 5-4s5 2.5 5 4c0 2.5-2 4-5 4z" strokeWidth="2" /></> },
-    { name: 'TechFix', icon: <><rect x="4" y="4" width="16" height="16" rx="2" ry="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></> },
-  ];
+  const handlePinEnter = (e: React.MouseEvent<HTMLElement>, loc: MapCity) => {
+    if (isMobile) return;
+    setActiveMapCity(loc.id);
+
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      const details = getCityDetails(loc.id);
+      setPopupCity(details);
+      positionPopup(e.currentTarget);
+    }, 2500);
+  };
+
+  const handlePinLeave = () => {
+    if (isMobile) return;
+
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+
+    if (selectedPinId) return;
+
+    setActiveMapCity('Default');
+    setPopupCity(null);
+    setSelectedPopupService(null);
+  };
+
+  // Custom storage sync effect so the map updates IN REAL TIME if the admin toggles it in another tab!
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!selectedPinId && !activeMapCity) return;
+      const targetCity = selectedPinId || activeMapCity;
+      if (targetCity === 'Default') return;
+
+      const normalizeId = (id: string) =>
+        id.toLowerCase()
+          .replace(/ñ/g, 'n')
+          .replace(/\s+/g, '-');
+
+      const expectedKey = `area_services_${normalizeId(targetCity)}`;
+      if (e.key === expectedKey || e.key === 'global_custom_services') {
+        const updatedDetails = getCityDetails(targetCity);
+        setPopupCity(updatedDetails);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [selectedPinId, activeMapCity]);
+
+  // For same-tab updates (since 'storage' event only fires across tabs)
+  useEffect(() => {
+    const targetCity = selectedPinId || activeMapCity;
+    if (targetCity && targetCity !== 'Default') {
+      const interval = setInterval(() => {
+        const currentDetails = getCityDetails(targetCity);
+        // Deep compare services array to avoid infinite renders
+        setPopupCity(prev => {
+          if (!prev) return currentDetails;
+          const prevServices = [...(prev.services || [])].sort().join(',');
+          const newServices = [...(currentDetails.services || [])].sort().join(',');
+          if (prevServices !== newServices) {
+            return currentDetails;
+          }
+          return prev;
+        });
+      }, 1000); // Check every second if the user is testing in the SAME tab/window
+      return () => clearInterval(interval);
+    }
+  }, [selectedPinId, activeMapCity]);
+
+  const handlePinClick = (e: React.MouseEvent<HTMLElement>, loc: MapCity) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+
+    setActiveMapCity(loc.id);
+    setSelectedPinId(loc.id);
+    const details = getCityDetails(loc.id);
+    setPopupCity(details);
+
+    if (!isMobile) positionPopup(e.currentTarget);
+  };
+
+  const handleMapClick = () => {
+    setPopupCity(null);
+    setActiveMapCity('Default');
+    setSelectedPinId(null);
+    setSelectedPopupService(null);
+  };
 
   return (
     <>
@@ -653,7 +1047,7 @@ const LandingPage = () => {
                   <Button
                     variant="contained"
                     fullWidth
-                    onClick={handleBookNowClick}
+                    onClick={() => { navigate('/register'); window.scrollTo(0, 0); }}
                     sx={{
                       bgcolor: '#10355f',
                       color: 'white',
@@ -673,27 +1067,28 @@ const LandingPage = () => {
                   >
                     Book Now
                   </Button>
+
                   <Button
                     variant="outlined"
                     fullWidth
-                    onClick={() => { navigate('/register-vendor'); window.scrollTo(0, 0); }}
+                    onClick={() => { navigate('/vendor-apply'); window.scrollTo(0, 0); }}
                     sx={{
-                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                      bgcolor: 'transparent',
                       color: 'white',
-                      fontWeight: 700,
-                      fontSize: '0.95rem',
-                      py: 1.5,
+                      border: '1px solid rgba(255, 255, 255, 0.6)',
                       borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      py: 1.8,
                       textTransform: 'none',
                       transition: 'all 0.3s ease',
                       '&:hover': {
-                        borderColor: 'white',
                         bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        transform: 'translateY(-2px)',
+                        borderColor: 'white',
                       }
                     }}
                   >
-                    Become our Vendor
+                    Become Our Partner
                   </Button>
                 </Box>
               </Grid>
@@ -701,24 +1096,21 @@ const LandingPage = () => {
           </Container>
         </Box>
 
-
         {/* ===================== SERVICES SECTION ===================== */}
         <Box id="services" sx={{ position: 'relative', zIndex: 10, bgcolor: '#ffffff', pt: { xs: 6, lg: 6 }, pb: { xs: 6, lg: 8 }, minHeight: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <Container maxWidth="xl">
             <Box sx={{ textAlign: 'center', mb: 2.5 }}>
               <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#eaf2fc', color: '#23406e', borderRadius: '999px', px: 3, py: 1, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 2 }}>OUR SERVICES</Box>
-              <Typography sx={{ fontSize: { xs: '1.6rem', sm: '2.2rem', lg: '2rem' }, fontWeight: 900, mb: 2, lineHeight: 1.2 }}>
-                Expert Brands, <span style={{ color: '#10355f' }}>One Trusted Platform</span>
+              <Typography sx={{ fontWeight: 900, mb: 2, lineHeight: 1.2, fontSize: { xs: '1.6rem', sm: '2.2rem', lg: '2rem' } }}>
+                <span style={{ color: '#10355f' }}>All In One Trusted Platform</span>
               </Typography>
-              <Typography sx={{ color: '#666', fontSize: { xs: '0.85rem', sm: '1rem', lg: '0.9rem' }, maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}>
+              <Typography sx={{ color: '#666', maxWidth: '600px', mx: 'auto', lineHeight: 1.6, fontSize: { xs: '0.85rem', sm: '1rem', lg: '0.9rem' } }}>
                 Each AllFix brand specializes in a distinct service area, staffed by trained, background-checked professionals with industry certifications.
               </Typography>
             </Box>
 
             <Box sx={{ width: '100%', mt: 1.5 }}>
-              {/* Mobile only: single card display with tab selector (xs) */}
               <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                {/* Single active service card */}
                 <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
                   {services.length > 0 && (
                     <ServiceCard
@@ -730,7 +1122,6 @@ const LandingPage = () => {
                     />
                   )}
                 </Box>
-                {/* Selector pills at the bottom */}
                 <NavigationPills
                   services={services}
                   activeServiceIdx={activeServiceIdx}
@@ -738,9 +1129,8 @@ const LandingPage = () => {
                 />
               </Box>
 
-              {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
-              <Grid container rowSpacing={3} columnSpacing={1.5}
-                sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>{services.map((service, index) => (
+              <Grid container rowSpacing={3} columnSpacing={1.5} sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
+                {services.map((service, index) => (
                   <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
                     <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
                       <ServiceCard service={service} onServiceClick={(svc) => { navigate(`/services/${svc.id}`); window.scrollTo(0, 0); }} />
@@ -751,6 +1141,7 @@ const LandingPage = () => {
             </Box>
           </Container>
         </Box>
+
         {/* ===================== HOW IT WORKS ===================== */}
         <Box id="how-it-works" sx={{ position: 'relative', zIndex: 10, bgcolor: '#f8fafc', pt: { xs: 6, lg: 8 }, pb: { xs: 8, lg: 12 }, px: { xs: 2, sm: 4, lg: 6 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <Container maxWidth="lg" sx={{ px: { xs: 0, sm: 2 } }}>
@@ -1041,7 +1432,7 @@ const LandingPage = () => {
                 </Box>
 
                 <Typography sx={{ color: '#42526e', mb: 5, lineHeight: 1.6, maxWidth: '95%', fontSize: { xs: '0.95rem', sm: '1.05rem', lg: '1.05rem' } }}>
-                  AllFix acts as your dedicated personal concierge, connecting you with Metro Manila's most trusted professionals for your home, office, and daily lifestyle needs. Whether you need an IT network setup, an aircon deep clean, or pet care, our vetted experts deliver top-tier results so you can focus on what matters most.
+                  AllFix acts as your dedicated personal concierge, connecting you with Metro Manila's most trusted professionals for your home, office, and daily lifestyle needs. Whether you need an IT network setup, an aircon deep clean, or pool maintenance, our vetted experts deliver top-tier results so you can focus on what matters most.
                 </Typography>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: { xs: 4, sm: 5, lg: 3 }, mt: 2 }}>
@@ -1069,42 +1460,251 @@ const LandingPage = () => {
         </Box>
 
         {/* ===================== MAP SECTION ===================== */}
-        <Box id="service-area" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: '#f0f4f8', py: { xs: 8, lg: 10 }, position: 'relative', overflow: 'hidden' }}>
-          <Container maxWidth="lg" sx={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
-            <Typography variant="h2" sx={{ fontWeight: '900', color: '#10355f', fontSize: { xs: '2rem', sm: '2.5rem', lg: '2.8rem' }, mb: 1 }}>
-              Available in Metro Manila!
-            </Typography>
-            <Typography color="#666" sx={{ fontSize: '1.1rem', mb: 2 }}>
-              Enjoy fast, reliable home services with AllFix wherever you are in the Metro.
-            </Typography>
-            <Box sx={{ position: 'relative', width: '100%', maxWidth: { xs: '100%', sm: '550px', lg: '650px' }, mx: 'auto', mt: 4, aspectRatio: '5/7' }}>
-              <Box sx={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-                <svg viewBox="0 0 500 700" style={{ width: '100%', height: '100%', filter: 'drop-shadow(0px 10px 20px rgba(16, 53, 95, 0.15))' }}>
-                  {mapCities.map((city, idx) => (
-                    <polygon key={idx} points={city.points} fill="#10355f" stroke="#ffffff" strokeWidth="2.5" strokeLinejoin="round" style={{ transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.fill = '#10355f'; e.currentTarget.style.transform = 'scale(1.01)'; e.currentTarget.style.transformOrigin = `${city.lx}px ${city.ly}px`; }} onMouseLeave={(e) => { e.currentTarget.style.fill = '#10355f'; e.currentTarget.style.transform = 'scale(1)'; }} />
-                  ))}
-                </svg>
-              </Box>
-              <Box sx={{ position: 'absolute', inset: 0, zIndex: 2 }}>
-                {mapCities.map((loc, idx) => (
-                  <Box key={idx} sx={{ position: 'absolute', top: `${(loc.ly / 700) * 100}%`, left: `${(loc.lx / 500) * 100}%`, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'translate(-50%, -55%) scale(1.1)', zIndex: 10 } }}>
-                    <Box sx={{ width: { xs: 28, sm: 40, lg: 54 }, height: { xs: 28, sm: 40, lg: 54 }, borderRadius: '50%', bgcolor: 'rgba(255, 255, 255, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                      <Box sx={{ width: { xs: 20, sm: 28, lg: 40 }, height: { xs: 20, sm: 28, lg: 40 }, borderRadius: '50%', bgcolor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10355f', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}>
-                        <LocationOnIcon sx={{ fontSize: { xs: '0.7rem', sm: '1rem', lg: '1.25rem' } }} />
-                      </Box>
-                    </Box>
-                    <Typography sx={{ fontWeight: '900', color: '#10355f', fontSize: { xs: '0.55rem', sm: '0.65rem', lg: '0.8rem' }, mt: 0.5, bgcolor: '#ffffff', px: { xs: 0.6, sm: 1.0, lg: 1.2 }, py: { xs: 0.1, sm: 0.2, lg: 0.3 }, borderRadius: '999px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)', whiteSpace: 'nowrap' }}>
-                      {loc.id}
-                    </Typography>
-                  </Box>
+        <Box id="service-area" sx={{ bgcolor: '#f0f4f8', py: { xs: 8, lg: 12 }, position: 'relative', overflow: 'visible' }}>
+          <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2, px: { xs: 2, sm: 4, lg: 6 } }}>
+            {/* Header */}
+            <Box sx={{ textAlign: 'center', mb: { xs: 6, md: 8 } }}>
+              <Typography variant="h2" sx={{ fontWeight: '900', color: '#10355f', mb: 1, fontSize: { xs: '2rem', sm: '2.5rem', lg: '2.8rem' } }}>
+                Available in Metro Manila!
+              </Typography>
+            </Box>
+
+            {/* Map Wrapper */}
+            <Box ref={mapWrapperRef} onClick={handleMapClick} sx={{ position: 'relative', width: '100%', maxWidth: '900px', mx: 'auto', cursor: 'pointer' }}>
+              <svg viewBox="-20 30 560 700" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: 'auto', filter: 'drop-shadow(0px 10px 30px rgba(16,53,95,0.25))' }}>
+                {mapCities.map((city, idx) => (
+                  <polygon
+                    key={idx}
+                    points={city.points}
+                    fill={activeMapCity === city.id ? '#10355f' : '#10355f'}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                    style={{ transition: 'fill 0.25s ease', cursor: 'pointer' }}
+                    onMouseEnter={(e: React.MouseEvent<SVGPolygonElement, MouseEvent>) => {
+                      setActiveMapCity(city.id);
+                      const target = e.currentTarget as SVGPolygonElement;
+                      target.style.fill = '#10355f';
+                      target.style.transform = 'scale(1.01)';
+                      target.style.transformOrigin = `${city.lx}px ${city.ly}px`;
+                    }}
+                    onMouseLeave={(e: React.MouseEvent<SVGPolygonElement, MouseEvent>) => {
+                      setActiveMapCity('Default');
+                      const target = e.currentTarget as SVGPolygonElement;
+                      target.style.fill = '#10355f';
+                      target.style.transform = 'scale(1)';
+                    }}
+                  />
                 ))}
+              </svg>
+
+              {/* Pins Overlay */}
+              <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 5, pointerEvents: 'none' }}>
+                {mapCities.map((loc, idx) => {
+                  const leftPct = ((loc.lx + 20) / 560) * 100;
+                  const topPct = ((loc.ly - 30) / 700) * 100;
+                  const isActive = activeMapCity === loc.id;
+
+                  return (
+                    <Box
+                      key={idx}
+                      onMouseEnter={(e) => handlePinEnter(e, loc)}
+                      onMouseLeave={handlePinLeave}
+                      onClick={(e) => { e.stopPropagation(); handlePinClick(e, loc); }}
+                      sx={{
+                        position: 'absolute', top: `${topPct}%`, left: `${leftPct}%`,
+                        transform: isActive ? 'translate(-50%, -60%) scale(1.25)' : 'translate(-50%, -50%)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
+                        transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)', zIndex: isActive ? 20 : 10, pointerEvents: 'auto',
+                      }}
+                    >
+                      <Box sx={{
+                        width: { xs: 22, sm: 30, md: 36, lg: 42 }, height: { xs: 22, sm: 30, md: 36, lg: 42 },
+                        borderRadius: '50%', bgcolor: isActive ? 'rgba(16,185,129,0.18)' : 'rgba(255,255,255,0.18)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.3s'
+                      }}>
+                        <Box sx={{
+                          width: { xs: 14, sm: 20, md: 24, lg: 28 }, height: { xs: 14, sm: 20, md: 24, lg: 28 },
+                          borderRadius: '50%', bgcolor: isActive ? '#10355f' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#fff' : '#10355f',
+                          boxShadow: isActive ? '0 0 0 3px rgba(108, 118, 209, 0.3), 0 4px 12px rgba(0,0,0,0.18)' : '0 4px 12px rgba(0,0,0,0.18)', transition: 'all 0.25s'
+                        }}>
+                          <LocationOnIcon sx={{ fontSize: { xs: '0.55rem', sm: '0.7rem', md: '0.85rem', lg: '1rem' } }} />
+                        </Box>
+                      </Box>
+                      <Typography sx={{
+                        fontSize: { xs: '0.42rem', sm: '0.55rem', md: '0.65rem', lg: '0.73rem' }, fontWeight: 900, mt: 0.3, whiteSpace: 'nowrap',
+                        bgcolor: isActive ? '#10355f' : '#fff', color: isActive ? '#fff' : '#10355f', px: { xs: 0.4, sm: 0.7, md: 1.0, lg: 1.2 },
+                        py: { xs: 0.1, sm: 0.2, md: 0.25 }, borderRadius: '999px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', transition: 'all 0.25s'
+                      }}>
+                        {loc.id}
+                      </Typography>
+                    </Box>
+                  );
+                })}
               </Box>
             </Box>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, bgcolor: '#e2e8f0', color: '#1e293b', px: 2.5, py: 0.8, borderRadius: '999px', fontSize: '0.85rem', fontWeight: 600, mt: 6 }}>
-              <Box sx={{ width: 8, height: 8, bgcolor: '#10b981', borderRadius: '50%' }} />
-              More areas coming soon!
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, bgcolor: '#e2e8f0', color: '#1e293b', px: 2.5, py: 1, borderRadius: '999px', fontSize: '0.9rem', fontWeight: 700 }}>
+                <Box sx={{ width: 10, height: 10, bgcolor: '#10b981', borderRadius: '50%' }} />
+                More areas coming soon!
+              </Box>
             </Box>
           </Container>
+
+          {/* ── DESKTOP FLOATING POPUP ── */}
+          {popupCity && !isMobile && (
+            <Box onClick={(e) => e.stopPropagation()} sx={{ position: 'fixed', top: popupPos.y, left: popupPos.x, zIndex: 9999, width: 600, bgcolor: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 24px 60px rgba(16,53,95,0.22), 0 4px 16px rgba(0,0,0,0.10)', border: '1px solid rgba(16,53,95,0.08)', pointerEvents: 'auto', animation: 'popFade 0.18s ease-out forwards', display: 'grid', gridTemplateColumns: '1fr 1fr', gridGap: '0', '@keyframes popFade': { from: { opacity: 0, transform: 'scale(0.93) translateY(6px)' }, to: { opacity: 1, transform: 'scale(1) translateY(0)' } } }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', padding: '0' }}>
+                <Box sx={{ position: 'relative', width: '100%', height: 200, overflow: 'hidden', bgcolor: '#f0f4f8' }}>
+                  {!imageLoadState[activeMapCity] && <Box sx={{ width: '100%', height: '100%', bgcolor: '#e2e8f0', animation: 'pulse 1.5s ease-in-out infinite' }} />}
+                  <Box component="img" src={popupCity.image} alt={popupCity.title} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: imageLoadState[activeMapCity] ? 1 : 0, transition: 'opacity 0.3s ease' }} />
+                </Box>
+                <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: '#e8f5e9', px: 1, py: 0.35, borderRadius: '999px', fontSize: '0.6rem', fontWeight: 700, color: '#1b5e20', mb: 0.8, width: 'fit-content' }}>
+                    <Box sx={{ width: 5, height: 5, bgcolor: '#10b981', borderRadius: '50%' }} /> Active Coverage
+                  </Box>
+                  <Typography sx={{ fontWeight: '900', color: '#0a2540', fontSize: '0.95rem', lineHeight: 1.2, mb: 0.25 }}>{popupCity.title}</Typography>
+                  <Typography sx={{ fontWeight: '700', color: '#10355f', fontSize: '0.75rem', mb: 0.6 }}>{popupCity.subtitle}</Typography>
+                  <Typography color="#64748b" sx={{ fontSize: '0.72rem', lineHeight: 1.4 }}>{popupCity.description}</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)', borderLeft: '1px solid #bfdbfe', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 4, height: '100%', background: 'linear-gradient(180deg, #10355f 0%, #10355f100%)', borderRadius: '2px' }} />
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 900, color: '#0c4a6e', textTransform: 'uppercase', letterSpacing: '0.8px', background: 'linear-gradient(90deg, #0c4a6e 0%, #10355f 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Available Services</Typography>
+                </Box>
+
+                {selectedPopupService ? (
+                  <>
+                    <Button onClick={() => setSelectedPopupService(null)} sx={{ textTransform: 'none', fontSize: '0.7rem', fontWeight: 700, color: '#10355f', p: 0, mb: 1.5, justifyContent: 'flex-start', transition: 'all 0.2s', '&:hover': { transform: 'translateX(-4px)' } }}>← Back to Services</Button>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#0c4a6e', mb: 1.2, textTransform: 'uppercase', letterSpacing: '0.6px', opacity: 0.8 }}>{selectedPopupService} Options:</Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.8 }}>
+                      {serviceSubServices[selectedPopupService]?.map((subService) => (
+                        <Box key={subService} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: '#fff', border: '1.5px solid #10355f', px: 1, py: 0.6, borderRadius: '8px', fontSize: '0.65rem', fontWeight: 700, color: '#0c4a6e', whiteSpace: 'normal', textAlign: 'left', cursor: 'pointer', boxShadow: '0 2px 8px rgba(14, 165, 233, 0.08)', '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 6px 16px rgba(14, 165, 233, 0.16)', bgcolor: '#f0f9ff' } }}>
+                          <Box sx={{ width: 5, height: 5, bgcolor: '#10355f', borderRadius: '50%', flexShrink: 0 }} />{subService}
+                        </Box>
+                      ))}
+                    </Box>
+                  </>
+                ) : (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.9 }}>
+                    {(() => {
+                      let customList: string[] = [];
+                      try {
+                        const saved = localStorage.getItem('global_custom_services');
+                        if (saved) customList = JSON.parse(saved);
+                      } catch (e) { }
+                      const displayServices = Array.from(new Set([...allServices, ...customList]));
+
+                      return displayServices.map((service, idx) => {
+                        const isAvailable = popupCity.services && popupCity.services.includes(service);
+                        return (
+                          <Box key={service} onClick={() => isAvailable && setSelectedPopupService(service)} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.6, bgcolor: '#fff', border: '2px solid transparent', px: 1.2, py: 1.2, borderRadius: '12px', fontSize: '0.7rem', fontWeight: 800, color: isAvailable ? '#0c4a6e' : '#94a3b8', textAlign: 'center', cursor: isAvailable ? 'pointer' : 'not-allowed', transition: 'all 0.3s', boxShadow: isAvailable ? '0 4px 12px rgba(2, 132, 199, 0.08)' : '0 2px 6px rgba(0, 0, 0, 0.05)', position: 'relative', overflow: 'hidden', background: isAvailable ? `linear-gradient(135deg, #fff 0%, #f0f9ff 100%)` : '#f8fafc', opacity: isAvailable ? 1 : 0.6, '&:hover': isAvailable ? { transform: 'translateY(-6px) scale(1.05)', boxShadow: '0 12px 24px rgba(14, 165, 233, 0.2)', borderColor: '#10355f', background: `linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)` } : {} }}>
+                            <Box sx={{ position: 'relative' }}>
+                              <Box sx={{ width: 6, height: 6, bgcolor: isAvailable ? '#10355f' : '#cbd5e1', borderRadius: '50%' }} />
+                            </Box>
+                            <Box sx={{ position: 'relative' }}>
+                              {service}
+                            </Box>
+                            {!isAvailable && (
+                              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                                <Box sx={{ bgcolor: 'rgba(239, 68, 68, 0.85)', backdropFilter: 'blur(2px)', color: '#fff', fontSize: '0.5rem', fontWeight: 900, px: 0.8, py: 0.4, borderRadius: '6px', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', letterSpacing: '0.5px' }}>COMING SOON</Box>
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      });
+                    })()}
+                  </Box>
+                )}
+                <Box sx={{ mt: 4, mb: 1, textAlign: 'right' }}>
+                  <Typography onClick={() => navigate('/register')} sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#10355f', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s ease', '&:hover': { color: '#0284c7', transform: 'translateX(3px)' } }}>Book Now →</Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          {/* ── MOBILE BOTTOM SHEET ── */}
+          {popupCity && isMobile && (
+            <>
+              <Box onClick={() => setPopupCity(null)} sx={{ position: 'fixed', inset: 0, zIndex: 9998, bgcolor: 'rgba(0,0,0,0.35)', animation: 'bsIn 0.2s ease-out forwards', '@keyframes bsIn': { from: { opacity: 0 }, to: { opacity: 1 } } }} />
+              <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, bgcolor: '#fff', borderRadius: '20px 20px 0 0', overflow: 'hidden', boxShadow: '0 -8px 40px rgba(16,53,95,0.18)', animation: 'sheetUp 0.28s cubic-bezier(0.34,1.2,0.64,1) forwards', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5, pb: 0.5, flexShrink: 0 }}>
+                  <Box sx={{ width: 40, height: 4, bgcolor: '#cbd5e1', borderRadius: '999px' }} />
+                </Box>
+                <Box onClick={() => { setPopupCity(null); setSelectedPopupService(null); }} sx={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: '50%', bgcolor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, color: '#10355f', fontWeight: 900, fontSize: '1rem' }}>✕</Box>
+
+                <Box sx={{ display: 'flex', gap: 0, flex: 1, overflow: 'auto', flexDirection: 'column' }}>
+                  <Box component="img" src={popupCity.image} alt={popupCity.title} sx={{ width: '100%', height: 'auto', minHeight: 250, objectFit: 'cover', display: 'block', flexShrink: 0 }} />
+                  <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'auto' }}>
+                    <Box>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: '#e8f5e9', px: 1.5, py: 0.4, borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700, color: '#1b5e20', mb: 1.5 }}>
+                        <Box sx={{ width: 7, height: 7, bgcolor: '#10b981', borderRadius: '50%' }} /> Active Coverage
+                      </Box>
+                      <Typography sx={{ fontWeight: '900', color: '#0a2540', fontSize: '1.3rem', lineHeight: 1.2, mb: 0.5 }}>{popupCity.title}</Typography>
+                      <Typography sx={{ fontWeight: '700', color: '#10355f', fontSize: '0.9rem', mb: 1.5 }}>{popupCity.subtitle}</Typography>
+                      <Typography color="#64748b" sx={{ fontSize: '0.9rem', lineHeight: 1.6, pb: 1.5 }}>{popupCity.description}</Typography>
+                    </Box>
+
+                    {popupCity.services && popupCity.services.length > 0 && (
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+                        {selectedPopupService ? (
+                          <>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Button onClick={() => setSelectedPopupService(null)} sx={{ textTransform: 'none', fontSize: '0.8rem', fontWeight: 700, color: '#2E5BA8', p: 0, minWidth: 'auto', '&:hover': { textDecoration: 'underline' } }}>← Back to Services</Button>
+                            </Box>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#10355f', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{selectedPopupService} - Services:</Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
+                              {serviceSubServices[selectedPopupService]?.map((subService) => (
+                                <Box key={subService} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: '#e8f5e9', border: '1px solid #10b981', px: 1.2, py: 0.6, borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: '#1b5e20', whiteSpace: 'nowrap' }}>
+                                  <Box sx={{ width: 5, height: 5, bgcolor: '#10b981', borderRadius: '50%' }} />{subService}
+                                </Box>
+                              ))}
+                            </Box>
+                          </>
+                        ) : (
+                          <>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#10355f', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Available Services:</Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {(() => {
+                                let customList: string[] = [];
+                                try {
+                                  const saved = localStorage.getItem('global_custom_services');
+                                  if (saved) customList = JSON.parse(saved);
+                                } catch (e) { }
+                                const displayServices = Array.from(new Set([...allServices, ...customList]));
+
+                                return displayServices.map((service: string) => {
+                                  const isAvailable = popupCity.services && popupCity.services.includes(service);
+                                  return (
+                                    <Box key={service} onClick={() => isAvailable && setSelectedPopupService(service)} sx={{ display: 'flex', alignItems: 'center', gap: 1.2, p: 1.5, borderRadius: '12px', bgcolor: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: isAvailable ? 'pointer' : 'not-allowed', opacity: isAvailable ? 1 : 0.6, transition: 'all 0.2s', position: 'relative', overflow: 'hidden' }}>
+                                      <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: isAvailable ? '#f0f9ff' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: isAvailable ? '#0c4a6e' : '#94a3b8' }} />
+                                      </Box>
+                                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: isAvailable ? '#0a2540' : '#64748b', flexGrow: 1 }}>{service}</Typography>
+                                      {!isAvailable && (
+                                        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', pr: 2, pointerEvents: 'none' }}>
+                                          <Box sx={{ bgcolor: 'rgba(239, 68, 68, 0.85)', backdropFilter: 'blur(2px)', color: '#fff', fontSize: '0.55rem', fontWeight: 900, px: 1, py: 0.5, borderRadius: '6px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', letterSpacing: '0.5px' }}>COMING SOON</Box>
+                                        </Box>
+                                      )}
+                                      {isAvailable && <Typography sx={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7' }}>Select →</Typography>}
+                                    </Box>
+                                  );
+                                });
+                              })()}
+                            </Box>
+                          </>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            </>
+          )}
         </Box>
 
         {/* ===================== TESTIMONIALS ===================== */}
@@ -1140,14 +1740,14 @@ const LandingPage = () => {
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
                   <Button onClick={handlePrev} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg></Button>
-                  <Box sx={{ display: 'flex', gap: 0.8 }}>{displayTestimonials.map((_, idx) => (<Box key={idx} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'white', opacity: testimonialIdx === idx ? 0.8 : 0.4 }} />))}</Box>
+                  <Box sx={{ display: 'flex', gap: 0.8 }}>{displayTestimonials.map((_: any, idx: number) => (<Box key={idx} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'white', opacity: testimonialIdx === idx ? 0.8 : 0.4 }} />))}</Box>
                   <Button onClick={handleNext} sx={{ minWidth: 0, p: 0.8, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.12)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' } }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg></Button>
                 </Box>
               </Box>
 
               {/* Mini testimonial cards — desktop only (lg+) */}
               <Box sx={{ display: { xs: 'none', lg: 'flex' }, flexDirection: 'row', gap: 2, justifyContent: 'center', alignItems: 'center', mt: 3, width: '100%', maxWidth: '1000px', mx: 'auto' }}>
-                {displayTestimonials.map((t, idx) => (
+                {displayTestimonials.map((t: any, idx: number) => (
                   <Box key={t.id || t.initials} sx={{ bgcolor: 'rgba(255,255,255,0.10)', borderRadius: 2, p: 1.5, minWidth: 200, maxWidth: 240, color: 'white', fontWeight: 700, boxShadow: '0 2px 8px rgba(16,53,95,0.10)', border: testimonialIdx === idx ? '2px solid #eaf2fc' : '2px solid transparent', display: 'flex', flexDirection: 'column', gap: 0.8, opacity: testimonialIdx === idx ? 1 : 0.7, transition: 'border 0.2s, opacity 0.2s', cursor: 'pointer' }} onClick={() => setTestimonialIdx(idx)}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: t.avatarBg, color: t.avatarText, fontWeight: 900, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t.initials}</Box>
@@ -1286,3 +1886,4 @@ const LandingPage = () => {
 };
 
 export default LandingPage;
+

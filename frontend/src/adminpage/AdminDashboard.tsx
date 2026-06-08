@@ -14,6 +14,7 @@ import { VENDOR_SERVICES } from '../constants/services';
 import { servicesData } from '../constants/servicesData';
 import api from '../services/apiService';
 import AddServiceWizard from './AddServiceWizard';
+import AreaServiceManager from './AreaServiceManager';
 import { useTheme } from '../context/ThemeContext';
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
@@ -6093,6 +6094,7 @@ export default function AdminDashboard() {
             {/* Operations */}
             <Route path="bookings" element={<BookingsTab />} />
             <Route path="services" element={<ServicesManagementPage />} />
+            <Route path="area-services" element={<AreaServiceManager />} />
             {/* Finance & Promos */}
             <Route path="transactions" element={<TransactionsPage />} />
 

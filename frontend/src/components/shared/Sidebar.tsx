@@ -6,7 +6,7 @@ import {
   CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
   Home, Wrench, UserCog, Building2, User,
   History, Receipt, Ticket, Tag, UserCheck, Wallet, MessageSquare,
-  Bell, HelpCircle, ChevronDown
+  Bell, HelpCircle, ChevronDown, MapPin
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { UserRole } from '../../context/AuthContext';
@@ -30,6 +30,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       items: [
         { label: 'Bookings', path: '/admin/bookings', icon: <ClipboardList className="w-5 h-5" /> },
         { label: 'Service Management', path: '/admin/services', icon: <Wrench className="w-5 h-5" /> },
+        { label: 'Area Services', path: '/admin/area-services', icon: <MapPin className="w-5 h-5" /> },
       ],
     },
     {
