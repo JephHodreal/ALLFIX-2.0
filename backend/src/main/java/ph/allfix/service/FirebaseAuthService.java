@@ -27,9 +27,26 @@ public class FirebaseAuthService {
         FirebaseAuth.getInstance().setCustomUserClaims(uid, claims);
     }
 
+    public void mergeCustomClaims(String uid, Map<String, Object> newClaims) throws Exception {
+        UserRecord user = FirebaseAuth.getInstance().getUser(uid);
+        Map<String, Object> currentClaims = user.getCustomClaims();
+        Map<String, Object> mergedClaims = new HashMap<>();
+        if (currentClaims != null) {
+            mergedClaims.putAll(currentClaims);
+        }
+        mergedClaims.putAll(newClaims);
+        FirebaseAuth.getInstance().setCustomUserClaims(uid, mergedClaims);
+    }
+
     public void setRole(String uid, String role) throws Exception {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
-        setCustomClaims(uid, claims);
+        mergeCustomClaims(uid, claims);
+    }
+
+    public void setFirestoreId(String uid, String firestoreId) throws Exception {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("firestore_id", firestoreId);
+        mergeCustomClaims(uid, claims);
     }
 }
