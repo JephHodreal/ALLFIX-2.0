@@ -1090,6 +1090,34 @@ const LandingPage: React.FC = () => {
                   >
                     Become Our Partner
                   </Button>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      textAlign: 'center',
+                      mt: 1.5,
+                      fontSize: '0.95rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Already have an account?{' '}
+                    <Box
+                      component="span"
+                      onClick={() => { navigate('/login', { state: { from: '/' } }); window.scrollTo(0, 0); }}
+                      sx={{
+                        color: '#ffffffff',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-block',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                        }
+                      }}
+                    >
+                      Sign In
+                    </Box>
+                  </Typography>
                 </Box>
               </Grid>
             </Grid>
@@ -1097,7 +1125,7 @@ const LandingPage: React.FC = () => {
         </Box>
 
         {/* ===================== SERVICES SECTION ===================== */}
-        <Box id="services" sx={{ position: 'relative', zIndex: 10, bgcolor: '#ffffff', pt: { xs: 6, lg: 6 }, pb: { xs: 6, lg: 8 }, minHeight: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+        <Box id="services" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, position: 'relative', zIndex: 10, bgcolor: '#ffffff', pt: { xs: 6, lg: 6 }, pb: { xs: 6, lg: 8 }, minHeight: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <Container maxWidth="xl">
             <Box sx={{ textAlign: 'center', mb: 2.5 }}>
               <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#eaf2fc', color: '#23406e', borderRadius: '999px', px: 3, py: 1, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 2 }}>OUR SERVICES</Box>
@@ -1143,7 +1171,7 @@ const LandingPage: React.FC = () => {
         </Box>
 
         {/* ===================== HOW IT WORKS ===================== */}
-        <Box id="how-it-works" sx={{ position: 'relative', zIndex: 10, bgcolor: '#f8fafc', pt: { xs: 6, lg: 8 }, pb: { xs: 8, lg: 12 }, px: { xs: 2, sm: 4, lg: 6 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Box id="how-it-works" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, position: 'relative', zIndex: 10, bgcolor: '#f8fafc', pt: { xs: 6, lg: 8 }, pb: { xs: 8, lg: 12 }, px: { xs: 2, sm: 4, lg: 6 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <Container maxWidth="lg" sx={{ px: { xs: 0, sm: 2 } }}>
             <Box sx={{ textAlign: 'center', px: { xs: 2, sm: 0 }, mb: { xs: 5, sm: 6, lg: 8 } }}>
               <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#eaf2fc', color: '#23406e', borderRadius: '999px', px: 3, py: 1, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 1.5 }}>
@@ -1384,7 +1412,7 @@ const LandingPage: React.FC = () => {
         </Box>
 
         {/* ===================== WHY ALLFIX ===================== */}
-        <Box id="why-allfix" sx={{ width: '100vw', position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', bgcolor: '#fff', pt: { xs: 8, lg: 12 }, pb: { xs: 8, lg: 10 }, minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
+        <Box id="why-allfix" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, width: '100vw', position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', bgcolor: '#fff', pt: { xs: 8, lg: 12 }, pb: { xs: 8, lg: 10 }, minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
           <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 5, lg: 6 } }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 6, lg: 8, xl: 10 }, alignItems: 'center' }}>
 
@@ -1460,7 +1488,7 @@ const LandingPage: React.FC = () => {
         </Box>
 
         {/* ===================== MAP SECTION ===================== */}
-        <Box id="service-area" sx={{ bgcolor: '#f0f4f8', py: { xs: 8, lg: 12 }, position: 'relative', overflow: 'visible' }}>
+        <Box id="service-area" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, bgcolor: '#f0f4f8', py: { xs: 8, lg: 12 }, position: 'relative', overflow: 'visible' }}>
           <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2, px: { xs: 2, sm: 4, lg: 6 } }}>
             {/* Header */}
             <Box sx={{ textAlign: 'center', mb: { xs: 6, md: 8 } }}>
@@ -1709,7 +1737,7 @@ const LandingPage: React.FC = () => {
 
         {/* ===================== TESTIMONIALS ===================== */}
         {displayTestimonials.length > 0 && (
-          <Box id="testimonials" sx={{ position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#0d264a', pt: { xs: 8, lg: 10 }, pb: { xs: 8, lg: 10 }, mt: 0, mb: 0, px: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', overflow: 'hidden' }}>
+          <Box id="testimonials" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#0d264a', pt: { xs: 8, lg: 10 }, pb: { xs: 8, lg: 10 }, mt: 0, mb: 0, px: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', overflow: 'hidden' }}>
             <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 10 }}>
               <Box sx={{ textAlign: 'center', mb: 6 }}>
                 <Box sx={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#23406e', color: 'white', borderRadius: '999px', px: 2.5, py: 0.8, fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.08em', boxShadow: 1, textTransform: 'uppercase', mb: 1.5 }}>CLIENT STORIES</Box>
@@ -1762,7 +1790,7 @@ const LandingPage: React.FC = () => {
         )}
 
         {/* ===================== CONTACT SECTION ===================== */}
-        <Box id="contact-us" sx={{ position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#f8fafc', py: { xs: 8, sm: 10, lg: 0 }, minHeight: { lg: '100vh' }, display: 'flex', alignItems: 'center', borderTop: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Box id="contact-us" sx={{ scrollMarginTop: { xs: '80px', md: '100px' }, position: 'relative', left: '50%', right: '50%', ml: '-50vw', mr: '-50vw', width: '100vw', bgcolor: '#f8fafc', py: { xs: 8, sm: 10, lg: 0 }, minHeight: { lg: '100vh' }, display: 'flex', alignItems: 'center', borderTop: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <Box sx={{ position: 'absolute', top: 0, right: 0, width: '45%', height: '100%', background: 'linear-gradient(135deg, rgba(46,91,168,0.04) 0%, rgba(16,53,95,0.06) 100%)', borderBottomLeftRadius: '100%', zIndex: 0 }} />
           <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, alignItems: 'center', justifyContent: { xs: 'center', lg: 'space-between' }, gap: { xs: 4, sm: 5, lg: 4, xl: 8 }, width: '100%', maxWidth: { xs: '100%', sm: '650px', lg: '100%' }, mx: 'auto' }}>
@@ -1777,22 +1805,22 @@ const LandingPage: React.FC = () => {
                   Whether you need help booking a pro, have questions about our services, or want to partner with AllFix, our team is ready to assist you.
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Box sx={{ bgcolor: 'white', p: 1.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2, boxShadow: '0 4px 12px rgba(16,53,95,0.04)', border: '1px solid #e2e8f0', width: '100%', maxWidth: { xs: '100%', sm: '420px', lg: '340px' } }}>
-                    <Box sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: '#eaf2fc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e5ba8', flexShrink: 0 }}>
+                  <Box sx={{ bgcolor: 'white', p: { xs: 1.25, sm: 1.5 }, borderRadius: 3, display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, boxShadow: '0 4px 12px rgba(16,53,95,0.04)', border: '1px solid #e2e8f0', width: '100%', maxWidth: { xs: '100%', sm: '420px', lg: '400px' } }}>
+                    <Box sx={{ width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 }, borderRadius: '10px', bgcolor: '#eaf2fc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e5ba8', flexShrink: 0 }}>
                       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                     </Box>
                     <Box sx={{ overflow: 'hidden' }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>EMAIL US</Typography>
-                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#10355f', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>concierge.fpdnexus@gmail.com</Typography>
+                      <Typography sx={{ fontSize: { xs: '0.65rem', sm: '0.7rem' }, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>EMAIL US</Typography>
+                      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.95rem' }, fontWeight: 800, color: '#10355f', whiteSpace: 'nowrap' }}>concierge.fpdnexus@gmail.com</Typography>
                     </Box>
                   </Box>
-                  <Box sx={{ bgcolor: 'white', p: 1.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2, boxShadow: '0 4px 12px rgba(16,53,95,0.04)', border: '1px solid #e2e8f0', width: '100%', maxWidth: { xs: '100%', sm: '420px', lg: '340px' } }}>
-                    <Box sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: '#eaf2fc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e5ba8', flexShrink: 0 }}>
+                  <Box sx={{ bgcolor: 'white', p: { xs: 1.25, sm: 1.5 }, borderRadius: 3, display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, boxShadow: '0 4px 12px rgba(16,53,95,0.04)', border: '1px solid #e2e8f0', width: '100%', maxWidth: { xs: '100%', sm: '420px', lg: '400px' } }}>
+                    <Box sx={{ width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 }, borderRadius: '10px', bgcolor: '#eaf2fc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e5ba8', flexShrink: 0 }}>
                       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                     </Box>
-                    <Box>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>CALL US</Typography>
-                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#10355f' }}>+63 920 9631 217</Typography>
+                    <Box sx={{ overflow: 'hidden' }}>
+                      <Typography sx={{ fontSize: { xs: '0.65rem', sm: '0.7rem' }, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>CALL US</Typography>
+                      <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.95rem' }, fontWeight: 800, color: '#10355f', whiteSpace: 'nowrap' }}>+63 920 9631 217</Typography>
                     </Box>
                   </Box>
                 </Box>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 import { loginUser, logoutUser, resetPassword } from '../services/firebaseService';
@@ -10,6 +10,8 @@ import { useAuth, UserRole } from '../context/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = location.state?.from || '/';
   const { refreshProfile } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -159,11 +161,13 @@ export default function LoginPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
         <button 
-          onClick={() => navigate('/')} 
+          onClick={() => navigate(fromPath)} 
           className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="font-semibold text-sm">Back to Home</span>
+          <span className="font-semibold text-sm">
+            {fromPath === '/' ? 'Back to Home' : 'Back'}
+          </span>
         </button>
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-brand-yellow/5 rounded-full blur-3xl" />

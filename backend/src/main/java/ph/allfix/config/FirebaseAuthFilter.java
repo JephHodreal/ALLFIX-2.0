@@ -50,7 +50,41 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
 
                 boolean allow = true;
                 try {
-                    Map<String, Object> profile = firestoreService.getById(collection, uid);
+                    String firestoreId = (String) claims.get("firestore_id");
+                    String targetId = (firestoreId != null) ? firestoreId : uid;
+                    Map<String, Object> profile = firestoreService.getById(collection, targetId);
+
+                    if (profile == null && targetId.equals(uid) && !"customers".equals(collection)) {
+                        java.util.List<Map<String, Object>> list = firestoreService.getWhere(collection, "auth_uid", uid);
+                        if (!list.isEmpty()) {
+                            profile = list.get(0);
+                        }
+                    }
+
+                    // Fallback: check all other collections in case custom claims are out of sync
+                    if (profile == null) {
+                        String[] collections = {"admins", "vendors", "personnel", "customers"};
+                        for (String col : collections) {
+                            if (col.equals(collection)) continue;
+                            if (col.equals("customers")) {
+                                profile = firestoreService.getById(col, uid);
+                            } else {
+                                if (firestoreId != null) {
+                                    profile = firestoreService.getById(col, firestoreId);
+                                }
+                                if (profile == null) {
+                                    java.util.List<Map<String, Object>> list = firestoreService.getWhere(col, "auth_uid", uid);
+                                    if (!list.isEmpty()) {
+                                        profile = list.get(0);
+                                    }
+                                }
+                            }
+                            if (profile != null) {
+                                break;
+                            }
+                        }
+                    }
+
                     if (profile == null) {
                         allow = false;
                     } else {
@@ -95,6 +129,6 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.equals("/api/auth/register") || path.equals("/api/auth/verify") || path.equals("/api/auth/me") || path.equals("/api/health") || path.equals("/api/auth/send-verification") || path.equals("/api/support/contact") || path.equals("/api/upload/image");
+        return path.equals("/api/auth/register") || path.equals("/api/auth/verify") || path.equals("/api/auth/me") || path.equals("/api/health") || path.equals("/api/auth/send-verification") || path.equals("/api/support/contact") || path.equals("/api/upload/image") || path.equals("/api/partner-logos");
     }
 }

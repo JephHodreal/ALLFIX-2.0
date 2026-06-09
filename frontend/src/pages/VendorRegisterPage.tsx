@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, Upload, X, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, Upload, X, CreditCard, ArrowLeft } from 'lucide-react';
 import { registerUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
@@ -391,6 +391,13 @@ export default function VendorRegisterPage() {
     <div className="min-h-screen flex bg-surface-light dark:bg-surface-dark">
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-2/5 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
+        <button 
+          onClick={() => navigate('/vendor-apply')} 
+          className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-semibold text-sm">Back</span>
+        </button>
         <div className="absolute top-10 left-10 w-72 h-72 bg-brand-green/10 rounded-full blur-3xl" />
         <div className="text-center relative z-10">
           <img src="/ALLFIXLOGO.png" alt="AllFix Logo" className="w-20 h-20 object-contain mx-auto mb-8" />
