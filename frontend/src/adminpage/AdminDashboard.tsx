@@ -16,6 +16,7 @@ import api from '../services/apiService';
 import AddServiceWizard from './AddServiceWizard';
 import AreaServiceManager from './AreaServiceManager';
 import { useTheme } from '../context/ThemeContext';
+import PartnerLogosManager from './PartnerLogosManager';
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
 function DashboardHome() {
@@ -6095,6 +6096,7 @@ export default function AdminDashboard() {
             <Route path="bookings" element={<BookingsTab />} />
             <Route path="services" element={<ServicesManagementPage />} />
             <Route path="area-services" element={<AreaServiceManager />} />
+            <Route path="partner-logos" element={<PartnerLogosManager />} />
             {/* Finance & Promos */}
             <Route path="transactions" element={<TransactionsPage />} />
 

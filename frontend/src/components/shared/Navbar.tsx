@@ -7,9 +7,11 @@ import { useAuth } from '../../context/AuthContext';
 
 interface NavbarProps {
   isLandingPage?: boolean;
+  backRoute?: string;
+  backLabel?: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
+export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false, backRoute, backLabel }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, role } = useAuth();
@@ -47,7 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
       const timer = setTimeout(() => {
         const el = document.querySelector(location.hash);
         if (el) {
-          const offsetTop = el.getBoundingClientRect().top + window.scrollY - 20;
+          const offsetTop = el.getBoundingClientRect().top + window.scrollY - 64;
           window.scrollTo({ top: offsetTop, behavior: 'smooth' });
         }
       }, 150);
@@ -75,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
     if (location.pathname === '/' || isLandingPage) {
       const el = document.querySelector(href);
       if (el) {
-        const offsetTop = el.getBoundingClientRect().top + window.scrollY - 20;
+        const offsetTop = el.getBoundingClientRect().top + window.scrollY - 64;
         window.scrollTo({ top: offsetTop, behavior: 'smooth' });
       }
     } else {
@@ -88,11 +90,10 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
       position="fixed"
       sx={{
         zIndex: 1100,
-        background: isScrolled ? 'rgba(255, 255, 255, 0.95)' : 'transparent',
-        backdropFilter: isScrolled ? 'blur(20px)' : 'none',
+        background: isScrolled ? '#ffffff' : 'transparent',
         boxShadow: isScrolled ? '0 4px 12px rgba(0, 0, 0, 0.15)' : 'none',
         transition: 'all 0.3s ease',
-        borderBottom: isScrolled ? '1px solid rgba(255, 255, 255, 0.2)' : 'none',
+        borderBottom: isScrolled ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
       }}
     >
       {/* Wrapped in Container to perfectly align with Hero text on the left */}
@@ -141,7 +142,14 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
               ))
             ) : (
               <Button
-                onClick={handleBackHome}
+                onClick={() => {
+                  if (backRoute) {
+                    navigate(backRoute);
+                    window.scrollTo(0, 0);
+                  } else {
+                    handleBackHome();
+                  }
+                }}
                 sx={{
                   px: 2.5,
                   py: 1,
@@ -158,7 +166,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
                   }
                 }}
               >
-                Back to Homepage
+                {backLabel || 'Back to Homepage'}
               </Button>
             )}
           </Box>
@@ -171,7 +179,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <Box sx={{ bgcolor: isScrolled ? 'rgba(255, 255, 255, 0.95)' : 'rgba(16, 53, 95, 0.8)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.2)', display: { xs: 'block', lg: 'none' } }}>
+        <Box sx={{ bgcolor: isScrolled ? '#ffffff' : 'rgba(16, 53, 95, 0.8)', backdropFilter: isScrolled ? 'none' : 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.2)', display: { xs: 'block', lg: 'none' } }}>
           <Box sx={{ px: 2, py: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {isLandingPage ? (
               navLinks.map((link) => (
@@ -198,7 +206,15 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
               ))
             ) : (
               <Button
-                onClick={handleBackHome}
+                onClick={() => {
+                  setMobileOpen(false);
+                  if (backRoute) {
+                    navigate(backRoute);
+                    window.scrollTo(0, 0);
+                  } else {
+                    handleBackHome();
+                  }
+                }}
                 fullWidth
                 sx={{
                   justifyContent: 'flex-start',
@@ -214,7 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLandingPage = false }) => {
                   }
                 }}
               >
-                Back to Homepage
+                {backLabel || 'Back to Homepage'}
               </Button>
             )}
           </Box>

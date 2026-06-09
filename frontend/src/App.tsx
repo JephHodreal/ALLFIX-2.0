@@ -7,6 +7,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminRegisterPage from './pages/AdminRegisterPage';
 import VendorRegisterPage from './pages/VendorRegisterPage';
+import VendorLanding from './pages/VendorLanding';
+import PersonnelLanding from './pages/PersonnelLanding';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminDashboard from './adminpage/AdminDashboard';
@@ -48,7 +50,8 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register-admin" element={<AdminRegisterPage />} />
       <Route path="/register-vendor" element={<VendorRegisterPage />} />
-      <Route path="/vendor-apply" element={<Navigate to="/register-vendor" replace />} />
+      <Route path="/vendor-apply" element={<VendorLanding />} />
+      <Route path="/personnel-apply" element={<PersonnelLanding />} />
       <Route path="/verify-email" element={<EmailVerificationPage />} />
       <Route path="/about" element={<AboutUsPage />} /> 
       <Route path="/privacy" element={<PrivacyPage />} /> 

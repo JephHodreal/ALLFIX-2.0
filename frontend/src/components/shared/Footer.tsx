@@ -148,7 +148,7 @@ export const Footer: React.FC = () => {
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.1em', mb: 3, color: 'white' }}>SUPPORT</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Typography onClick={() => { navigate('/register'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Book a Service</Typography>
-              <Typography onClick={() => { navigate('/register-vendor'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Become a Partner</Typography>
+              <Typography onClick={() => { navigate('/vendor-apply'); window.scrollTo(0, 0); }} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'white' } }}>Become a Partner</Typography>
             </Box>
           </Grid>
 
