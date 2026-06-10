@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Sun, Moon, Menu, Check } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Check, Trash2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/apiService';
@@ -60,6 +60,18 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
       console.log("[CAVEMAN] Successfully read notification:", id);
     } catch (err) {
       console.error("[CAVEMAN] Failed to mark notification as read", err);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log("[CAVEMAN] Deleting notification from database:", id);
+    try {
+      await api.delete(`/api/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      console.log("[CAVEMAN] Successfully deleted notification:", id);
+    } catch (err) {
+      console.error("[CAVEMAN] Failed to delete notification", err);
     }
   };
 
@@ -131,15 +143,24 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                             {item.message}
                           </p>
                         </div>
-                        {!isRead && (
+                        <div className="flex flex-col gap-1 items-center justify-center opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!isRead && (
+                            <button
+                              onClick={(e) => handleMarkAsRead(item.id, e)}
+                              className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm"
+                              title="Mark as read"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
-                            onClick={(e) => handleMarkAsRead(item.id, e)}
-                            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100"
-                            title="Mark as read"
+                            onClick={(e) => handleDeleteNotification(item.id, e)}
+                            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm"
+                            title="Remove notification"
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                        </div>
                       </div>
                     );
                   })

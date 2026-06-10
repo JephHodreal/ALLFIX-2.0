@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock } from 'lucide-react';
+import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -372,7 +373,7 @@ function VendorBookings() {
             </button>
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {formatBookingId(selectedBooking.id)}</p>
             </div>
           </div>
           <div>
@@ -764,6 +765,7 @@ function VendorBookings() {
   return (
     <DataTable
       columns={[
+        { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
         { key: 'service_type', label: 'Service', sortable: true },
         { key: 'scheduled_date', label: 'Date', sortable: true },
         { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },

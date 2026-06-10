@@ -41,4 +41,14 @@ public class NotificationService {
         System.out.println("Marking notification " + notificationId + " as read (is_read = true)");
         firestoreService.updateField("notifications", notificationId, "is_read", true);
     }
+
+    public void markUnread(String notificationId) throws Exception {
+        System.out.println("Marking notification " + notificationId + " as unread (is_read = false)");
+        firestoreService.updateField("notifications", notificationId, "is_read", false);
+    }
+
+    public void delete(String notificationId) throws Exception {
+        System.out.println("Deleting notification: " + notificationId);
+        firestoreService.delete("notifications", notificationId);
+    }
 }

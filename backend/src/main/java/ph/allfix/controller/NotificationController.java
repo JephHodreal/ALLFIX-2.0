@@ -52,4 +52,41 @@ public class NotificationController {
         notificationService.markRead(id);
         return ResponseEntity.ok(Map.of("message", "Marked as read"));
     }
+
+    @PatchMapping("/{id}/unread")
+    public ResponseEntity<?> markUnread(@PathVariable String id) throws Exception {
+        String principalUid = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        System.out.println("Security check: principalUid=" + principalUid + " wants to mark unread notification=" + id);
+        
+        Map<String, Object> notification = notificationService.getById(id);
+        if (notification == null) {
+            System.err.println("Notification not found: " + id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Notification not found."));
+        }
+        
+        if (principalUid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
+        }
+        
+        notificationService.markUnread(id);
+        return ResponseEntity.ok(Map.of("message", "Marked as unread"));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteNotification(@PathVariable String id) throws Exception {
+        String principalUid = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principalUid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
+        }
+        
+        Map<String, Object> notification = notificationService.getById(id);
+        if (notification == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Notification not found."));
+        }
+
+        notificationService.delete(id);
+        return ResponseEntity.ok(Map.of("message", "Notification deleted"));
+    }
 }

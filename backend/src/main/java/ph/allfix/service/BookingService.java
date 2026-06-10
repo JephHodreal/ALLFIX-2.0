@@ -10,12 +10,14 @@ public class BookingService {
     private final NotificationService notificationService;
     private final SlotService slotService;
     private final RefundService refundService;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
-    public BookingService(FirestoreService firestoreService, NotificationService notificationService, SlotService slotService, RefundService refundService) {
+    public BookingService(FirestoreService firestoreService, NotificationService notificationService, SlotService slotService, RefundService refundService, SequenceGeneratorService sequenceGeneratorService) {
         this.firestoreService = firestoreService;
         this.notificationService = notificationService;
         this.slotService = slotService;
         this.refundService = refundService;
+        this.sequenceGeneratorService = sequenceGeneratorService;
     }
 
     public String createBooking(Map<String, Object> data) throws Exception {
@@ -45,15 +47,19 @@ public class BookingService {
         data.put("cancellation_requested", false);
         data.put("refund_requested", false);
         data.put("refund_status", "none");
-        String bookingId = firestoreService.create("bookings", data);
+        String bookingId = sequenceGeneratorService.generateNextId("bookings");
+        firestoreService.createWithId("bookings", bookingId, data);
         handleSlotDecrementForBooking(bookingId);
 
         // Send notifications for new booking
         String customerId = (String) data.get("customer_id");
         String vendorId = (String) data.get("vendor_id");
         String serviceType = (String) data.get("service_type");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + serviceType + " has been successfully submitted.");
-        if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + serviceType + ".");
+        String schedDate = (String) data.get("scheduled_date");
+        String schedTime = (String) data.get("scheduled_time");
+        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + details + " has been successfully submitted.");
+        if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + details + ".");
 
         return bookingId;
     }
@@ -73,8 +79,12 @@ public class BookingService {
         // Notify customer + vendor
         String customerId = (String) booking.get("customer_id");
         String vendorId = (String) booking.get("vendor_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking has been confirmed!");
-        if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking assigned to you.");
+        String serviceType = (String) booking.get("service_type");
+        String schedDate = (String) booking.get("scheduled_date");
+        String schedTime = (String) booking.get("scheduled_time");
+        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking for " + details + " has been confirmed!");
+        if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking for " + details + " assigned to you.");
     }
 
     public void assignPersonnel(String bookingId, String personnelId) throws Exception {
@@ -87,8 +97,12 @@ public class BookingService {
 
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         String customerId = (String) booking.get("customer_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", "A personnel has been assigned to your booking.");
-        notificationService.notify(personnelId, "personnel", "New Assignment", "You have been assigned a new job.");
+        String serviceType = (String) booking.get("service_type");
+        String schedDate = (String) booking.get("scheduled_date");
+        String schedTime = (String) booking.get("scheduled_time");
+        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", "A personnel has been assigned to your booking for " + details + ".");
+        notificationService.notify(personnelId, "personnel", "New Assignment", "You have been assigned a new job for " + details + ".");
     }
 
     public void completeBooking(String bookingId) throws Exception {
@@ -130,7 +144,9 @@ public class BookingService {
         handleSlotDecrementForBooking(bookingId);
 
         String customerId = (String) booking.get("customer_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Completed", "Your booking has been completed! Please leave a review.");
+        String serviceType = (String) booking.get("service_type");
+        String details = "ID: " + bookingId + " - " + serviceType;
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Completed", "Your booking for \"" + details + "\" has been completed! Please leave a review.");
     }
 
     public void requestCancellation(String bookingId) throws Exception {
@@ -277,16 +293,18 @@ public class BookingService {
         if (!isVendorCancel) {
             // 3. Notify the customer and vendor
             String customerId = (String) booking.get("customer_id");
+            String serviceType = (String) booking.get("service_type");
+            String details = "ID: " + bookingId + " - " + serviceType;
             if (customerId != null) {
                 if (amount > 0) {
-                    notificationService.notify(customerId, "customer", "Refund Processed", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+                    notificationService.notify(customerId, "customer", "Refund Processed", "Your booking for \"" + details + "\" has been cancelled and a refund of ₱" + amount + " has been processed.");
                 } else {
-                    notificationService.notify(customerId, "customer", "Booking Cancelled", "Your booking has been cancelled by the admin.");
+                    notificationService.notify(customerId, "customer", "Booking Cancelled", "Your booking for \"" + details + "\" has been cancelled by the admin.");
                 }
             }
             String vendorId = (String) booking.get("vendor_id");
             if (vendorId != null) {
-                notificationService.notify(vendorId, "vendor", "Booking Cancelled", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+                notificationService.notify(vendorId, "vendor", "Booking Cancelled", "A booking for \"ID: " + bookingId + " - " + booking.get("service_type") + "\" has been cancelled with a refund issued.");
             }
 
             // Trigger Email Notification
@@ -299,8 +317,10 @@ public class BookingService {
         } else {
             // For vendor cancel: notify customer that their refund request has been submitted and is pending admin review.
             String customerId = (String) booking.get("customer_id");
+            String serviceType = (String) booking.get("service_type");
+            String details = "ID: " + bookingId + " - " + serviceType;
             if (customerId != null) {
-                notificationService.notify(customerId, "customer", "Cancellation Requested", "Your booking has been cancelled by the vendor. A refund request has been submitted and is pending admin review.");
+                notificationService.notify(customerId, "customer", "Cancellation Requested", "Your booking for \"" + details + "\" has been cancelled by the vendor. A refund request has been submitted and is pending admin review.");
             }
             
             // Notify admins

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check } from 'lucide-react';
+import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -1319,6 +1320,7 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
 }
 
 // ─── My Bookings Tab ────────────────────────────────────────────────────────
+
 function MyBookingsTab() {
   const { profile } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
@@ -1429,7 +1431,7 @@ function MyBookingsTab() {
             </button>
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {formatBookingId(selectedBooking.id)}</p>
             </div>
           </div>
           <div>
@@ -1729,6 +1731,12 @@ function MyBookingsTab() {
       
       <DataTable
         columns={[
+          { 
+            key: 'id', 
+            label: 'Booking ID', 
+            sortable: true,
+            render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span>
+          },
           { key: 'service_type', label: 'Service', sortable: true },
           { key: 'scheduled_date', label: 'Date', sortable: true },
           { key: 'scheduled_time', label: 'Time' },
@@ -1826,20 +1834,54 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
           Your orders have been successfully placed with our verified service partners. You can track progress in your Bookings tab.
         </p>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-left mb-8 space-y-3">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Order Summary</p>
-          {successBookings.map((b, idx) => (
-            <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
-              <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">{b.service_type}</p>
-                <p className="text-xs text-slate-400">{b.vendor_name} • {b.scheduled_date} • {b.scheduled_time}</p>
+        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-left mb-8 shadow-inner relative overflow-hidden">
+          {/* Receipt Top Zigzag Decor */}
+          <div className="absolute top-0 left-0 w-full h-2 bg-repeat-x flex items-center justify-center opacity-20 dark:opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #0f172a 2px, transparent 2.5px)', backgroundSize: '10px 10px' }}></div>
+          
+          <div className="text-center mb-6 pt-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Official Receipt</p>
+            <p className="text-[10px] text-slate-400">{new Date().toLocaleString()}</p>
+          </div>
+
+          <div className="space-y-6">
+            {successBookings.map((b, idx) => (
+              <div key={idx} className="pb-6 border-b border-dashed border-slate-300 dark:border-slate-700 last:border-0 last:pb-0">
+                <div className="flex justify-between items-start mb-2">
+                  <p className="font-bold text-base text-slate-800 dark:text-slate-200">{b.service_type}</p>
+                  <p className="font-extrabold text-slate-900 dark:text-white">₱{b.total_price}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-[10px] uppercase text-slate-400">Booking ID</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{formatBookingId(b.id)}</span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="font-semibold text-[10px] uppercase text-slate-400">Vendor</span>
+                    <span className="text-slate-700 dark:text-slate-300">{b.vendor_name || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-[10px] uppercase text-slate-400">Date & Time</span>
+                    <span className="text-slate-700 dark:text-slate-300">{b.scheduled_date} at {b.scheduled_time}</span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="font-semibold text-[10px] uppercase text-slate-400">Rate</span>
+                    <span className="text-slate-700 dark:text-slate-300">₱{b.price} x {b.quantity}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="font-extrabold text-slate-900 dark:text-white">₱{b.total_price}</p>
-                <p className="text-[10px] text-slate-400">Qty: {b.quantity}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <div className="mt-6 pt-4 border-t-2 border-slate-800 dark:border-white flex justify-between items-center">
+            <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Total Amount</span>
+            <span className="text-xl font-black text-brand-navy dark:text-white">
+              ₱{successBookings.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0).toFixed(2)}
+            </span>
+          </div>
+
+          {/* Receipt Bottom Zigzag Decor */}
+          <div className="absolute bottom-0 left-0 w-full h-2 bg-repeat-x flex items-center justify-center opacity-20 dark:opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #0f172a 2px, transparent 2.5px)', backgroundSize: '10px 10px', backgroundPosition: 'bottom' }}></div>
         </div>
 
         <div className="flex gap-4">
@@ -3670,6 +3712,33 @@ function NotificationsTab() {
     }
   };
 
+  const markAsUnread = async (id: string) => {
+    try {
+      await api.patch(`/api/notifications/${id}/unread`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false, read: false } : n));
+    } catch (err) {
+      console.error("Failed to mark as unread", err);
+    }
+  };
+
+  const markAllAsUnread = async () => {
+    for (const n of notifications) {
+      if (n.is_read || n.read) {
+        await markAsUnread(n.id);
+      }
+    }
+  };
+
+  const deleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/api/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error("Failed to delete notification", err);
+    }
+  };
+
   const markAllAsRead = async () => {
     for (const n of notifications) {
       if (!(n.is_read || n.read)) {
@@ -3758,9 +3827,9 @@ function NotificationsTab() {
               <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             Notifications
-            {notifications.length > 0 && (
+            {notifications.filter(n => !(n.is_read || n.read)).length > 0 && (
               <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700 ml-2">
-                {notifications.length} Unread
+                {notifications.filter(n => !(n.is_read || n.read)).length} Unread
               </span>
             )}
           </h2>
@@ -3783,12 +3852,22 @@ function NotificationsTab() {
               </div>
             </div>
 
-            <button 
-              onClick={markAllAsRead}
-              className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Mark all as read
-            </button>
+            <div className="flex bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+              <button 
+                onClick={markAllAsUnread}
+                title="Mark all as unread"
+                className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 border-r border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+              >
+                <RefreshCcw className="w-4 h-4" /> <span className="hidden sm:inline">Mark all unread</span>
+              </button>
+              <button 
+                onClick={markAllAsRead}
+                title="Mark all as read"
+                className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+              >
+                <CheckCircle2 className="w-4 h-4" /> <span className="hidden sm:inline">Mark all read</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -3848,18 +3927,27 @@ function NotificationsTab() {
                     {n.message}
                   </p>
                 </div>
-                {!isRead && (
+                <div className="flex flex-col gap-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                  {!isRead && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(n.id);
+                      }}
+                      className="p-1.5 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm"
+                      title="Mark as read"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(n.id);
-                    }}
-                    className="p-1.5 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100 self-center"
-                    title="Mark as read"
+                    onClick={(e) => deleteNotification(n.id, e)}
+                    className="p-1.5 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm"
+                    title="Remove notification"
                   >
-                    <Check className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
-                )}
+                </div>
               </motion.div>
             );
           })}

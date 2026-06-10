@@ -59,7 +59,7 @@ public class SequenceGeneratorService {
             case "customers":
                 return String.format("CL_%06d", seq);
             case "bookings":
-                return String.format("BK_%05d", seq);
+                return String.format("BK-%06d", seq);
             case "notifications":
                 return String.format("NT_%06d", seq);
             case "payment_methods":

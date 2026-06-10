@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet } from 'lucide-react';
+import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -5381,7 +5382,7 @@ function RefundsPage() {
               { key: 'id', label: 'Refund ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-500">{item.id?.substring(0, 8)}...</span> },
               { key: 'booking_id', label: 'Booking ID', sortable: true, render: (item: any) => (
                 <div className="flex flex-col">
-                  <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{item.booking_id}</span>
+                  <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{formatBookingId(item.booking_id)}</span>
                   {item.is_automatic_expiration && (
                     <span className="bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[9px] px-1.5 py-0.5 rounded-full inline-block mt-1 font-semibold w-fit">
                       ⚠️ Missed Deadline
