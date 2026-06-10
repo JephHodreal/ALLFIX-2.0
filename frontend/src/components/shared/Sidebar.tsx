@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, CalendarDays, Star, ClipboardList,
@@ -324,6 +324,8 @@ function SidebarSectionGroup({
   role: UserRole;
   collapsed: boolean;
 }) {
+  const location = useLocation();
+
   return (
     <div className="mb-4 overflow-visible">
       {section.title && (
@@ -344,29 +346,34 @@ function SidebarSectionGroup({
 
       <div className="space-y-1 overflow-visible">
         {section.items.map((item) => {
+          const isHomeOnBook = item.path === '/customer' && location.pathname.startsWith('/customer/book');
           const linkContent = (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.end ?? false}
-              className={({ isActive }) => `
+              className={({ isActive }) => {
+                const forcedActive = isActive || isHomeOnBook;
+                return `
                 group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
-                ${isActive
+                ${forcedActive
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm shadow-slate-900/10'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                 }
-              `}
+              `}}
             >
-              {({ isActive }) => (
+              {({ isActive }) => {
+                const forcedActive = isActive || isHomeOnBook;
+                return (
                 <>
-                  {isActive && (
+                  {forcedActive && (
                     <motion.div
                       layoutId="activeIndicator"
                       className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
                     />
                   )}
                   <span
-                    className={`flex-shrink-0 transition-colors ${isActive
+                    className={`flex-shrink-0 transition-colors ${forcedActive
                         ? 'text-white dark:text-slate-900'
                         : 'text-slate-400 dark:text-slate-500 group-hover/item:text-slate-600 dark:group-hover/item:text-slate-300'
                       }`}
@@ -387,7 +394,7 @@ function SidebarSectionGroup({
                     )}
                   </AnimatePresence>
                 </>
-              )}
+              )}}
             </NavLink>
           );
 

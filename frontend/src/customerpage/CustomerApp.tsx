@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
@@ -89,7 +89,7 @@ const NavigationPills: React.FC<NavigationPillsProps> = ({ services, activeServi
   );
 };
 
-const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick: (service: any) => void }) => {
+const ServiceCard = ({ service, isSubService = false, onServiceClick }: { service: any; isSubService?: boolean; onServiceClick: (service: any) => void }) => {
   const [hovered, setHovered] = useState(false);
   const Icon = service.icon;
 
@@ -100,6 +100,7 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
         borderRadius: '16px',
         overflow: 'hidden',
         border: '1px solid #e5e5e5',
+        borderTop: isSubService ? `4px solid ${service.accent}` : 'none',
         boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.1)',
         transition: 'all 0.3s ease',
         transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
@@ -130,7 +131,14 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
             left: 0,
           }}
         />
-        <div style={{ position: 'absolute', inset: 0, background: service.accent, opacity: hovered ? 0.6 : 0, transition: 'opacity 0.3s ease' }} />
+        <div style={{ position: 'absolute', inset: 0, background: service.accent, opacity: hovered ? 0.8 : 0, transition: 'opacity 0.3s ease' }} />
+        
+        {isSubService && (
+          <div style={{ position: 'absolute', top: '16px', right: '16px', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: service.accent, color: '#fff', zIndex: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+            <Icon style={{ width: '18px', height: '18px' }} />
+          </div>
+        )}
+
         {hovered && (
           <div
             style={{
@@ -140,54 +148,77 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
               width: '100%',
               height: '100%',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 2,
               pointerEvents: 'none',
               transition: 'opacity 0.3s, transform 0.3s',
               opacity: hovered ? 1 : 0,
-              transform: hovered ? 'scale(1)' : 'scale(0.8)',
+              transform: hovered ? 'scale(1)' : 'scale(0.95)',
             }}
           >
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: service.accent,
-                boxShadow: `0 0 20px ${service.accent}80, 0 0 40px ${service.accent}40, 0 8px 16px rgba(0,0,0,0.4)`,
-              }}
-            >
-              <Icon style={{ width: '32px', height: '32px', color: '#fff' }} />
-            </div>
+            {isSubService ? (
+              <div
+                style={{
+                  color: '#ffffff',
+                  fontWeight: 900,
+                  fontSize: '1.1rem',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  border: '2px solid #ffffff',
+                  padding: '8px 24px',
+                  borderRadius: '30px',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(4px)'
+                }}
+              >
+                Book Now
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: service.accent,
+                  boxShadow: `0 0 20px ${service.accent}80, 0 0 40px ${service.accent}40, 0 8px 16px rgba(0,0,0,0.4)`,
+                }}
+              >
+                <Icon style={{ width: '32px', height: '32px', color: '#fff' }} />
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Header */}
-      <div
-        style={{
-          position: 'relative',
-          padding: '32px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: `linear-gradient(135deg, ${service.headerBg} 0%, ${service.headerBgLight} 100%)`,
-        }}
-      >
-        <div style={{ fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>
-          {service.brand}
+      {/* Header for Main Services */}
+      {!isSubService && (
+        <div
+          style={{
+            position: 'relative',
+            padding: '32px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: `linear-gradient(135deg, ${service.headerBg} 0%, ${service.headerBgLight} 100%)`,
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>
+            {service.brand}
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)', position: 'relative', zIndex: 2 }}>
+            <Icon style={{ width: '22px', height: '22px', color: '#fff' }} />
+          </div>
         </div>
-        <div style={{ width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)', position: 'relative', zIndex: 2 }}>
-          <Icon style={{ width: '22px', height: '22px', color: '#fff' }} />
-        </div>
-      </div>
+      )}
 
       {/* Body */}
-      <div style={{ padding: '12px 24px 20px 24px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+      <div style={{ padding: isSubService ? '24px 24px 20px 24px' : '12px 24px 20px 24px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <h3 style={{ fontWeight: 900, fontSize: '1.25rem', color: '#000', marginBottom: '2px' }}>{service.brand}</h3>
         <p style={{ fontSize: '0.85rem', fontWeight: 600, color: service.accent, marginBottom: '12px' }}>{service.tagline}</p>
         <p style={{ fontSize: '0.9rem', color: '#666', lineHeight: 1.5, marginBottom: '16px', flex: 1 }}>{service.description}</p>
@@ -201,7 +232,7 @@ const ServiceCard = ({ service, onServiceClick }: { service: any; onServiceClick
           ))}
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 700, color: hovered ? service.accentDark : service.accent, transition: 'color 0.2s ease', marginTop: 'auto' }}>
-          About {service.brand}
+          Book {service.brand}
           <ArrowForwardIcon style={{ width: '16px', height: '16px', transition: 'transform 0.2s ease', transform: hovered ? 'translateX(4px)' : 'translateX(0)' }} />
         </div>
       </div>
@@ -219,12 +250,50 @@ function CustomerHome() {
   const [services, setServices] = useState<any[]>(servicesData);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [activeServiceIdx, setActiveServiceIdx] = useState(0);
+  const location = useLocation();
+  const [selectedBrandService, setSelectedBrandService] = useState<any>(() => {
+    // Check if we came back from booking form
+    const stateRestoreBrand = location.state?.restoreBrand || localStorage.getItem('restoreBrand');
+    if (stateRestoreBrand && servicesData.length > 0) {
+      const svc = servicesData.find(s => s.brand?.toLowerCase() === stateRestoreBrand.toLowerCase());
+      if (svc) return svc;
+    }
+    return null;
+  });
 
   useEffect(() => {
     if (profile?.id) {
       api.get(`/api/bookings/customer/${profile.id}`).then(r => setRecentBookings((r.data || []).slice(0, 5))).catch(() => { }).finally(() => setLoading(false));
     } else { setLoading(false); }
   }, [profile]);
+
+  const initialRestoreHandled = useRef(false);
+
+  useEffect(() => {
+    const stateRestoreBrand = location.state?.restoreBrand || localStorage.getItem('restoreBrand');
+    if (stateRestoreBrand && services.length > 0 && !initialRestoreHandled.current) {
+      const svc = services.find(s => s.brand?.toLowerCase() === stateRestoreBrand.toLowerCase());
+      if (svc) {
+        setSelectedBrandService(svc);
+        initialRestoreHandled.current = true;
+        localStorage.removeItem('restoreBrand');
+      } else if (!servicesLoading) {
+        // If loading is finished and service still not found, consume it to prevent infinite loop
+        initialRestoreHandled.current = true;
+        localStorage.removeItem('restoreBrand');
+      }
+    }
+  }, [services, location.state?.restoreBrand, servicesLoading]);
+
+  // Keep selectedBrandService updated with the latest backend data when services fetch completes
+  useEffect(() => {
+    if (services.length > 0 && selectedBrandService) {
+      const freshSvc = services.find(s => s.id === selectedBrandService.id || s.brand === selectedBrandService.brand);
+      if (freshSvc && freshSvc !== selectedBrandService) {
+        setSelectedBrandService(freshSvc);
+      }
+    }
+  }, [services]);
 
   useEffect(() => {
     setServicesLoading(true);
@@ -245,7 +314,18 @@ function CustomerHome() {
               description: backendService.description,
               tagline: backendService.tagline || frontendMatch.tagline,
               image: backendService.imageUrl || backendService.image || frontendMatch.image,
-              subServices: backendService.subServices || frontendMatch.subServices || [],
+              subServices: backendService.subServices && backendService.subServices.length > 0
+                ? backendService.subServices.map((bsSub: any) => {
+                    const fsSub: any = (frontendMatch.subServices || []).find((fs: any) => fs.name.toLowerCase() === bsSub.name.toLowerCase());
+                    return {
+                      ...fsSub,
+                      ...bsSub,
+                      workTypes: (bsSub.workTypes && bsSub.workTypes.length > 0) ? bsSub.workTypes : (fsSub?.workTypes || []),
+                      image: bsSub.imageUrl || bsSub.image || fsSub?.image || fsSub?.imageUrl,
+                      prices: (bsSub.prices && Object.keys(bsSub.prices).length > 0) ? bsSub.prices : (fsSub?.prices || {})
+                    } as any;
+                  })
+                : frontendMatch.subServices || [],
             });
           } else {
             // Backend-only service (dynamically added via admin)
@@ -289,70 +369,116 @@ function CustomerHome() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="bg-gradient-to-br from-brand-navy to-[#0a2d5c] text-white border-none">
-          <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.first_name || 'there'}!</h2>
-          <p className="text-white/70">Ready to book your next service?</p>
-        </Card>
-      </motion.div>
+      {!selectedBrandService && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="bg-gradient-to-br from-brand-navy to-[#0a2d5c] text-white border-none">
+            <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.first_name || 'there'}!</h2>
+            <p className="text-white/70">Ready to book your next service?</p>
+          </Card>
+        </motion.div>
+      )}
 
       {/* ─── Services Grid (Imitates Landing Page UI & Behavior) ─── */}
-      <div className="mt-8">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Our Services</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Select a specialized brand to view custom care services and secure immediate bookings.
-          </p>
-        </div>
+      <div className={selectedBrandService ? "-mt-2" : "mt-8"}>
+        {!selectedBrandService ? (
+          <>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Our Services</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Select a specialized brand to view custom care services and secure immediate bookings.
+              </p>
+            </div>
 
-        {servicesLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array(3).fill(0).map((_, i) => (
-              <div key={i} className="skeleton h-[450px] rounded-2xl" />
-            ))}
-          </div>
-        ) : (
-          <div className="w-full mt-4">
-            {/* Mobile only: single card display with tab selector (xs) */}
-            <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-              {/* Single active service card */}
-              <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
-                {services.length > 0 && (
-                  <ServiceCard
-                    service={services[activeServiceIdx] || services[0]}
-                    onServiceClick={(svc) => {
-                      navigate(`/services/${svc.id}`);
-                      window.scrollTo(0, 0);
-                    }}
+            {servicesLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="skeleton h-[450px] rounded-2xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full mt-4">
+                {/* Mobile only: single card display with tab selector (xs) */}
+                <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                  {/* Single active service card */}
+                  <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
+                    {services.length > 0 && (
+                      <ServiceCard
+                        service={services[activeServiceIdx] || services[0]}
+                        onServiceClick={(svc) => {
+                          setSelectedBrandService(svc);
+                          window.scrollTo(0, 0);
+                        }}
+                      />
+                    )}
+                  </Box>
+                  {/* Selector pills at the bottom */}
+                  <NavigationPills
+                    services={services}
+                    activeServiceIdx={activeServiceIdx}
+                    setActiveServiceIdx={setActiveServiceIdx}
                   />
-                )}
-              </Box>
-              {/* Selector pills at the bottom */}
-              <NavigationPills
-                services={services}
-                activeServiceIdx={activeServiceIdx}
-                setActiveServiceIdx={setActiveServiceIdx}
-              />
-            </Box>
+                </Box>
 
-            {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
-            <Grid container rowSpacing={3} columnSpacing={1.5}
-              sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
-              {services.map((service, index) => (
-                <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
+                {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
+                <Grid container rowSpacing={3} columnSpacing={1.5}
+                  sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
+                  {services.map((service, index) => (
+                    <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
+                        <ServiceCard
+                          service={service}
+                          onServiceClick={(svc) => {
+                            setSelectedBrandService(svc);
+                            window.scrollTo(0, 0);
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </div>
+            )}
+          </>
+        ) : (
+          <motion.div id="sub-services-section" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3 mt-1">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-brand-navy dark:text-white shadow-sm">
+                    {React.createElement(selectedBrandService.icon, { className: "w-6 h-6" })}
+                  </div>
+                  {selectedBrandService.brand} Sub-Services
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                  Select a specific {selectedBrandService.brand} service below to proceed with your booking.
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => setSelectedBrandService(null)} className="w-fit hover:bg-transparent text-slate-500 hover:text-brand-navy h-auto py-1">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Brands
+              </Button>
+            </div>
+
+            <Grid container rowSpacing={3} columnSpacing={1.5} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              {selectedBrandService.subServices?.map((sub: any, idx: number) => (
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={idx} sx={{ display: 'flex', justifyContent: 'center' }}>
                   <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
                     <ServiceCard
-                      service={service}
-                      onServiceClick={(svc) => {
-                        navigate(`/services/${svc.id}`);
-                        window.scrollTo(0, 0);
+                      service={{
+                        ...selectedBrandService,
+                        brand: sub.name,
+                        tagline: selectedBrandService.brand,
+                        description: sub.description || `Professional ${sub.name.toLowerCase()} services tailored to your needs.`,
+                        services: sub.workTypes && sub.workTypes.length > 0 ? sub.workTypes : [sub.name],
+                        image: sub.imageUrl || sub.image || selectedBrandService.image
                       }}
+                      isSubService={true}
+                      onServiceClick={() => navigate(`/customer/book?subservice=${encodeURIComponent(sub.name)}&brand=${encodeURIComponent(selectedBrandService.brand)}`, { state: { fromBrand: selectedBrandService.brand } })}
                     />
                   </Box>
                 </Grid>
               ))}
             </Grid>
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -387,8 +513,10 @@ interface BookingFormTabProps {
 
 function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const subserviceParam = searchParams.get('subservice') || '';
   const editParam = searchParams.get('edit') || '';
+  const brandParam = searchParams.get('brand') || location.state?.fromBrand;
   const navigate = useNavigate();
   const { profile } = useAuth();
 
@@ -798,8 +926,18 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
             </div>
             Book a Service
           </h2>
-          <p className="text-sm text-slate-500">Configure services, choose your preferred vendor, and bundle them in a single booking cart.</p>
+          <p className="text-sm text-slate-500 mt-1">Configure services, choose your preferred vendor, and bundle them in a single booking cart.</p>
         </div>
+        <Button variant="ghost" onClick={() => {
+          const rBrand = brandParam || activeServiceCategory?.brand || activeServiceCategory?.name;
+          if (rBrand) {
+            localStorage.setItem('restoreBrand', rBrand);
+          }
+          console.log('[DEBUG] Navigating back with restoreBrand:', rBrand, 'brandParam:', brandParam, 'activeSvc:', activeServiceCategory);
+          navigate('/customer', { state: { restoreBrand: rBrand } });
+        }} className="w-fit px-0 hover:bg-transparent text-slate-500 hover:text-brand-navy h-auto py-1">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Sub-services
+        </Button>
       </div>
 
       {loading ? (
@@ -1948,7 +2086,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { navigate(`/customer/book?edit=${item.id}&subservice=${encodeURIComponent(item.subServiceName)}`); }}
+                    onClick={() => { navigate(`/customer/book?edit=${item.id}&subservice=${encodeURIComponent(item.subServiceName)}&brand=${encodeURIComponent(item.brand)}`); }}
                     className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-500 hover:border-orange-200 dark:hover:border-orange-900 transition-colors bg-white dark:bg-slate-800 shadow-sm"
                     title="Edit Item details"
                   >
