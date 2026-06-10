@@ -36,7 +36,7 @@ public class RefundService {
         // Notify the customer that their refund request was received
         String customerId = (String) data.get("customer_id");
         if (customerId != null) {
-            notificationService.notify(customerId, "customer",
+            notificationService.notify(customerId, "customer", "Refund Requested",
                 "Your cancellation and refund request has been submitted and is pending admin review.");
         }
 
@@ -49,7 +49,7 @@ public class RefundService {
                 String adminId = (String) admin.get("id");
                 if (adminId == null) adminId = (String) admin.get("uid");
                 if (adminId != null) {
-                    notificationService.notify(adminId, "admin",
+                    notificationService.notify(adminId, "admin", "New Refund Request",
                         customerName + " has submitted a cancellation and refund request. Please review it in the Refunds section.");
                     System.out.println("Admin notified: " + adminId);
                 }
@@ -121,7 +121,7 @@ public class RefundService {
 
         String customerId = (String) refund.get("customer_id");
         if (customerId != null) {
-            notificationService.notify(customerId, "customer", "Your refund has been approved.");
+            notificationService.notify(customerId, "customer", "Refund Approved", "Your refund has been approved.");
             System.out.println("RefundService.approveRefund: Notified customer: " + customerId);
             
             // Automatically save the account number to the customer's profile for future reuse
@@ -206,7 +206,7 @@ public class RefundService {
         
         String customerId = (String) data.get("customer_id");
         if (customerId != null) {
-            notificationService.notify(customerId, "customer", "A refund of ₱" + data.get("refund_amount") + " has been issued for your booking.");
+            notificationService.notify(customerId, "customer", "Refund Issued", "A refund of ₱" + data.get("refund_amount") + " has been issued for your booking.");
             System.out.println("RefundService.createDirectRefund: Notified customer: " + customerId);
 
             // Automatically save the account number to the customer's profile for future reuse

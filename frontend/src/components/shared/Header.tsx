@@ -55,9 +55,9 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
     console.log("[CAVEMAN] Marking notification as read and deleting from database:", id);
     try {
       await api.patch(`/api/notifications/${id}/read`);
-      // Update local state: remove the read notification immediately
-      setNotifications(prev => prev.filter(n => n.id !== id));
-      console.log("[CAVEMAN] Successfully read and removed notification:", id);
+      // Update local state: mark the notification as read immediately
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true, read: true } : n));
+      console.log("[CAVEMAN] Successfully read notification:", id);
     } catch (err) {
       console.error("[CAVEMAN] Failed to mark notification as read", err);
     }
@@ -92,9 +92,9 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-            {notifications.length > 0 && (
+            {notifications.filter(n => !(n.is_read || n.read)).length > 0 && (
               <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-brand-red text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
-                {notifications.length}
+                {notifications.filter(n => !(n.is_read || n.read)).length}
               </span>
             )}
           </button>
@@ -105,7 +105,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                 <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Inbox</span>
                 <span className="text-[10px] font-extrabold bg-brand-navy/10 text-brand-navy dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">
-                  {notifications.length} Unread
+                  {notifications.filter(n => !(n.is_read || n.read)).length} Unread
                 </span>
               </div>
               
@@ -118,26 +118,31 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                     <p className="text-slate-400">All caught up! No unread messages.</p>
                   </div>
                 ) : (
-                  notifications.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors flex items-start gap-3 relative group"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-brand-navy dark:bg-blue-400 mt-1.5 flex-shrink-0 animate-pulse" />
-                      <div className="flex-grow min-w-0">
-                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium break-words pr-6">
-                          {item.message}
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => handleMarkAsRead(item.id, e)}
-                        className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100"
-                        title="Mark as read"
+                  notifications.map((item) => {
+                    const isRead = item.read || item.is_read;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3.5 transition-colors flex items-start gap-3 relative group ${isRead ? 'opacity-60 bg-transparent' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
                       >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))
+                        {!isRead && <div className="w-2 h-2 rounded-full bg-brand-navy dark:bg-blue-400 mt-1.5 flex-shrink-0 animate-pulse" />}
+                        <div className={`flex-grow min-w-0 ${isRead ? 'ml-5' : ''}`}>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium break-words pr-6">
+                            {item.message}
+                          </p>
+                        </div>
+                        {!isRead && (
+                          <button
+                            onClick={(e) => handleMarkAsRead(item.id, e)}
+                            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100"
+                            title="Mark as read"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

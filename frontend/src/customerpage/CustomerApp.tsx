@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
@@ -10,6 +10,9 @@ import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
+import { updateEmail } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { changePassword } from '../services/firebaseService';
 
 
 
@@ -218,7 +221,7 @@ function CustomerHome() {
 
   useEffect(() => {
     if (profile?.id) {
-      api.get(`/api/bookings/customer/${profile.id}`).then(r => setRecentBookings((r.data || []).slice(0, 5))).catch(() => {}).finally(() => setLoading(false));
+      api.get(`/api/bookings/customer/${profile.id}`).then(r => setRecentBookings((r.data || []).slice(0, 5))).catch(() => { }).finally(() => setLoading(false));
     } else { setLoading(false); }
   }, [profile]);
 
@@ -228,7 +231,7 @@ function CustomerHome() {
       .then(res => {
         const backendServices = res.data;
         const merged: any[] = [];
-        
+
         backendServices.forEach((backendService: any) => {
           const id = backendService.id || backendService.name.toLowerCase().replace(/\s+/g, '');
           const frontendMatch = servicesData.find(
@@ -262,7 +265,7 @@ function CustomerHome() {
             });
           }
         });
-        
+
         // Add remaining frontend services not in backend
         servicesData.forEach((fs) => {
           if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase())) {
@@ -314,12 +317,12 @@ function CustomerHome() {
               {/* Single active service card */}
               <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
                 {services.length > 0 && (
-                  <ServiceCard 
-                    service={services[activeServiceIdx] || services[0]} 
-                    onServiceClick={(svc) => { 
-                      navigate(`/services/${svc.id}`); 
-                      window.scrollTo(0, 0); 
-                    }} 
+                  <ServiceCard
+                    service={services[activeServiceIdx] || services[0]}
+                    onServiceClick={(svc) => {
+                      navigate(`/services/${svc.id}`);
+                      window.scrollTo(0, 0);
+                    }}
                   />
                 )}
               </Box>
@@ -337,12 +340,12 @@ function CustomerHome() {
               {services.map((service, index) => (
                 <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
                   <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
-                    <ServiceCard 
-                      service={service} 
-                      onServiceClick={(svc) => { 
-                        navigate(`/services/${svc.id}`); 
-                        window.scrollTo(0, 0); 
-                      }} 
+                    <ServiceCard
+                      service={service}
+                      onServiceClick={(svc) => {
+                        navigate(`/services/${svc.id}`);
+                        window.scrollTo(0, 0);
+                      }}
                     />
                   </Box>
                 </Grid>
@@ -465,7 +468,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
         setScheduledDate(itemToEdit.scheduledDate);
         setScheduledTime(itemToEdit.scheduledTime);
         setQuantity(itemToEdit.quantity);
-        
+
         // Clear search params so reloading doesn't reset changes and user can edit freely
         setSearchParams({});
       }
@@ -485,7 +488,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
       if (matchedSvc && matchedSub) {
         setServiceId(matchedSvc.id || matchedSvc.name?.toLowerCase()?.replace(/\s+/g, ''));
         setSubServiceId(matchedSub.id || matchedSub.name);
-        
+
         const subWorkTypes = matchedSub.workTypes || [];
         if (subWorkTypes.length > 0) {
           setWorkType(subWorkTypes[0]);
@@ -551,17 +554,17 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
       console.log('[CAVEMAN] REQUEST PARAMS:', JSON.stringify(params));
 
       api.get('/api/slots/available-vendors-schedule', { params })
-      .then(res => {
-        console.log('[CAVEMAN] RESPONSE:', res.status, JSON.stringify(res.data));
-        console.log('[CAVEMAN] VENDOR COUNT:', (res.data || []).length);
-        setScheduleAvailableVendors(res.data || []);
-      }).catch(err => {
-        console.error('[CAVEMAN] FETCH ERROR:', err);
-        console.error('[CAVEMAN] Error response:', err.response?.data);
-        setScheduleAvailableVendors([]);
-      }).finally(() => {
-        setFetchingAvailableVendors(false);
-      });
+        .then(res => {
+          console.log('[CAVEMAN] RESPONSE:', res.status, JSON.stringify(res.data));
+          console.log('[CAVEMAN] VENDOR COUNT:', (res.data || []).length);
+          setScheduleAvailableVendors(res.data || []);
+        }).catch(err => {
+          console.error('[CAVEMAN] FETCH ERROR:', err);
+          console.error('[CAVEMAN] Error response:', err.response?.data);
+          setScheduleAvailableVendors([]);
+        }).finally(() => {
+          setFetchingAvailableVendors(false);
+        });
     } else {
       console.log('[CAVEMAN] SKIPPING fetch - missing fields or timeError');
       setScheduleAvailableVendors([]);
@@ -641,7 +644,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
     }
 
     const selectedVendor = selectableVendors.find(v => v.id === vendorId) || vendors.find(v => v.id === vendorId);
-    
+
     // [CAVEMAN] Prevent booking if selected vendor is not selectable
     const isVendorSelectable = selectableVendors.some(v => v.id === vendorId);
     if (!isVendorSelectable) {
@@ -705,7 +708,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
     setScheduledDate(item.scheduledDate);
     setScheduledTime(item.scheduledTime);
     setQuantity(item.quantity);
-    
+
     // Clear URL param so user can edit freely
     setSearchParams({});
   };
@@ -776,7 +779,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
           <Button variant="ghost" className="flex-1 py-3 text-sm font-semibold rounded-xl" onClick={() => setSuccessBookings(null)}>
             Book Another Service
           </Button>
-          <Button variant="primary" className="flex-1 py-3 text-sm font-semibold rounded-xl bg-brand-navy hover:bg-[#0a2d5c]" onClick={() => navigate('/customer/bookings')}>
+          <Button variant="primary" className="flex-1 py-3 text-sm font-semibold rounded-xl bg-slate-900 dark:bg-white hover:bg-[#0a2d5c]" onClick={() => navigate('/customer/bookings')}>
             View My Bookings
           </Button>
         </div>
@@ -786,9 +789,14 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">Book a Service</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Book a Service
+          </h2>
           <p className="text-sm text-slate-500">Configure services, choose your preferred vendor, and bundle them in a single booking cart.</p>
         </div>
       </div>
@@ -835,7 +843,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                           setWorkType('');
                           setVendorId('');
                         }}
-                        className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
                         required
                       >
                         <option value="">Choose service...</option>
@@ -863,7 +871,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                           setWorkType('');
                           setVendorId('');
                         }}
-                        className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
                         disabled={!serviceId}
                         required
                       >
@@ -886,7 +894,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                         setWorkType(e.target.value);
                         setVendorId('');
                       }}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
                       required
                     >
                       <option value="">Choose specific work type...</option>
@@ -909,7 +917,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                       }}
                       placeholder="Enter additional details about the work or service request (optional)"
                       rows={3}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy resize-none"
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white resize-none"
                     />
                   </div>
                 )}
@@ -937,7 +945,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                             console.log('[CAVEMAN] Date picker min date local =', formatted);
                             return formatted;
                           })()}
-                          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
                           required
                         />
                       </div>
@@ -955,11 +963,10 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                             setVendorId('');
                             setTimeError('');
                           }}
-                          className={`w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border rounded-2xl text-sm focus:outline-none focus:ring-2 ${
-                            timeError
-                              ? 'border-red-400 dark:border-red-500 text-red-600 dark:text-red-400 focus:ring-red-400'
-                              : 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:ring-brand-navy'
-                          }`}
+                          className={`w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border rounded-2xl text-sm focus:outline-none focus:ring-2 ${timeError
+                            ? 'border-red-400 dark:border-red-500 text-red-600 dark:text-red-400 focus:ring-red-400'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:ring-slate-900 dark:focus:ring-white'
+                            }`}
                           required
                         />
                       </div>
@@ -997,24 +1004,22 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                                 console.log(`[CAVEMAN] Vendor selected: ID=${v.id}, Name=${v.company_name || v.name || v.username}, City=${v.city || 'N/A'}`);
                                 setVendorId(v.id);
                               }}
-                              className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left ${
-                                isSelected
-                                  ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20'
-                                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 bg-white dark:bg-slate-800'
-                              }`}
+                              className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left ${isSelected
+                                ? 'border-slate-900 dark:border-white bg-slate-50 dark:bg-slate-800/80 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 bg-white dark:bg-slate-800'
+                                }`}
                             >
                               <div className="flex justify-between items-start gap-2">
                                 <div className="space-y-1">
-                                  <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-brand-navy dark:text-blue-400 font-extrabold' : 'text-slate-900 dark:text-white'}`}>
+                                  <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'text-slate-900 dark:text-white'}`}>
                                     {v.company_name || v.name || v.username}
                                   </p>
                                   <p className="text-xs text-slate-500 dark:text-slate-400">
                                     {v.city || 'Location not specified'}
                                   </p>
                                 </div>
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                                  isSelected ? 'border-brand-navy bg-brand-navy' : 'border-slate-300 dark:border-slate-600'
-                                }`}>
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? 'border-slate-900 bg-slate-900 dark:border-white dark:bg-white' : 'border-slate-300 dark:border-slate-600'
+                                  }`}>
                                   {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                                 </div>
                               </div>
@@ -1060,7 +1065,7 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                       </div>
                     </div>
 
-                    <Button type="submit" variant="primary" className="w-full py-3.5 text-sm font-extrabold rounded-2xl shadow-lg transition-transform hover:scale-[1.01]">
+                    <Button type="submit" variant="primary" className="w-full py-3.5 text-sm font-extrabold rounded-2xl shadow-sm transition-transform hover:scale-[1.01] bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900">
                       {editingId ? 'Save Changes' : 'Add to Booking Cart'}
                     </Button>
                   </>
@@ -1074,10 +1079,10 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
             <Card className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-brand-navy" />
+                  <ShoppingBag className="w-5 h-5 text-slate-900 dark:text-white" />
                   <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Selected Services</h3>
                 </div>
-                <span className="text-xs font-black bg-brand-navy text-white px-2.5 py-1 rounded-full">{cart.length} items</span>
+                <span className="text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-2.5 py-1 rounded-full shadow-sm">{cart.length} items</span>
               </div>
 
               {cart.length === 0 ? (
@@ -1094,11 +1099,10 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                       return (
                         <div
                           key={item.id}
-                          className={`p-4 bg-white dark:bg-slate-800 rounded-2xl border shadow-sm relative group transition-colors ${
-                            isPassed
-                              ? 'border-red-500 dark:border-red-500 bg-red-50/5 dark:bg-red-950/5'
-                              : 'border-slate-100 dark:border-slate-800'
-                          }`}
+                          className={`p-4 bg-white dark:bg-slate-800 rounded-2xl border shadow-sm relative group transition-colors ${isPassed
+                            ? 'border-red-500 dark:border-red-500 bg-red-50/5 dark:bg-red-950/5'
+                            : 'border-slate-100 dark:border-slate-800'
+                            }`}
                         >
                           <div className="flex justify-between items-start gap-4">
                             <div>
@@ -1210,7 +1214,7 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
     e.preventDefault();
     console.log('[CAVEMAN] Submitting rating and review for booking:', booking.id);
     setError('');
-    
+
     if (!feedback.trim()) {
       setError('Please write a brief feedback review.');
       return;
@@ -1232,7 +1236,7 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
 
       await api.post('/api/reviews', reviewPayload);
       console.log('[CAVEMAN] Review submitted successfully!');
-      
+
       onReviewSubmitted({
         ...booking,
         reviewed: true
@@ -1333,7 +1337,7 @@ function MyBookingsTab() {
       setLoading(true);
       api.get(`/api/bookings/customer/${profile.id}`)
         .then(r => setBookings(r.data || []))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
@@ -1345,14 +1349,14 @@ function MyBookingsTab() {
   }, [profile]);
 
   const statusBadge = (status: string) => {
-    const cls: Record<string, string> = {
-      pending: 'badge-pending',
-      confirmed: 'badge-confirmed',
-      in_progress: 'badge-in-progress',
-      completed: 'badge-completed',
-      cancelled: 'badge-cancelled',
-    };
-    return <span className={cls[status] || 'badge'}>{status?.replace('_', ' ')}</span>;
+    const statusLower = status?.toLowerCase() || '';
+    const isCompleted = statusLower === 'completed' || statusLower === 'confirmed';
+    const isPending = statusLower === 'pending' || statusLower === 'in_progress';
+    return (
+      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isCompleted ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' : isPending ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>
+        {status?.replace('_', ' ')}
+      </span>
+    );
   };
 
   const handleSubmitRefundRequest = async () => {
@@ -1517,7 +1521,7 @@ function MyBookingsTab() {
               )}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-900 dark:text-white font-black">Total:</span>
-                <span className="col-span-2 text-lg font-black text-brand-green font-semibold">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+                <span className="col-span-2 text-lg font-black text-slate-900 dark:text-white font-semibold">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
@@ -1542,11 +1546,7 @@ function MyBookingsTab() {
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
-                  {selectedBooking.payment_confirmed ? (
-                    <span className="badge-completed">Confirmed</span>
-                  ) : (
-                    <span className="badge-pending">Pending</span>
-                  )}
+                  {statusBadge(selectedBooking.payment_confirmed ? 'confirmed' : 'pending')}
                 </span>
               </div>
               {hasRefundInfo && (
@@ -1567,7 +1567,7 @@ function MyBookingsTab() {
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
             <Button
               variant="danger"
-              className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[140px]"
+              className="flex-1 py-3 text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 min-w-[140px] shadow-sm transition-colors"
               onClick={() => {
                 console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
                 setShowCancelConfirm(true);
@@ -1580,9 +1580,9 @@ function MyBookingsTab() {
 
         {/* Completed Rating and Review section */}
         {selectedBooking.status === 'completed' && (
-          <ReviewSection 
-            booking={selectedBooking} 
-            profile={profile} 
+          <ReviewSection
+            booking={selectedBooking}
+            profile={profile}
             onReviewSubmitted={(updatedBooking) => {
               setSelectedBooking(updatedBooking);
               setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
@@ -1698,7 +1698,7 @@ function MyBookingsTab() {
               </Button>
               <Button
                 variant="danger"
-                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
+                className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 font-semibold px-6 shadow-sm transition-colors"
                 onClick={handleSubmitRefundRequest}
                 loading={refundSubmitting}
                 disabled={!refundReason.trim()}
@@ -1714,42 +1714,58 @@ function MyBookingsTab() {
 
   // ── Bookings List View ──
   return (
-    <DataTable
-      columns={[
-        { key: 'service_type', label: 'Service', sortable: true },
-        { key: 'scheduled_date', label: 'Date', sortable: true },
-        { key: 'scheduled_time', label: 'Time' },
-        {
-          key: 'status', label: 'Status', render: (item: any) => {
-            const cls: Record<string, string> = { pending: 'badge-pending', confirmed: 'badge-confirmed', in_progress: 'badge-in-progress', completed: 'badge-completed', cancelled: 'badge-cancelled' };
-            return <span className={cls[item.status] || 'badge'}>{item.status?.replace('_', ' ')}</span>;
-          }
-        },
-        {
-          key: 'actions',
-          label: 'Actions',
-          render: (item: any) => (
-            <Button
-              size="sm"
-              className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
-              onClick={(e: any) => {
-                e.stopPropagation();
-                console.log('[CAVEMAN] Customer viewing booking details for:', item.id);
-                setSelectedBooking(item);
-              }}
-              icon={<Eye className="w-4 h-4" />}
-            >
-              View Details
-            </Button>
-          )
-        },
-      ]}
-      data={bookings}
-      loading={loading}
-      searchPlaceholder="Search bookings..."
-      emptyTitle="No bookings yet"
-      emptyDescription="Book a service to see your bookings here."
-    />
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            My Bookings
+          </h2>
+          <p className="text-sm text-slate-500">Track and manage your service requests, appointments, and past jobs.</p>
+        </div>
+      </div>
+      
+      <DataTable
+        columns={[
+          { key: 'service_type', label: 'Service', sortable: true },
+          { key: 'scheduled_date', label: 'Date', sortable: true },
+          { key: 'scheduled_time', label: 'Time' },
+          {
+            key: 'status', label: 'Status', render: (item: any) => {
+              const statusLower = item.status?.toLowerCase() || '';
+              const isCompleted = statusLower === 'completed' || statusLower === 'confirmed';
+              const isPending = statusLower === 'pending' || statusLower === 'in_progress';
+              return <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isCompleted ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' : isPending ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>{item.status?.replace('_', ' ')}</span>;
+            }
+          },
+          {
+            key: 'actions',
+            label: 'Actions',
+            render: (item: any) => (
+              <Button
+                size="sm"
+                className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 shadow-sm transition-colors flex items-center gap-1.5"
+                onClick={(e: any) => {
+                  e.stopPropagation();
+                  console.log('[CAVEMAN] Customer viewing booking details for:', item.id);
+                  setSelectedBooking(item);
+                }}
+                icon={<Eye className="w-4 h-4" />}
+              >
+                View Details
+              </Button>
+            )
+          },
+        ]}
+        data={bookings}
+        loading={loading}
+        searchPlaceholder="Search bookings..."
+        emptyTitle="No bookings yet"
+        emptyDescription="Book a service to see your bookings here."
+      />
+    </div>
   );
 }
 
@@ -1830,7 +1846,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
           <Button variant="ghost" className="flex-1 py-3 text-sm font-semibold rounded-xl" onClick={() => setSuccessBookings(null)}>
             Book Another Service
           </Button>
-          <Button variant="primary" className="flex-1 py-3 text-sm font-semibold rounded-xl bg-brand-navy hover:bg-[#0a2d5c]" onClick={() => navigate('/customer/bookings')}>
+          <Button variant="primary" className="flex-1 py-3 text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors shadow-sm" onClick={() => navigate('/customer/bookings')}>
             View My Bookings
           </Button>
         </div>
@@ -1844,7 +1860,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
         <ShoppingBag className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto" />
         <h2 className="text-xl font-bold text-slate-800 dark:text-white">Your Cart is Empty</h2>
         <p className="text-sm text-slate-500 max-w-sm mx-auto">Browse specialized care solutions to configure services and save items here.</p>
-        <Button variant="primary" className="py-2.5 px-6 text-sm font-bold rounded-xl bg-brand-navy hover:bg-[#0a2d5c]" onClick={() => navigate('/customer')}>
+        <Button variant="primary" className="py-2.5 px-6 text-sm font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors shadow-sm" onClick={() => navigate('/customer')}>
           Browse Services
         </Button>
       </div>
@@ -1853,9 +1869,16 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Your Booking Cart</h2>
-        <p className="text-sm text-slate-500">Review selected services and schedule details before completing the booking.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Your Booking Cart
+          </h2>
+          <p className="text-sm text-slate-500">Review selected services and schedule details before completing the booking.</p>
+        </div>
       </div>
 
       <Card className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl space-y-6">
@@ -1918,7 +1941,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
             onClick={handleCheckout}
             loading={false}
             variant="success"
-            className="flex-1 py-3.5 text-sm font-extrabold rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:scale-[1.01] transition-transform"
+            className="flex-1 py-3.5 text-sm font-extrabold rounded-2xl shadow-sm transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900"
           >
             <span>Complete Booking</span>
             <ArrowRight className="w-4 h-4" />
@@ -1931,24 +1954,343 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
 
 // ─── Profile Tab ────────────────────────────────────────────────────────────
 function ProfileTab() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+
+  // ─── State Management ───
+  const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+  const [isEditingEmail, setIsEditingEmail] = React.useState(false);
+  const [isEditingPassword, setIsEditingPassword] = React.useState(false);
+
+  const [formData, setFormData] = React.useState({
+    first_name: '', last_name: '', phone: '', city: '', barangay: ''
+  });
+  const [emailData, setEmailData] = React.useState('');
+  const [passwordData, setPasswordData] = React.useState({ newPassword: '', confirmPassword: '' });
+
+  // Avatar State
+  const [avatarUrl, setAvatarUrl] = React.useState('');
+  const [selectedAvatar, setSelectedAvatar] = React.useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const syncData = React.useCallback(() => {
+    if (profile) {
+      setFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: (profile as any).phone || '',
+        city: (profile as any).city || '',
+        barangay: (profile as any).barangay || '',
+      });
+      setEmailData(profile.email || '');
+      setPasswordData({ newPassword: '', confirmPassword: '' });
+      setAvatarUrl((profile as any).avatar_url || '');
+      setSelectedAvatar(null);
+    }
+  }, [profile]);
+
+  React.useEffect(() => {
+    syncData();
+  }, [syncData]);
+
   if (!profile) return <EmptyState title="Profile not loaded" />;
+
+  // ─── Handlers ───
+  const cancelEdit = (section: 'profile' | 'email' | 'password' | 'avatar') => {
+    if (section === 'avatar') {
+      setAvatarUrl((profile as any).avatar_url || '');
+      setSelectedAvatar(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } else {
+      syncData();
+      if (section === 'profile') setIsEditingProfile(false);
+      if (section === 'email') setIsEditingEmail(false);
+      if (section === 'password') setIsEditingPassword(false);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put(`/api/customers/${profile?.id}`, formData);
+      alert("Profile updated successfully!");
+      setIsEditingProfile(false);
+      await refreshProfile();
+    } catch (err) {
+      console.error("Failed to update profile", err);
+      alert("Failed to update profile");
+    }
+  };
+
+  const handleSaveEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+    try {
+      await updateEmail(auth.currentUser, emailData);
+      await api.put(`/api/customers/${profile?.id}`, { email: emailData });
+      alert("Email updated successfully!");
+      setIsEditingEmail(false);
+      await refreshProfile();
+    } catch (err: any) {
+      console.error("Failed to update email", err);
+      alert(err.message || "Failed to update email. You may need to log out and log back in to verify your identity.");
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+    try {
+      await changePassword(passwordData.newPassword);
+      alert("Password updated successfully!");
+      setIsEditingPassword(false);
+      setPasswordData({ newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      console.error("Failed to update password", err);
+      alert(err.message || "Failed to update password. You may need to log out and log back in to verify your identity.");
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarUrl(previewUrl);
+      setSelectedAvatar(file);
+    }
+  };
+
+  const handleSaveAvatar = async () => {
+    if (!selectedAvatar) return;
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        const res = await api.post('/api/upload/image', {
+          imageBase64: base64data,
+          filename: selectedAvatar.name,
+        });
+        const url = res.data.url;
+        await api.put(`/api/customers/${profile?.id}`, { avatar_url: url });
+        alert("Avatar updated successfully!");
+        setSelectedAvatar(null);
+        await refreshProfile();
+      };
+      reader.readAsDataURL(selectedAvatar);
+    } catch (err) {
+      console.error("Failed to upload avatar", err);
+      alert("Failed to upload avatar");
+    }
+  };
+
+  // ─── Uniform Styles ───
+  const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
+  const btnPrimary = `${btnBase} text-white bg-slate-900 hover:bg-slate-800 focus:ring-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100`;
+  const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
+  const inputClass = "w-full mt-1.5 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:focus:border-white dark:focus:ring-white transition-all shadow-sm";
+
+  const EditButton = ({ onClick }: { onClick: () => void }) => (
+    <button onClick={onClick} className={btnGhost}>
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+      Edit
+    </button>
+  );
+
   return (
-    <Card>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">My Profile</h2>
-      <div className="grid sm:grid-cols-2 gap-4">
-        {[
-          ['First Name', profile.first_name], ['Last Name', profile.last_name],
-          ['Email', profile.email], ['Phone', (profile as any).phone || '—'],
-          ['City', (profile as any).city || '—'], ['Barangay', (profile as any).barangay || '—'],
-        ].map(([label, val]) => (
-          <div key={label as string}>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-            <p className="text-sm font-medium text-slate-900 dark:text-white">{val as string}</p>
-          </div>
-        ))}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <User className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            My Profile
+          </h2>
+          <p className="text-sm text-slate-500">Manage your personal information and account security settings.</p>
+        </div>
       </div>
-    </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+
+      {/* ─── TOP LEFT: Profile Photo ──────────────────────────────────────── */}
+      <div className="lg:col-span-1 flex flex-col">
+        <Card className="h-full flex flex-col items-center justify-center text-center p-6">
+          <div className="relative group mb-5">
+            <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold text-slate-400 dark:text-slate-500">
+                  {profile.first_name?.charAt(0)}{profile.last_name?.charAt(0)}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900"
+            >
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <span className="text-xs font-semibold">Change</span>
+            </button>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarChange}
+              className="hidden"
+              accept="image/png, image/jpeg, image/webp"
+            />
+          </div>
+
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white break-words w-full">
+            {profile.first_name} {profile.last_name}
+          </h2>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate w-full">
+            {profile.email}
+          </p>
+
+          <div className="mt-8 w-full flex flex-col gap-3 animate-in fade-in duration-200">
+            {!selectedAvatar ? (
+              <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                Upload Photo
+              </button>
+            ) : (
+              <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-3 w-full">
+                <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} w-full`}>
+                  Cancel
+                </button>
+                <button onClick={handleSaveAvatar} className={`${btnPrimary} w-full`}>
+                  Save Changes
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── TOP RIGHT: General Information ─────────────────────────────── */}
+      <div className="lg:col-span-2 xl:col-span-3 flex flex-col">
+        <Card className="h-full flex flex-col justify-between">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
+              {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
+            </div>
+
+            {!isEditingProfile ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-200">
+                {[
+                  ['First Name', profile.first_name], ['Last Name', profile.last_name],
+                  ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
+                  ['Barangay', (profile as any).barangay || '—'],
+                ].map(([label, val]) => (
+                  <div key={label as string} className={`flex flex-col p-4 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400 mb-1">{label}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProfile} className="space-y-5 animate-in fade-in duration-200 bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">First Name</label>
+                    <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className={inputClass} autoFocus />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Last Name</label>
+                    <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
+                    <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
+                    <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className={inputClass} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
+                    <input type="text" value={formData.barangay} onChange={(e) => setFormData({ ...formData, barangay: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => cancelEdit('profile')} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnPrimary}>Save</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── BOTTOM ROW: Account Security ───────────────────────────────── */}
+      <div className="lg:col-start-2 lg:col-span-2 xl:col-start-2 xl:col-span-3">
+        <Card>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-6">Account Security</h2>
+
+          <div className="space-y-6">
+            {/* Email Block */}
+            {!isEditingEmail ? (
+              <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">{profile.email}</span>
+                </div>
+                <EditButton onClick={() => setIsEditingEmail(true)} />
+              </div>
+            ) : (
+              <form onSubmit={handleSaveEmail} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Email Address</label>
+                <input type="email" value={emailData} onChange={(e) => setEmailData(e.target.value)} className={inputClass} autoFocus />
+                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                  <button type="button" onClick={() => cancelEdit('email')} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnPrimary}>Update</button>
+                </div>
+              </form>
+            )}
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            {/* Password Block */}
+            {!isEditingPassword ? (
+              <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex flex-col flex-1">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">••••••••••••</span>
+                </div>
+                <EditButton onClick={() => setIsEditingPassword(true)} />
+              </div>
+            ) : (
+              <form onSubmit={handleSavePassword} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Password</label>
+                    <input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className={inputClass} autoFocus />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Confirm Password</label>
+                    <input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                  <button type="button" onClick={() => cancelEdit('password')} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnPrimary}>Update</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </Card>
+      </div>
+
+    </div>
+    </div>
   );
 }
 
@@ -2003,42 +2345,41 @@ function VouchersTab() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Ticket className="w-7 h-7 text-brand-navy dark:text-brand-green" />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <Ticket className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
             My Vouchers
           </h2>
           <p className="text-sm text-slate-500">View and manage all your discount vouchers assigned by AllFix administrators.</p>
         </div>
-        
+
         {/* Toggle Filters */}
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
           <button
             onClick={() => setFilter('unused')}
-            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-              filter === 'unused'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'unused'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
           >
             Active
           </button>
           <button
             onClick={() => setFilter('used')}
-            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-              filter === 'used'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'used'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
           >
             Redeemed
           </button>
           <button
             onClick={() => setFilter('expired')}
-            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-              filter === 'expired'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'expired'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
           >
             Expired
           </button>
@@ -2066,8 +2407,8 @@ function VouchersTab() {
             {filter === 'unused'
               ? "You don't have any active discount vouchers right now. Keep booking services for a chance to receive special promos!"
               : filter === 'used'
-              ? "You haven't used any vouchers yet."
-              : "You don't have any expired vouchers."}
+                ? "You haven't used any vouchers yet."
+                : "You don't have any expired vouchers."}
           </p>
         </Card>
       ) : (
@@ -2078,13 +2419,12 @@ function VouchersTab() {
             return (
               <div
                 key={v.id}
-                className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
-                  isUnused
-                    ? 'bg-gradient-to-br from-brand-navy via-slate-900 to-slate-950 border-brand-navy/30 dark:border-slate-850 hover:shadow-2xl hover:scale-[1.01] text-white shadow-xl'
-                    : isExpired
-                    ? 'bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 text-slate-400 dark:text-slate-500 opacity-60'
+                className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${isUnused
+                  ? 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/60 hover:shadow-md text-slate-900 dark:text-white shadow-sm'
+                  : isExpired
+                    ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/50 text-slate-400 dark:text-slate-500 opacity-60'
                     : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 opacity-75'
-                }`}
+                  }`}
               >
                 {/* Left & Right punch holes for the "ticket" look */}
                 <div className="absolute top-1/2 -left-3 w-6 h-6 rounded-full bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-800 -translate-y-1/2 z-10"></div>
@@ -2094,24 +2434,23 @@ function VouchersTab() {
                   <div>
                     {/* Header: Badge & Status */}
                     <div className="flex justify-between items-center mb-3">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                        isUnused 
-                          ? 'bg-brand-green/20 text-brand-green border border-brand-green/30' 
-                          : isExpired
-                          ? 'bg-red-100 dark:bg-red-950/40 text-red-650 dark:text-red-400 border border-red-200/20'
-                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isUnused
+                        ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                        : isExpired
+                          ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'
+                          : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                        }`}>
                         {isUnused ? 'Available' : isExpired ? 'Expired' : 'Redeemed'}
                       </span>
                       {isUnused && (
-                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-brand-green" /> Available
+                        <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" /> Available
                         </span>
                       )}
                     </div>
 
                     {/* Discount Value */}
-                    <h3 className={`text-3xl font-black ${isUnused ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                    <h3 className={`text-3xl font-black ${isUnused ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                       {v.discount_type === 'percentage' ? `${v.discount_value}%` : `₱${v.discount_value}`} OFF
                     </h3>
                     <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
@@ -2126,9 +2465,8 @@ function VouchersTab() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Voucher Code</p>
-                      <p className={`font-mono font-black text-base tracking-wider truncate mt-0.5 ${
-                        isUnused ? 'text-brand-green' : 'text-slate-455 line-through'
-                      }`}>
+                      <p className={`font-mono font-black text-base tracking-wider truncate mt-0.5 ${isUnused ? 'text-slate-900 dark:text-white' : 'text-slate-450 line-through'
+                        }`}>
                         {v.code}
                       </p>
                     </div>
@@ -2136,7 +2474,7 @@ function VouchersTab() {
                     {isUnused && (
                       <button
                         onClick={() => handleCopy(v.code)}
-                        className="px-4 py-2 text-xs font-black rounded-xl bg-brand-green hover:bg-[#00d070] text-slate-950 transition-colors shadow-lg shadow-brand-green/10 flex items-center gap-1"
+                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 transition-colors shadow-sm flex items-center gap-1"
                       >
                         {copiedCode === v.code ? 'Copied!' : 'Copy'}
                       </button>
@@ -2193,8 +2531,10 @@ function RefundsTab() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RefreshCcw className="w-7 h-7 text-brand-navy dark:text-brand-green" />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <RefreshCcw className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
             Refund Center
           </h2>
           <p className="text-sm text-slate-500">Track the status of your cancellations and automatic GCash refund transactions.</p>
@@ -2206,11 +2546,10 @@ function RefundsTab() {
             <button
               key={status}
               onClick={() => setFilter(status)}
-              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 capitalize ${
-                filter === status
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
+              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 capitalize ${filter === status
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
             >
               {status === 'all' ? 'All Transactions' : status === 'Processed' ? 'Completed' : status}
             </button>
@@ -2252,8 +2591,8 @@ function RefundsTab() {
             let dateStr = '—';
             if (r.processed_at) {
               try {
-                const date = r.processed_at.seconds 
-                  ? new Date(r.processed_at.seconds * 1000) 
+                const date = r.processed_at.seconds
+                  ? new Date(r.processed_at.seconds * 1000)
                   : new Date(r.processed_at);
                 dateStr = date.toLocaleDateString('en-US', {
                   month: 'short',
@@ -2267,35 +2606,33 @@ function RefundsTab() {
               }
             } else if (r.created_at) {
               try {
-                const date = r.created_at.seconds 
-                  ? new Date(r.created_at.seconds * 1000) 
+                const date = r.created_at.seconds
+                  ? new Date(r.created_at.seconds * 1000)
                   : new Date(r.created_at);
                 dateStr = date.toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric'
                 });
-              } catch (e) {}
+              } catch (e) { }
             }
 
             return (
               <div
                 key={r.id}
                 onClick={() => setSelectedRefund(r)}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer shadow-md group relative overflow-hidden"
+                className="group p-5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-slate-50 dark:from-slate-800/20 to-transparent pointer-events-none rounded-tr-3xl"></div>
 
                 <div className="space-y-4">
                   {/* Status Badge */}
                   <div className="flex justify-between items-center">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                      isProcessed 
-                        ? 'bg-brand-green/10 text-brand-green border-brand-green/20' 
-                        : isPending
-                        ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                        : 'bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border-red-200/20'
-                    }`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isProcessed
+                      ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                      : isPending
+                        ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'
+                        : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                      }`}>
                       {isProcessed ? 'Completed' : r.status || 'Pending'}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">{dateStr}</span>
@@ -2326,9 +2663,9 @@ function RefundsTab() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between text-brand-navy dark:text-brand-green group-hover:translate-x-1 transition-transform duration-300">
-                  <span className="text-xs font-black">View Transaction Invoice</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="mt-5 flex items-center justify-between text-slate-700 dark:text-slate-300 transition-colors duration-300">
+                  <span className="text-xs font-semibold">View Transaction Details</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             );
@@ -2390,13 +2727,12 @@ function RefundsTab() {
               </div>
               <div className="flex justify-between items-center text-xs py-1.5">
                 <span className="font-bold text-slate-400 uppercase tracking-wider">Processing Status</span>
-                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                  selectedRefund.status?.toLowerCase() === 'processed'
-                    ? 'bg-brand-green/10 text-brand-green border-brand-green/20'
-                    : selectedRefund.status?.toLowerCase() === 'pending'
-                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                    : 'bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border-red-200/20'
-                }`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${selectedRefund.status?.toLowerCase() === 'processed'
+                  ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                  : selectedRefund.status?.toLowerCase() === 'pending'
+                    ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  }`}>
                   {selectedRefund.status?.toLowerCase() === 'processed' ? 'Completed' : selectedRefund.status || 'Pending'}
                 </span>
               </div>
@@ -2794,7 +3130,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 
               {/* Desktop Header */}
               <h4 className="hidden lg:block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3.5">Booking Summary</h4>
-              
+
               {/* Item List (Collapsible on Mobile, always visible on Desktop) */}
               <div className={`${summaryExpanded ? 'block' : 'hidden lg:block'} mt-3 lg:mt-0 space-y-3 max-h-[160px] lg:max-h-[320px] overflow-y-auto pr-1`}>
                 {cart.map((item, idx) => (
@@ -2967,7 +3303,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       {/* Left Column: payment method options */}
                       <div className="sm:col-span-4 space-y-2.5 sm:space-y-3.5">
                         <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">Select Gateway</p>
-                        
+
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                           {methods.map((m) => {
                             const isSelected = paymentMethod === m.paymentMethod;
@@ -2976,18 +3312,16 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                                 key={m.id}
                                 type="button"
                                 onClick={() => setPaymentMethod(m.paymentMethod)}
-                                className={`w-full p-2.5 rounded-2xl border transition-all flex items-center gap-3 text-left font-bold ${
-                                  isSelected
-                                    ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 border-2 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                }`}
+                                className={`w-full p-2.5 rounded-2xl border transition-all flex items-center gap-3 text-left font-bold ${isSelected
+                                  ? 'border-brand-navy bg-brand-navy/5 dark:bg-brand-navy/20 text-brand-navy dark:text-blue-400 border-2 shadow-sm'
+                                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                  }`}
                               >
                                 <div className="flex-1">
                                   <p className="text-[11px] sm:text-xs font-extrabold">{m.paymentMethod}</p>
                                 </div>
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                                  isSelected ? 'border-brand-navy dark:border-blue-400' : 'border-slate-300 dark:border-slate-600'
-                                }`}>
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-brand-navy dark:border-blue-400' : 'border-slate-300 dark:border-slate-600'
+                                  }`}>
                                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-brand-navy dark:bg-blue-400" />}
                                 </div>
                               </button>
@@ -3003,7 +3337,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                             <p className="text-[9px] sm:text-[10px] font-bold text-slate-455 uppercase tracking-widest">
                               Send Payment to:
                             </p>
-                            
+
                             {/* Account details */}
                             <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl space-y-2 text-left shadow-sm">
                               <div className="flex justify-between text-[10px] sm:text-[11px]">
@@ -3151,13 +3485,12 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                           value={voucherCode}
                           onChange={(e) => setVoucherCode(e.target.value)}
                           placeholder="Enter voucher code"
-                          className={`w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 placeholder:text-slate-400 ${
-                            voucherValidationMsg.type === 'success'
-                              ? 'border-brand-green focus:ring-brand-green'
-                              : voucherValidationMsg.type === 'error'
+                          className={`w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border rounded-2xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 placeholder:text-slate-400 ${voucherValidationMsg.type === 'success'
+                            ? 'border-brand-green focus:ring-brand-green'
+                            : voucherValidationMsg.type === 'error'
                               ? 'border-brand-red focus:ring-brand-red'
                               : 'border-slate-200 dark:border-slate-700 focus:ring-brand-navy'
-                          }`}
+                            }`}
                         />
                         {voucherValidating && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -3177,9 +3510,8 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                       </div>
                       {/* [CAVEMAN] Voucher validation message display */}
                       {voucherValidationMsg.message && !voucherValidating && (
-                        <p className={`text-xs font-semibold mt-1.5 ${
-                          voucherValidationMsg.type === 'success' ? 'text-brand-green' : 'text-brand-red'
-                        }`}>
+                        <p className={`text-xs font-semibold mt-1.5 ${voucherValidationMsg.type === 'success' ? 'text-brand-green' : 'text-brand-red'
+                          }`}>
                           {voucherValidationMsg.message}
                           {voucherValidationMsg.type === 'success' && appliedDiscount > 0 && (
                             <span className="ml-1 font-black">(-₱{appliedDiscount.toFixed(2)} discount)</span>
@@ -3200,11 +3532,10 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                                 onClick={() => {
                                   setVoucherCode(v.code);
                                 }}
-                                className={`text-[10px] px-2.5 py-1 rounded-xl font-bold border transition-all ${
-                                  voucherCode.toUpperCase().trim() === v.code.toUpperCase()
-                                    ? 'bg-brand-green text-slate-900 border-brand-green'
-                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm'
-                                }`}
+                                className={`text-[10px] px-2.5 py-1 rounded-xl font-bold border transition-all ${voucherCode.toUpperCase().trim() === v.code.toUpperCase()
+                                  ? 'bg-brand-green text-slate-900 border-brand-green'
+                                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm'
+                                  }`}
                               >
                                 {v.code} ({v.discount_type === 'percentage' ? `${v.discount_value}%` : `₱${v.discount_value}`} Off)
                               </button>
@@ -3294,6 +3625,250 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
   );
 }
 
+// ─── Notifications Tab ──────────────────────────────────────────────────────
+function NotificationsTab() {
+  const { profile } = useAuth();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+
+  const getCategory = (n: any) => {
+    const t = (n.type || n.title || '').toLowerCase();
+    const m = (n.message || '').toLowerCase();
+    if (t.includes('voucher') || m.includes('voucher')) return 'Voucher';
+    if (t.includes('payment') || m.includes('payment') || t.includes('refund')) return 'Payment';
+    if (t.includes('message') || m.includes('message')) return 'Message';
+    if (t.includes('book') || t.includes('schedul') || t.includes('cancel')) return 'Booking';
+    return 'Other';
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [profile?.id]);
+
+  const fetchNotifications = async () => {
+    if (!profile?.id) return;
+    try {
+      const res = await api.get(`/api/notifications/${profile.id}`);
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    try {
+      await api.patch(`/api/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true, read: true } : n));
+    } catch (err) {
+      console.error("Failed to mark as read", err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    for (const n of notifications) {
+      if (!(n.is_read || n.read)) {
+        await markAsRead(n.id);
+      }
+    }
+  };
+
+  const formatDate = (date: any) => {
+    if (!date) return '';
+    if (typeof date === 'string') return new Date(date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    if (date.seconds) return new Date(date.seconds * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    if (date._seconds) return new Date(date._seconds * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    return '';
+  };
+
+  const getNotificationStyle = (n: any) => {
+    const t = (n.type || n.title || '').toLowerCase();
+    
+    // Formal premium aesthetic: monochromatic icons and subtle backgrounds
+    const baseBorder = "border-slate-200 dark:border-slate-700/60";
+    const baseBg = "bg-slate-50 dark:bg-slate-800/40";
+    
+    if (t.includes('confirm') || t.includes('approve') || t.includes('success')) {
+      return { icon: <CheckCircle2 className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
+    }
+    if (t.includes('cancel') || t.includes('reject') || t.includes('fail')) {
+      return { icon: <AlertCircle className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
+    }
+    if (t.includes('voucher') || t.includes('discount') || t.includes('promo')) {
+      return { icon: <Ticket className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
+    }
+    if (t.includes('book') || t.includes('schedul')) {
+      return { icon: <Calendar className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
+    }
+    return { icon: <Bell className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
+  };
+
+  const filteredNotifications = notifications.filter(n => {
+    if (categoryFilter === 'All') return true;
+    return getCategory(n) === categoryFilter;
+  });
+
+  const sortedNotifications = [...filteredNotifications].sort((a, b) => {
+    const getMs = (d: any) => {
+      if (!d) return 0;
+      if (typeof d === 'string') return new Date(d).getTime();
+      if (d.seconds) return d.seconds * 1000;
+      if (d._seconds) return d._seconds * 1000;
+      return 0;
+    };
+    const dateA = getMs(a.created_at);
+    const dateB = getMs(b.created_at);
+    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+  });
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto w-full animate-in fade-in duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
+          <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse"></div>
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-pulse flex gap-4">
+              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+              <div className="flex-1 space-y-3 py-2">
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 px-1">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Notifications
+            {notifications.length > 0 && (
+              <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700 ml-2">
+                {notifications.length} Unread
+              </span>
+            )}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Your personal updates and alerts.</p>
+        </div>
+        
+        {notifications.length > 0 && (
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            <div className="relative">
+              <select 
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                className="appearance-none bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all shadow-sm cursor-pointer"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+
+            <button 
+              onClick={markAllAsRead}
+              className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Mark all as read
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {notifications.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
+          {['All', 'Booking', 'Payment', 'Voucher', 'Message', 'Other'].map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${categoryFilter === cat ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {notifications.length === 0 ? (
+        <EmptyState 
+          title="No Notifications" 
+          description="You're all caught up! When you receive updates about your bookings or special vouchers, they will appear here." 
+          icon={<Bell className="w-12 h-12 text-slate-300 dark:text-slate-600" />} 
+        />
+      ) : (
+        <div className="space-y-4">
+          {sortedNotifications.map(n => {
+            const style = getNotificationStyle(n);
+            const isRead = n.read || n.is_read;
+            return (
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                key={n.id}
+                onClick={() => { if (!isRead) markAsRead(n.id); }}
+                className={`group p-5 bg-white dark:bg-slate-800/80 border ${style.border} rounded-2xl flex flex-col sm:flex-row sm:items-start gap-5 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer ${isRead ? 'opacity-60' : 'opacity-100'}`}
+              >
+                <div className={`mt-0.5 w-12 h-12 rounded-xl ${style.bg} flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700/50`}>
+                  {style.icon}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4 mb-1.5">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                      {n.title || "Notification"}
+                    </h3>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                        {formatDate(n.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+                    {n.message}
+                  </p>
+                </div>
+                {!isRead && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAsRead(n.id);
+                    }}
+                    className="p-1.5 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-green-500 hover:border-green-200 dark:hover:border-green-900 transition-all bg-white dark:bg-slate-800 hover:scale-105 shadow-sm opacity-100 sm:opacity-0 group-hover:opacity-100 self-center"
+                    title="Mark as read"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function CustomerApp() {
   const [collapsed, setCollapsed] = useState(true);
@@ -3334,7 +3909,7 @@ export default function CustomerApp() {
             <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="vouchers" element={<VouchersTab />} />
             <Route path="refunds" element={<RefundsTab />} />
-
+            <Route path="notifications" element={<NotificationsTab />} />
             <Route path="profile" element={<ProfileTab />} />
           </Routes>
         </main>

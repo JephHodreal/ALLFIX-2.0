@@ -47,7 +47,7 @@ public class VendorController {
     @PatchMapping("/{id}/approve")
     public ResponseEntity<?> approve(@PathVariable String id) throws Exception {
         firestoreService.updateField("vendors", id, "is_approved", true);
-        notificationService.notify(id, "vendor", "Your vendor application has been approved! You can now receive bookings.");
+        notificationService.notify(id, "vendor", "Application Approved", "Your vendor application has been approved! You can now receive bookings.");
         return ResponseEntity.ok(Map.of("message", "Approved"));
     }
 

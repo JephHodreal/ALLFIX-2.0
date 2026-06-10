@@ -12,13 +12,15 @@ public class NotificationService {
         this.firestoreService = firestoreService;
     }
 
-    public void notify(String userId, String userRole, String message) {
+    public void notify(String userId, String userRole, String title, String message) {
         try {
             Map<String, Object> notif = new HashMap<>();
             notif.put("user_id", userId);
             notif.put("user_role", userRole);
+            notif.put("title", title);
             notif.put("message", message);
             notif.put("is_read", false);
+            notif.put("created_at", new java.util.Date());
             firestoreService.create("notifications", notif);
         } catch (Exception e) {
             // Log but don't fail the parent operation
@@ -38,7 +40,5 @@ public class NotificationService {
     public void markRead(String notificationId) throws Exception {
         System.out.println("Marking notification " + notificationId + " as read (is_read = true)");
         firestoreService.updateField("notifications", notificationId, "is_read", true);
-        System.out.println("Automatically deleting read notification " + notificationId + " from database for cleanup");
-        firestoreService.delete("notifications", notificationId);
     }
 }

@@ -47,6 +47,14 @@ public class BookingService {
         data.put("refund_status", "none");
         String bookingId = firestoreService.create("bookings", data);
         handleSlotDecrementForBooking(bookingId);
+
+        // Send notifications for new booking
+        String customerId = (String) data.get("customer_id");
+        String vendorId = (String) data.get("vendor_id");
+        String serviceType = (String) data.get("service_type");
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + serviceType + " has been successfully submitted.");
+        if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + serviceType + ".");
+
         return bookingId;
     }
 
@@ -65,8 +73,8 @@ public class BookingService {
         // Notify customer + vendor
         String customerId = (String) booking.get("customer_id");
         String vendorId = (String) booking.get("vendor_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Your booking has been confirmed!");
-        if (vendorId != null) notificationService.notify(vendorId, "vendor", "New confirmed booking assigned to you.");
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking has been confirmed!");
+        if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking assigned to you.");
     }
 
     public void assignPersonnel(String bookingId, String personnelId) throws Exception {
@@ -79,8 +87,8 @@ public class BookingService {
 
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         String customerId = (String) booking.get("customer_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "A personnel has been assigned to your booking.");
-        notificationService.notify(personnelId, "personnel", "You have been assigned a new job.");
+        if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", "A personnel has been assigned to your booking.");
+        notificationService.notify(personnelId, "personnel", "New Assignment", "You have been assigned a new job.");
     }
 
     public void completeBooking(String bookingId) throws Exception {
@@ -122,7 +130,7 @@ public class BookingService {
         handleSlotDecrementForBooking(bookingId);
 
         String customerId = (String) booking.get("customer_id");
-        if (customerId != null) notificationService.notify(customerId, "customer", "Your booking has been completed! Please leave a review.");
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Completed", "Your booking has been completed! Please leave a review.");
     }
 
     public void requestCancellation(String bookingId) throws Exception {
@@ -148,14 +156,14 @@ public class BookingService {
         // Notify customer
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) {
-            notificationService.notify(customerId, "customer",
+            notificationService.notify(customerId, "customer", "Cancellation Requested",
                 "Your booking for \"" + booking.get("service_type") + "\" has been cancelled. A refund request has been submitted for admin review.");
         }
 
         // Notify vendor
         String vendorId = (String) booking.get("vendor_id");
         if (vendorId != null) {
-            notificationService.notify(vendorId, "vendor",
+            notificationService.notify(vendorId, "vendor", "Booking Cancelled",
                 "A booking for \"" + booking.get("service_type") + "\" has been cancelled by the customer.");
         }
 
@@ -270,11 +278,15 @@ public class BookingService {
             // 3. Notify the customer and vendor
             String customerId = (String) booking.get("customer_id");
             if (customerId != null) {
-                notificationService.notify(customerId, "customer", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+                if (amount > 0) {
+                    notificationService.notify(customerId, "customer", "Refund Processed", "Your booking has been cancelled and a refund of ₱" + amount + " has been processed.");
+                } else {
+                    notificationService.notify(customerId, "customer", "Booking Cancelled", "Your booking has been cancelled by the admin.");
+                }
             }
             String vendorId = (String) booking.get("vendor_id");
             if (vendorId != null) {
-                notificationService.notify(vendorId, "vendor", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+                notificationService.notify(vendorId, "vendor", "Booking Cancelled", "A booking for \"" + booking.get("service_type") + "\" has been cancelled with a refund issued.");
             }
 
             // Trigger Email Notification
@@ -288,7 +300,7 @@ public class BookingService {
             // For vendor cancel: notify customer that their refund request has been submitted and is pending admin review.
             String customerId = (String) booking.get("customer_id");
             if (customerId != null) {
-                notificationService.notify(customerId, "customer", "Your booking has been cancelled by the vendor. A refund request has been submitted and is pending admin review.");
+                notificationService.notify(customerId, "customer", "Cancellation Requested", "Your booking has been cancelled by the vendor. A refund request has been submitted and is pending admin review.");
             }
             
             // Notify admins
@@ -298,7 +310,7 @@ public class BookingService {
                     String adminId = (String) admin.get("id");
                     if (adminId == null) adminId = (String) admin.get("uid");
                     if (adminId != null) {
-                        notificationService.notify(adminId, "admin",
+                        notificationService.notify(adminId, "admin", "Refund Review Pending",
                             "Booking " + bookingId + " cancelled by vendor. A refund request of ₱" + amount + " is pending review.");
                     }
                 }
@@ -517,15 +529,15 @@ public class BookingService {
          // 5. Notify customer
          String customerId = (String) booking.get("customer_id");
          if (customerId != null) {
-             notificationService.notify(customerId, "customer",
-                 "Your booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline. A full refund has been requested.");
+              notificationService.notify(customerId, "customer", "Booking Expired",
+                  "Your booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline. A full refund has been requested.");
          }
  
          // 6. Notify vendor
          String vendorId = (String) booking.get("vendor_id");
          if (vendorId != null) {
-             notificationService.notify(vendorId, "vendor",
-                 "Booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline.");
+              notificationService.notify(vendorId, "vendor", "Booking Expired",
+                  "Booking for \"" + booking.get("service_type") + "\" was automatically cancelled due to missed confirmation deadline.");
          }
  
          // 7. Notify admins
@@ -535,8 +547,8 @@ public class BookingService {
                  String adminId = (String) admin.get("id");
                  if (adminId == null) adminId = (String) admin.get("uid");
                  if (adminId != null) {
-                     notificationService.notify(adminId, "admin",
-                         "Booking " + bookingId + " has been automatically cancelled due to missed deadline. Refund of ₱" + totalPrice + " is required.");
+                      notificationService.notify(adminId, "admin", "Booking Expired",
+                          "Booking " + bookingId + " has been automatically cancelled due to missed deadline. Refund of ₱" + totalPrice + " is required.");
                  }
              }
          } catch (Exception e) {

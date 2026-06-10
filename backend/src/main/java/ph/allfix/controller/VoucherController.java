@@ -2,6 +2,7 @@ package ph.allfix.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ph.allfix.service.NotificationService;
 import ph.allfix.service.FirestoreService;
 
 import java.util.*;
@@ -11,9 +12,11 @@ import java.util.*;
 public class VoucherController {
 
     private final FirestoreService firestoreService;
+    private final NotificationService notificationService;
 
-    public VoucherController(FirestoreService firestoreService) {
+    public VoucherController(FirestoreService firestoreService, NotificationService notificationService) {
         this.firestoreService = firestoreService;
+        this.notificationService = notificationService;
     }
 
     @PostMapping
@@ -65,6 +68,10 @@ public class VoucherController {
                 Map<String, Object> customerUpdates = new HashMap<>();
                 customerUpdates.put("vouchers", customerVouchers);
                 firestoreService.update("customers", customerId, customerUpdates);
+                
+                // Notify the customer
+                notificationService.notify(customerId, "customer", "Voucher Received", 
+                    "You have received a new voucher (" + code + ") for " + discountValue + (discountType.equals("percentage") ? "% off" : " discount") + "!");
             }
 
             return ResponseEntity.ok(Map.of("id", voucherId, "message", "Voucher created and associated successfully."));

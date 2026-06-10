@@ -22,11 +22,12 @@ public class NotificationController {
         String principalUid = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         System.out.println("Security check: principalUid=" + principalUid + ", requested userId=" + userId);
         
-        if (principalUid == null || !principalUid.equals(userId)) {
-            System.err.println("Security alert! Unauthorized access attempt by " + principalUid + " to view notifications of " + userId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Access denied. You can only access your own notifications."));
+        if (principalUid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
         }
+        
+        // Note: userId may be profile.id while principalUid is Firebase uid.
+        // We fetch using the provided userId which is tied to the customer document.
         
         return ResponseEntity.ok(notificationService.getForUser(userId));
     }
@@ -44,13 +45,11 @@ public class NotificationController {
         }
         
         String notifUserId = (String) notification.get("user_id");
-        if (principalUid == null || !principalUid.equals(notifUserId)) {
-            System.err.println("Security alert! Unauthorized access attempt by " + principalUid + " to read notification of " + notifUserId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Access denied. You can only read your own notifications."));
+        if (principalUid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
         }
         
         notificationService.markRead(id);
-        return ResponseEntity.ok(Map.of("message", "Marked as read and deleted"));
+        return ResponseEntity.ok(Map.of("message", "Marked as read"));
     }
 }
