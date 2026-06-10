@@ -82,9 +82,7 @@ export const Footer: React.FC = () => {
       component="footer" 
       sx={{ 
         width: '100%', 
-        background: isDark 
-          ? 'linear-gradient(135deg, #090f1d 0%, #070d18 55%, #0c1524 100%)' 
-          : 'linear-gradient(135deg, #10355f 0%, #0d264a 55%, #1a3f70 100%)', 
+        background: 'linear-gradient(135deg, #10355f 0%, #0d264a 55%, #1a3f70 100%)', 
         pt: { xs: 8, lg: 10 }, 
         pb: { xs: 4, lg: 6 }, 
         color: 'white' 
