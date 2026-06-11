@@ -132,7 +132,7 @@ const ServiceCard = ({ service, isSubService = false, onServiceClick }: { servic
           }}
         />
         <div style={{ position: 'absolute', inset: 0, background: service.accent, opacity: hovered ? 0.8 : 0, transition: 'opacity 0.3s ease' }} />
-        
+
         {isSubService && (
           <div style={{ position: 'absolute', top: '16px', right: '16px', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: service.accent, color: '#fff', zIndex: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
             <Icon style={{ width: '18px', height: '18px' }} />
@@ -316,15 +316,15 @@ function CustomerHome() {
               image: backendService.imageUrl || backendService.image || frontendMatch.image,
               subServices: backendService.subServices && backendService.subServices.length > 0
                 ? backendService.subServices.map((bsSub: any) => {
-                    const fsSub: any = (frontendMatch.subServices || []).find((fs: any) => fs.name.toLowerCase() === bsSub.name.toLowerCase());
-                    return {
-                      ...fsSub,
-                      ...bsSub,
-                      workTypes: (bsSub.workTypes && bsSub.workTypes.length > 0) ? bsSub.workTypes : (fsSub?.workTypes || []),
-                      image: bsSub.imageUrl || bsSub.image || fsSub?.image || fsSub?.imageUrl,
-                      prices: (bsSub.prices && Object.keys(bsSub.prices).length > 0) ? bsSub.prices : (fsSub?.prices || {})
-                    } as any;
-                  })
+                  const fsSub: any = (frontendMatch.subServices || []).find((fs: any) => fs.name.toLowerCase() === bsSub.name.toLowerCase());
+                  return {
+                    ...fsSub,
+                    ...bsSub,
+                    workTypes: (bsSub.workTypes && bsSub.workTypes.length > 0) ? bsSub.workTypes : (fsSub?.workTypes || []),
+                    image: bsSub.imageUrl || bsSub.image || fsSub?.image || fsSub?.imageUrl,
+                    prices: (bsSub.prices && Object.keys(bsSub.prices).length > 0) ? bsSub.prices : (fsSub?.prices || {})
+                  } as any;
+                })
                 : frontendMatch.subServices || [],
             });
           } else {
@@ -369,7 +369,7 @@ function CustomerHome() {
 
   return (
     <div className="space-y-6">
-      {!selectedBrandService && (
+      {(!selectedBrandService && !((location.state?.restoreBrand || localStorage.getItem('restoreBrand')) && !initialRestoreHandled.current)) && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="bg-gradient-to-br from-brand-navy to-[#0a2d5c] text-white border-none">
             <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.first_name || 'there'}!</h2>
@@ -381,64 +381,72 @@ function CustomerHome() {
       {/* ─── Services Grid (Imitates Landing Page UI & Behavior) ─── */}
       <div className={selectedBrandService ? "-mt-2" : "mt-8"}>
         {!selectedBrandService ? (
-          <>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Our Services</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Select a specialized brand to view custom care services and secure immediate bookings.
-              </p>
+          (location.state?.restoreBrand || localStorage.getItem('restoreBrand')) && !initialRestoreHandled.current ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+              {Array(3).fill(0).map((_, i) => (
+                <div key={i} className="skeleton h-[450px] rounded-2xl" />
+              ))}
             </div>
-
-            {servicesLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="skeleton h-[450px] rounded-2xl" />
-                ))}
+          ) : (
+            <>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Our Services</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Select a specialized brand to view custom care services and secure immediate bookings.
+                </p>
               </div>
-            ) : (
-              <div className="w-full mt-4">
-                {/* Mobile only: single card display with tab selector (xs) */}
-                <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                  {/* Single active service card */}
-                  <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
-                    {services.length > 0 && (
-                      <ServiceCard
-                        service={services[activeServiceIdx] || services[0]}
-                        onServiceClick={(svc) => {
-                          setSelectedBrandService(svc);
-                          window.scrollTo(0, 0);
-                        }}
-                      />
-                    )}
-                  </Box>
-                  {/* Selector pills at the bottom */}
-                  <NavigationPills
-                    services={services}
-                    activeServiceIdx={activeServiceIdx}
-                    setActiveServiceIdx={setActiveServiceIdx}
-                  />
-                </Box>
 
-                {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
-                <Grid container rowSpacing={3} columnSpacing={1.5}
-                  sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
-                  {services.map((service, index) => (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
+              {servicesLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="skeleton h-[450px] rounded-2xl" />
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full mt-4">
+                  {/* Mobile only: single card display with tab selector (xs) */}
+                  <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                    {/* Single active service card */}
+                    <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
+                      {services.length > 0 && (
                         <ServiceCard
-                          service={service}
+                          service={services[activeServiceIdx] || services[0]}
                           onServiceClick={(svc) => {
                             setSelectedBrandService(svc);
                             window.scrollTo(0, 0);
                           }}
                         />
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </div>
-            )}
-          </>
+                      )}
+                    </Box>
+                    {/* Selector pills at the bottom */}
+                    <NavigationPills
+                      services={services}
+                      activeServiceIdx={activeServiceIdx}
+                      setActiveServiceIdx={setActiveServiceIdx}
+                    />
+                  </Box>
+
+                  {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
+                  <Grid container rowSpacing={3} columnSpacing={1.5}
+                    sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
+                    {services.map((service, index) => (
+                      <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
+                          <ServiceCard
+                            service={service}
+                            onServiceClick={(svc) => {
+                              setSelectedBrandService(svc);
+                              window.scrollTo(0, 0);
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </div>
+              )}
+            </>
+          )
         ) : (
           <motion.div id="sub-services-section" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1866,12 +1874,12 @@ function MyBookingsTab() {
           <p className="text-sm text-slate-500">Track and manage your service requests, appointments, and past jobs.</p>
         </div>
       </div>
-      
+
       <DataTable
         columns={[
-          { 
-            key: 'id', 
-            label: 'Booking ID', 
+          {
+            key: 'id',
+            label: 'Booking ID',
             sortable: true,
             render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span>
           },
@@ -1975,7 +1983,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
         <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-left mb-8 shadow-inner relative overflow-hidden">
           {/* Receipt Top Zigzag Decor */}
           <div className="absolute top-0 left-0 w-full h-2 bg-repeat-x flex items-center justify-center opacity-20 dark:opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #0f172a 2px, transparent 2.5px)', backgroundSize: '10px 10px' }}></div>
-          
+
           <div className="text-center mb-6 pt-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Official Receipt</p>
             <p className="text-[10px] text-slate-400">{new Date().toLocaleString()}</p>
@@ -1988,7 +1996,7 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
                   <p className="font-bold text-base text-slate-800 dark:text-slate-200">{b.service_type}</p>
                   <p className="font-extrabold text-slate-900 dark:text-white">₱{b.total_price}</p>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
                   <div className="flex flex-col">
                     <span className="font-semibold text-[10px] uppercase text-slate-400">Booking ID</span>
@@ -2296,180 +2304,180 @@ function ProfileTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
 
-      {/* ─── TOP LEFT: Profile Photo ──────────────────────────────────────── */}
-      <div className="lg:col-span-1 flex flex-col">
-        <Card className="h-full flex flex-col items-center justify-center text-center p-6">
-          <div className="relative group mb-5">
-            <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+        {/* ─── TOP LEFT: Profile Photo ──────────────────────────────────────── */}
+        <div className="lg:col-span-1 flex flex-col">
+          <Card className="h-full flex flex-col items-center justify-center text-center p-6">
+            <div className="relative group mb-5">
+              <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl font-bold text-slate-400 dark:text-slate-500">
+                    {profile.first_name?.charAt(0)}{profile.last_name?.charAt(0)}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900"
+              >
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="text-xs font-semibold">Change</span>
+              </button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                className="hidden"
+                accept="image/png, image/jpeg, image/webp"
+              />
+            </div>
+
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white break-words w-full">
+              {profile.first_name} {profile.last_name}
+            </h2>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate w-full">
+              {profile.email}
+            </p>
+
+            <div className="mt-8 w-full flex flex-col gap-3 animate-in fade-in duration-200">
+              {!selectedAvatar ? (
+                <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  Upload Photo
+                </button>
               ) : (
-                <span className="text-3xl font-bold text-slate-400 dark:text-slate-500">
-                  {profile.first_name?.charAt(0)}{profile.last_name?.charAt(0)}
-                </span>
+                <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-3 w-full">
+                  <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} w-full`}>
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveAvatar} className={`${btnPrimary} w-full`}>
+                    Save Changes
+                  </button>
+                </div>
               )}
             </div>
+          </Card>
+        </div>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900"
-            >
-              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              <span className="text-xs font-semibold">Change</span>
-            </button>
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleAvatarChange}
-              className="hidden"
-              accept="image/png, image/jpeg, image/webp"
-            />
-          </div>
-
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white break-words w-full">
-            {profile.first_name} {profile.last_name}
-          </h2>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate w-full">
-            {profile.email}
-          </p>
-
-          <div className="mt-8 w-full flex flex-col gap-3 animate-in fade-in duration-200">
-            {!selectedAvatar ? (
-              <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                Upload Photo
-              </button>
-            ) : (
-              <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-3 w-full">
-                <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} w-full`}>
-                  Cancel
-                </button>
-                <button onClick={handleSaveAvatar} className={`${btnPrimary} w-full`}>
-                  Save Changes
-                </button>
+        {/* ─── TOP RIGHT: General Information ─────────────────────────────── */}
+        <div className="lg:col-span-2 xl:col-span-3 flex flex-col">
+          <Card className="h-full flex flex-col justify-between">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
+                {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
               </div>
-            )}
-          </div>
-        </Card>
-      </div>
 
-      {/* ─── TOP RIGHT: General Information ─────────────────────────────── */}
-      <div className="lg:col-span-2 xl:col-span-3 flex flex-col">
-        <Card className="h-full flex flex-col justify-between">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
-              {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
+              {!isEditingProfile ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-200">
+                  {[
+                    ['First Name', profile.first_name], ['Last Name', profile.last_name],
+                    ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
+                    ['Barangay', (profile as any).barangay || '—'],
+                  ].map(([label, val]) => (
+                    <div key={label as string} className={`flex flex-col p-4 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
+                      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400 mb-1">{label}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <form onSubmit={handleSaveProfile} className="space-y-5 animate-in fade-in duration-200 bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">First Name</label>
+                      <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className={inputClass} autoFocus />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Last Name</label>
+                      <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
+                      <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
+                      <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className={inputClass} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
+                      <input type="text" value={formData.barangay} onChange={(e) => setFormData({ ...formData, barangay: e.target.value })} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                    <button type="button" onClick={() => cancelEdit('profile')} className={btnGhost}>Cancel</button>
+                    <button type="submit" className={btnPrimary}>Save</button>
+                  </div>
+                </form>
+              )}
             </div>
+          </Card>
+        </div>
 
-            {!isEditingProfile ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-200">
-                {[
-                  ['First Name', profile.first_name], ['Last Name', profile.last_name],
-                  ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
-                  ['Barangay', (profile as any).barangay || '—'],
-                ].map(([label, val]) => (
-                  <div key={label as string} className={`flex flex-col p-4 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
-                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400 mb-1">{label}</p>
-                    <p className="text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
+        {/* ─── BOTTOM ROW: Account Security ───────────────────────────────── */}
+        <div className="lg:col-start-2 lg:col-span-2 xl:col-start-2 xl:col-span-3">
+          <Card>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-6">Account Security</h2>
+
+            <div className="space-y-6">
+              {/* Email Block */}
+              {!isEditingEmail ? (
+                <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">{profile.email}</span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <form onSubmit={handleSaveProfile} className="space-y-5 animate-in fade-in duration-200 bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">First Name</label>
-                    <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className={inputClass} autoFocus />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Last Name</label>
-                    <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
-                    <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
-                    <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className={inputClass} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
-                    <input type="text" value={formData.barangay} onChange={(e) => setFormData({ ...formData, barangay: e.target.value })} className={inputClass} />
-                  </div>
+                  <EditButton onClick={() => setIsEditingEmail(true)} />
                 </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => cancelEdit('profile')} className={btnGhost}>Cancel</button>
-                  <button type="submit" className={btnPrimary}>Save</button>
+              ) : (
+                <form onSubmit={handleSaveEmail} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Email Address</label>
+                  <input type="email" value={emailData} onChange={(e) => setEmailData(e.target.value)} className={inputClass} autoFocus />
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                    <button type="button" onClick={() => cancelEdit('email')} className={btnGhost}>Cancel</button>
+                    <button type="submit" className={btnPrimary}>Update</button>
+                  </div>
+                </form>
+              )}
+
+              <hr className="border-slate-200 dark:border-slate-800" />
+
+              {/* Password Block */}
+              {!isEditingPassword ? (
+                <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col flex-1">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">••••••••••••</span>
+                  </div>
+                  <EditButton onClick={() => setIsEditingPassword(true)} />
                 </div>
-              </form>
-            )}
-          </div>
-        </Card>
+              ) : (
+                <form onSubmit={handleSavePassword} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Password</label>
+                      <input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className={inputClass} autoFocus />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Confirm Password</label>
+                      <input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                    <button type="button" onClick={() => cancelEdit('password')} className={btnGhost}>Cancel</button>
+                    <button type="submit" className={btnPrimary}>Update</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </Card>
+        </div>
+
       </div>
-
-      {/* ─── BOTTOM ROW: Account Security ───────────────────────────────── */}
-      <div className="lg:col-start-2 lg:col-span-2 xl:col-start-2 xl:col-span-3">
-        <Card>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-6">Account Security</h2>
-
-          <div className="space-y-6">
-            {/* Email Block */}
-            {!isEditingEmail ? (
-              <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
-                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">{profile.email}</span>
-                </div>
-                <EditButton onClick={() => setIsEditingEmail(true)} />
-              </div>
-            ) : (
-              <form onSubmit={handleSaveEmail} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Email Address</label>
-                <input type="email" value={emailData} onChange={(e) => setEmailData(e.target.value)} className={inputClass} autoFocus />
-                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
-                  <button type="button" onClick={() => cancelEdit('email')} className={btnGhost}>Cancel</button>
-                  <button type="submit" className={btnPrimary}>Update</button>
-                </div>
-              </form>
-            )}
-
-            <hr className="border-slate-200 dark:border-slate-800" />
-
-            {/* Password Block */}
-            {!isEditingPassword ? (
-              <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
-                <div className="flex flex-col flex-1">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
-                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">••••••••••••</span>
-                </div>
-                <EditButton onClick={() => setIsEditingPassword(true)} />
-              </div>
-            ) : (
-              <form onSubmit={handleSavePassword} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Password</label>
-                    <input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className={inputClass} autoFocus />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Confirm Password</label>
-                    <input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className={inputClass} />
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
-                  <button type="button" onClick={() => cancelEdit('password')} className={btnGhost}>Cancel</button>
-                  <button type="submit" className={btnPrimary}>Update</button>
-                </div>
-              </form>
-            )}
-          </div>
-        </Card>
-      </div>
-
-    </div>
     </div>
   );
 }
@@ -3895,11 +3903,11 @@ function NotificationsTab() {
 
   const getNotificationStyle = (n: any) => {
     const t = (n.type || n.title || '').toLowerCase();
-    
+
     // Formal premium aesthetic: monochromatic icons and subtle backgrounds
     const baseBorder = "border-slate-200 dark:border-slate-700/60";
     const baseBg = "bg-slate-50 dark:bg-slate-800/40";
-    
+
     if (t.includes('confirm') || t.includes('approve') || t.includes('success')) {
       return { icon: <CheckCircle2 className="w-5 h-5 text-slate-700 dark:text-slate-300" />, bg: baseBg, border: baseBorder };
     }
@@ -3973,11 +3981,11 @@ function NotificationsTab() {
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Your personal updates and alerts.</p>
         </div>
-        
+
         {notifications.length > 0 && (
           <div className="flex items-center gap-3 self-start sm:self-auto">
             <div className="relative">
-              <select 
+              <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
                 className="appearance-none bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all shadow-sm cursor-pointer"
@@ -3991,14 +3999,14 @@ function NotificationsTab() {
             </div>
 
             <div className="flex bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
-              <button 
+              <button
                 onClick={markAllAsUnread}
                 title="Mark all as unread"
                 className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 border-r border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
               >
                 <RefreshCcw className="w-4 h-4" /> <span className="hidden sm:inline">Mark all unread</span>
               </button>
-              <button 
+              <button
                 onClick={markAllAsRead}
                 title="Mark all as read"
                 className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50"
@@ -4009,7 +4017,7 @@ function NotificationsTab() {
           </div>
         )}
       </div>
-      
+
       {notifications.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
           {['All', 'Booking', 'Payment', 'Voucher', 'Message', 'Other'].map(cat => (
@@ -4025,10 +4033,10 @@ function NotificationsTab() {
       )}
 
       {notifications.length === 0 ? (
-        <EmptyState 
-          title="No Notifications" 
-          description="You're all caught up! When you receive updates about your bookings or special vouchers, they will appear here." 
-          icon={<Bell className="w-12 h-12 text-slate-300 dark:text-slate-600" />} 
+        <EmptyState
+          title="No Notifications"
+          description="You're all caught up! When you receive updates about your bookings or special vouchers, they will appear here."
+          icon={<Bell className="w-12 h-12 text-slate-300 dark:text-slate-600" />}
         />
       ) : (
         <div className="space-y-4">

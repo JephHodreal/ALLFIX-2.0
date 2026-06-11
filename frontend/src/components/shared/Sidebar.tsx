@@ -128,24 +128,28 @@ function SidebarTooltip({
   text,
   children,
   fullWidth = true,
+  disabled = false,
 }: {
   text: string;
   children: React.ReactNode;
   fullWidth?: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <div className={`relative group/tooltip flex items-center ${fullWidth ? 'w-full' : ''}`}>
+    <div className={`relative ${disabled ? '' : 'group/tooltip'} flex items-center ${fullWidth ? 'w-full' : ''}`}>
       {children}
-      <div
-        className="
-          absolute pointer-events-none opacity-0 group-hover/tooltip:opacity-100
-          transition-all duration-150 ease-out scale-95 group-hover/tooltip:scale-100
-          bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999]
-          left-11 top-1/2 -translate-y-1/2
-        "
-      >
-        {text}
-      </div>
+      {!disabled && (
+        <div
+          className="
+            absolute pointer-events-none opacity-0 group-hover/tooltip:opacity-100
+            transition-all duration-150 ease-out scale-95 group-hover/tooltip:scale-100
+            bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999]
+            left-11 top-1/2 -translate-y-1/2
+          "
+        >
+          {text}
+        </div>
+      )}
     </div>
   );
 }
@@ -267,8 +271,7 @@ function AdminSidebarSectionGroup({
                     {({ isActive }) => (
                       <>
                         {isActive && (
-                          <motion.div
-                            layoutId="activeIndicator"
+                          <div
                             className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
                           />
                         )}
@@ -298,12 +301,10 @@ function AdminSidebarSectionGroup({
                   </NavLink>
                 );
 
-                return collapsed ? (
-                  <SidebarTooltip key={item.path} text={item.label}>
+                return (
+                  <SidebarTooltip key={item.path} text={item.label} disabled={!collapsed}>
                     <div className="w-full">{linkContent}</div>
                   </SidebarTooltip>
-                ) : (
-                  <React.Fragment key={item.path}>{linkContent}</React.Fragment>
                 );
               })}
             </div>
@@ -346,7 +347,7 @@ function SidebarSectionGroup({
 
       <div className="space-y-1 overflow-visible">
         {section.items.map((item) => {
-          const isHomeOnBook = item.path === '/customer' && location.pathname.startsWith('/customer/book');
+          const isHomeOnBook = item.path === '/customer' && (location.pathname === '/customer/book' || location.pathname.startsWith('/customer/book/'));
           const linkContent = (
             <NavLink
               key={item.path}
@@ -367,8 +368,7 @@ function SidebarSectionGroup({
                 return (
                 <>
                   {forcedActive && (
-                    <motion.div
-                      layoutId="activeIndicator"
+                    <div
                       className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
                     />
                   )}
@@ -398,12 +398,10 @@ function SidebarSectionGroup({
             </NavLink>
           );
 
-          return collapsed ? (
-            <SidebarTooltip key={item.path} text={item.label}>
+          return (
+            <SidebarTooltip key={item.path} text={item.label} disabled={!collapsed}>
               <div className="w-full">{linkContent}</div>
             </SidebarTooltip>
-          ) : (
-            linkContent
           );
         })}
       </div>
