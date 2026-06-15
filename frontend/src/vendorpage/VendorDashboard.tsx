@@ -8,6 +8,7 @@ import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
+import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { useAuth } from '../context/AuthContext';
@@ -3051,8 +3052,8 @@ export default function VendorDashboard() {
             <Route path="schedule" element={<SlotCalendar dbServices={dbServices} />} />
             <Route path="bookings" element={<VendorBookings />} />
             <Route path="services" element={<VendorServices dbServices={dbServices} loadingDb={loadingDb} refreshServices={fetchServices} />} />
-
             <Route path="personnel" element={<VendorPersonnel dbServices={dbServices} />} />
+            <Route path="notifications" element={<NotificationsTab />} />
           </Routes>
         </main>
       </div>

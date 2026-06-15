@@ -9,6 +9,7 @@ import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { LineChart } from '../components/shared/LineChart';
 import { EmptyState } from '../components/shared/EmptyState';
+import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { VENDOR_SERVICES } from '../constants/services';
@@ -6093,6 +6094,7 @@ export default function AdminDashboard() {
             <Route path="vendors" element={<VendorsTab />} />
             <Route path="personnel" element={<PersonnelTab />} />
             <Route path="vendors-management" element={<VendorsManagementPage />} />
+            <Route path="notifications" element={<NotificationsTab />} />
             {/* Operations */}
             <Route path="bookings" element={<BookingsTab />} />
             <Route path="services" element={<ServicesManagementPage />} />

@@ -7,6 +7,7 @@ import { Header } from '../components/shared/Header';
 import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
+import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
@@ -386,6 +387,7 @@ export default function PersonnelDashboard() {
             <Route index element={<PersonnelHome />} />
             <Route path="bookings" element={<PersonnelBookings />} />
             <Route path="profile" element={<PersonnelProfile />} />
+            <Route path="notifications" element={<NotificationsTab />} />
           </Routes>
         </main>
       </div>

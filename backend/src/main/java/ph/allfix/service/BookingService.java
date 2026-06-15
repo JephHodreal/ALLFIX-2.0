@@ -57,7 +57,7 @@ public class BookingService {
         String serviceType = (String) data.get("service_type");
         String schedDate = (String) data.get("scheduled_date");
         String schedTime = (String) data.get("scheduled_time");
-        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        String details = "ID: " + bookingId + " - " + serviceType;
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + details + " has been successfully submitted.");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + details + ".");
 
@@ -82,7 +82,7 @@ public class BookingService {
         String serviceType = (String) booking.get("service_type");
         String schedDate = (String) booking.get("scheduled_date");
         String schedTime = (String) booking.get("scheduled_time");
-        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        String details = "ID: " + bookingId + " - " + serviceType;
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking for " + details + " has been confirmed!");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking for " + details + " assigned to you.");
     }
@@ -100,7 +100,7 @@ public class BookingService {
         String serviceType = (String) booking.get("service_type");
         String schedDate = (String) booking.get("scheduled_date");
         String schedTime = (String) booking.get("scheduled_time");
-        String details = "ID: " + bookingId + " - " + serviceType + " on " + schedDate + " at " + schedTime;
+        String details = "ID: " + bookingId + " - " + serviceType;
         if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", "A personnel has been assigned to your booking for " + details + ".");
         notificationService.notify(personnelId, "personnel", "New Assignment", "You have been assigned a new job for " + details + ".");
     }

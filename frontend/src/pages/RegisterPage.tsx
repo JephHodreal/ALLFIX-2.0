@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, ArrowLeft, CreditCard, Clock } from 'lucide-react';
 import { registerUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
@@ -18,6 +18,13 @@ interface FormData {
   // Vendor
   companyName: string; contactPerson: string;
   termsAccepted: boolean;
+  // Payment
+  paymentMethod: 'bank' | 'ewallet' | 'skip' | '';
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  ewalletType: 'gcash' | 'paymaya' | '';
+  ewalletNumber: string;
 }
 
 interface SelectedService {
@@ -38,10 +45,11 @@ const initialFormData: FormData = {
   barangay: '', barangayCode: '', unitHouseNo: '', street: '', postalCode: '',
   companyName: '', contactPerson: '',
   termsAccepted: false,
+  paymentMethod: '', bankName: '', accountName: '', accountNumber: '', ewalletType: '', ewalletNumber: '',
 };
 
 const LOCATION_API = import.meta.env.VITE_LOCATION_API || 'https://psgc.gitlab.io/api';
-const steps = ['Basic Info', 'Address', 'Contact & Role'];
+const steps = ['Basic Info', 'Address', 'Bank & Payment'];
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -168,12 +176,20 @@ export default function RegisterPage() {
   const update = (key: keyof FormData, value: string | boolean) => {
     // Strip spaces from specific fields
     let processedValue = value;
-    if (typeof value === 'string' && ['username', 'email', 'password', 'confirmPassword', 'phone'].includes(key)) {
+    if (key === 'phone' && typeof value === 'string') {
+      processedValue = value.replace(/\D/g, '').slice(0, 11);
+    } else if (typeof value === 'string' && ['username', 'email', 'password', 'confirmPassword'].includes(key)) {
       processedValue = value.replace(/\s/g, '');
+    } else if (typeof value === 'string' && ['firstName', 'lastName'].includes(key)) {
+      processedValue = value.replace(/[0-9]/g, '');
+    } else if (key === 'unitHouseNo' && typeof value === 'string') {
+      processedValue = value.replace(/\D/g, '').slice(0, 5);
+    } else if (key === 'postalCode' && typeof value === 'string') {
+      processedValue = value.replace(/\D/g, '').slice(0, 4);
     }
     // Auto-capitalize first letter for firstName and lastName
-    if (typeof value === 'string' && ['firstName', 'lastName'].includes(key) && value.length > 0) {
-      processedValue = value.charAt(0).toUpperCase() + value.slice(1);
+    if (typeof processedValue === 'string' && ['firstName', 'lastName'].includes(key) && processedValue.length > 0) {
+      processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
     }
     setForm((prev) => ({ ...prev, [key]: processedValue }));
     if (key === 'username') {
@@ -259,11 +275,16 @@ export default function RegisterPage() {
     return /^\d{11}$/.test(phone.replace(/\D/g, ''));
   };
 
+  const isEmailValid = (email: string) => {
+    return email.endsWith('.com') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const canNext = () => {
-    if (step === 0) return form.firstName && form.lastName && form.username && usernameValid && form.email && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password);
+    if (step === 0) return form.firstName && form.lastName && form.username && usernameValid && form.phone && isPhoneValid(form.phone) && form.email && isEmailValid(form.email) && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password);
     if (step === 1) return form.cityCode && form.barangayCode && form.unitHouseNo && form.street;
     if (step === 2) {
-      return form.phone && isPhoneValid(form.phone) && form.termsAccepted;
+      const paymentValid = form.paymentMethod === 'bank' ? !!(form.bankName && form.accountName && form.accountNumber) : form.paymentMethod === 'ewallet' ? !!(form.ewalletType && form.ewalletNumber) : form.paymentMethod === 'skip' ? true : false;
+      return paymentValid && form.termsAccepted;
     }
     return false;
   };
@@ -279,6 +300,12 @@ export default function RegisterPage() {
         unit_house_no: form.unitHouseNo, street: form.street, barangay: form.barangay,
         city: form.city, region: 'National Capital Region',
         postal_code: form.postalCode,
+        payment_method: form.paymentMethod,
+        bank_name: form.bankName,
+        account_name: form.accountName,
+        account_number: form.accountNumber,
+        ewallet_type: form.ewalletType,
+        ewallet_number: form.ewalletNumber,
       };
 
       localStorage.setItem('pendingRegistration', JSON.stringify({ sentAt: Date.now(), profile }));
@@ -307,6 +334,12 @@ export default function RegisterPage() {
   const strengthColors = ['bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-brand-green'];
   const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
 
+  const handleTooltip = (text: string) => ({
+    onMouseEnter: (e: React.MouseEvent) => setActiveTooltip({ show: true, x: e.clientX, y: e.clientY, text }),
+    onMouseMove: (e: React.MouseEvent) => setActiveTooltip({ show: true, x: e.clientX, y: e.clientY, text }),
+    onMouseLeave: () => setActiveTooltip(prev => ({ ...prev, show: false }))
+  });
+
   return (
     <div className="min-h-screen flex bg-surface-light dark:bg-surface-dark">
       {/* Left panel */}
@@ -314,6 +347,7 @@ export default function RegisterPage() {
         <button 
           onClick={() => navigate('/')} 
           className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
+          {...handleTooltip("Go back")}
         >
           <ArrowLeft className="w-5 h-5" />
           <span className="font-semibold text-sm">Back to Home</span>
@@ -356,7 +390,7 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-            {step === 0 ? 'Basic Information' : step === 1 ? 'Your Address' : 'Contact'}
+            {step === 0 ? 'Basic Information' : step === 1 ? 'Your Address' : 'Bank & Payment'}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Step {step + 1} of {steps.length}</p>
 
@@ -377,13 +411,21 @@ export default function RegisterPage() {
                       <input value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className="input-base" placeholder="Dela Cruz" required />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
-                    <div className="relative flex gap-2">
-                      <input value={form.username} onChange={(e) => update('username', e.target.value)} onBlur={() => form.username && checkUsername(form.username)} className="input-base flex-1" placeholder="username" required />
-                      {usernameCheckLoading && <div className="text-xs text-slate-400 flex items-center">Checking...</div>}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                      <div className="relative flex gap-2">
+                        <input value={form.username} onChange={(e) => update('username', e.target.value)} onBlur={() => form.username && checkUsername(form.username)} className="input-base flex-1" placeholder="Username" required />
+                        {usernameCheckLoading && <div className="text-xs text-slate-400 flex items-center">Checking...</div>}
+                      </div>
+                      {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
                     </div>
-                    {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact Number</label>
+                      <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base pl-10" placeholder="09XX XXX XXXX" required /></div>
+                      {form.phone && !isPhoneValid(form.phone) && <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
@@ -394,7 +436,7 @@ export default function RegisterPage() {
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} className="input-base pl-10 pr-10" placeholder="Min 8 characters" required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" {...handleTooltip(showPassword ? "Hide" : "Show")}>
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button></div>
                     {form.password && (
@@ -443,13 +485,102 @@ export default function RegisterPage() {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                    <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base pl-10" placeholder="09XX XXX XXXX" required /></div>
-                    {form.phone && !isPhoneValid(form.phone) && <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <button 
+                      type="button"
+                      onClick={() => update('paymentMethod', 'bank')}
+                      className={`p-5 border rounded-xl flex flex-col items-center justify-center gap-4 transition-all duration-300 ${form.paymentMethod === 'bank' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-md scale-[1.02]' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                    >
+                      <div className="flex gap-2 items-center justify-center h-12 bg-white py-1.5 px-3 rounded-lg shadow-sm border border-slate-200 w-full max-w-[160px] overflow-hidden">
+                         <img src="/images/visa-logo.png" alt="Visa" className="h-full object-contain w-[3.5rem]" />
+                         <div className="h-6 w-px min-w-[1px] bg-slate-200 shrink-0 mx-1"></div>
+                         <img src="/images/mastercard-logo.png" alt="Mastercard" className="h-full object-contain w-[3.5rem]" />
+                      </div>
+                      <span className={`text-sm font-semibold ${form.paymentMethod === 'bank' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-600 dark:text-slate-300'}`}>Bank Account</span>
+                    </button>
+                                      <button 
+                      type="button"
+                      onClick={() => update('paymentMethod', 'ewallet')}
+                      className={`p-5 border rounded-xl flex flex-col items-center justify-center gap-4 transition-all duration-300 ${form.paymentMethod === 'ewallet' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-md scale-[1.02]' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                    >
+                      <div className="flex gap-2 items-center justify-center h-12 bg-white py-1.5 px-2 rounded-lg shadow-sm border border-slate-200 w-full max-w-[160px] overflow-hidden">
+                         <img src="/images/gcash-logo.jpg" alt="GCash" className="h-full object-cover rounded shadow-sm w-16" />
+                         <div className="h-6 w-px min-w-[1px] bg-slate-200 shrink-0 mx-1"></div>
+                         <img src="/images/maya-logo.jpg" alt="Maya" className="h-full object-cover rounded shadow-sm w-16" />
+                      </div>
+                      <span className={`text-sm font-semibold ${form.paymentMethod === 'ewallet' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-600 dark:text-slate-300'}`}>E-Wallet</span>
+                    </button>
                   </div>
 
-                  <label className="flex items-start gap-3 cursor-pointer mt-4">
+                  {/* Skip Button Box */}
+                  <div className={`mb-6 p-4 rounded-xl border transition-all cursor-pointer ${form.paymentMethod === 'skip' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-sm scale-[1.01]' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`} onClick={() => {
+                         update('paymentMethod', 'skip');
+                         update('bankName', '');
+                         update('accountName', '');
+                         update('accountNumber', '');
+                         update('ewalletType', '');
+                         update('ewalletNumber', '');
+                      }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2.5 rounded-full ${form.paymentMethod === 'skip' ? 'bg-brand-navy text-white dark:bg-brand-green dark:text-slate-900' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'}`}>
+                          {form.paymentMethod === 'skip' ? <Check className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-semibold ${form.paymentMethod === 'skip' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-700 dark:text-slate-300'}`}>Undecided yet?</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Can't decide now? Add it later.</p>
+                        </div>
+                      </div>
+                      <span className={`text-sm font-medium px-5 py-2 rounded-full transition-colors ${form.paymentMethod === 'skip' ? 'bg-brand-navy text-white dark:bg-brand-green dark:text-slate-900 shadow' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-600'}`}>
+                        Skip for now
+                      </span>
+                    </div>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    {form.paymentMethod === 'bank' && (
+                      <motion.div key="bank" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="space-y-4 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bank Name</label>
+                          <select value={form.bankName} onChange={(e) => update('bankName', e.target.value)} className="input-base">
+                            <option value="">Select Bank...</option>
+                            <option value="BDO Unibank">BDO Unibank</option>
+                            <option value="Bank of the Philippine Islands (BPI)">Bank of the Philippine Islands (BPI)</option>
+                            <option value="Metrobank">Metrobank</option>
+                            <option value="UnionBank">UnionBank</option>
+                            <option value="Security Bank">Security Bank</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
+                          <input value={form.accountName} onChange={(e) => update('accountName', e.target.value)} className="input-base" placeholder="Juan Dela Cruz" required />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
+                          <input value={form.accountNumber} onChange={(e) => update('accountNumber', e.target.value)} className="input-base" placeholder="XXXX XXXX XXXX" required />
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {form.paymentMethod === 'ewallet' && (
+                      <motion.div key="ewallet" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="space-y-4 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">E-Wallet Type</label>
+                          <select value={form.ewalletType} onChange={(e) => update('ewalletType', e.target.value)} className="input-base">
+                            <option value="">Select E-Wallet...</option>
+                            <option value="gcash">GCash</option>
+                            <option value="paymaya">Maya (PayMaya)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mobile Number</label>
+                          <input value={form.ewalletNumber} onChange={(e) => update('ewalletNumber', e.target.value)} className="input-base" placeholder="09XX XXX XXXX" required />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <label className="flex items-start gap-3 cursor-pointer mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
                     <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy" />
                     <span className="text-sm text-slate-600 dark:text-slate-400">I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a> and <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>.</span>
                   </label>
@@ -461,25 +592,33 @@ export default function RegisterPage() {
           {/* Navigation */}
           <div className="flex items-center justify-between mt-8">
             {step > 0 ? (
-              <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
+              <div {...handleTooltip("Back")}>
+                <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
+              </div>
             ) : <div />}
             {step < 2 ? (
-              <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
+              <div {...handleTooltip(canNext() ? "Next step" : "Fill required fields")}>
+                <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
+              </div>
             ) : (
-              <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Account</Button>
+              <div {...handleTooltip(canNext() ? "Create account" : "Fill required fields")}>
+                <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Account</Button>
+              </div>
             )}
           </div>
 
-          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
-          </p>
+          {step === 0 && (
+            <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+              Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
+            </p>
+          )}
         </div>
       </div>
 
       {/* Global dynamically positioned tooltip */}
       {activeTooltip.show && (
         <div 
-          className="fixed bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs rounded p-2 w-56 max-w-xs break-words shadow-xl z-[9999] pointer-events-none"
+          className="fixed bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999] pointer-events-none"
           style={{
             left: activeTooltip.x + 15 + 224 > window.innerWidth ? activeTooltip.x - 240 : activeTooltip.x + 15,
             top: activeTooltip.y + 15 + 80 > window.innerHeight ? activeTooltip.y - 80 : activeTooltip.y + 15
