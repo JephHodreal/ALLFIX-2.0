@@ -12,8 +12,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  maxContentLength: 10 * 1024 * 1024, // 10MB for image uploads
-  maxBodyLength: 10 * 1024 * 1024,
+  maxContentLength: 50 * 1024 * 1024, // 50MB for image/document uploads
+  maxBodyLength: 50 * 1024 * 1024,
 });
 
 // Request interceptor: attach Firebase ID token

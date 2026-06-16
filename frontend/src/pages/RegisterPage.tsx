@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, ArrowLeft, CreditCard, Clock } from 'lucide-react';
-import { registerUser } from '../services/firebaseService';
+import { registerUser, sendOtp, verifyOtp, getCurrentUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
 import { VENDOR_SERVICES } from '../constants/services';
@@ -18,13 +18,8 @@ interface FormData {
   // Vendor
   companyName: string; contactPerson: string;
   termsAccepted: boolean;
-  // Payment
-  paymentMethod: 'bank' | 'ewallet' | 'skip' | '';
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  ewalletType: 'gcash' | 'paymaya' | '';
-  ewalletNumber: string;
+  // Verification
+  verificationCode: string;
 }
 
 interface SelectedService {
@@ -45,11 +40,30 @@ const initialFormData: FormData = {
   barangay: '', barangayCode: '', unitHouseNo: '', street: '', postalCode: '',
   companyName: '', contactPerson: '',
   termsAccepted: false,
-  paymentMethod: '', bankName: '', accountName: '', accountNumber: '', ewalletType: '', ewalletNumber: '',
+  verificationCode: '',
 };
 
 const LOCATION_API = import.meta.env.VITE_LOCATION_API || 'https://psgc.gitlab.io/api';
-const steps = ['Basic Info', 'Address', 'Bank & Payment'];
+const steps = ['Basic Info', 'Address', 'Account Verification'];
+
+function FormTooltip({ text, children, position = 'top' }: { text: string; children: React.ReactNode; position?: 'top' | 'bottom' | 'right' }) {
+  if (!text) return <>{children}</>;
+  const positionClasses = {
+    top: 'bottom-full mb-2 left-1/2 -translate-x-1/2',
+    bottom: 'top-full mt-2 left-1/2 -translate-x-1/2',
+    right: 'left-full ml-2 top-1/2 -translate-y-1/2'
+  };
+  return (
+    <div className="relative group/tooltip flex w-fit items-center justify-center">
+      {children}
+      <div
+        className={`absolute pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-all duration-150 ease-out scale-95 group-hover/tooltip:scale-100 bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999] ${positionClasses[position]}`}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -73,9 +87,13 @@ export default function RegisterPage() {
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [usernameValid, setUsernameValid] = useState(false);
+
+  // Clear global error when step changes
+  useEffect(() => {
+    if (error) setError('');
+  }, [step]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [expandedService, setExpandedService] = useState<string | null>(null);
-  const [activeTooltip, setActiveTooltip] = useState<{ show: boolean, x: number, y: number, text: string }>({ show: false, x: 0, y: 0, text: '' });
   const [servicesCatalog, setServicesCatalog] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
 
@@ -117,10 +135,6 @@ export default function RegisterPage() {
       .finally(() => setLoadingCatalog(false));
   }, []);
 
-  const handleMouseMove = (e: React.MouseEvent, text: string) => {
-    setActiveTooltip({ show: true, x: e.clientX, y: e.clientY, text });
-  };
-  const hideTooltip = () => setActiveTooltip({ ...activeTooltip, show: false });
 
   const toggleService = (serviceName: string) => {
     const exists = selectedServices.find(s => s.service === serviceName);
@@ -174,6 +188,9 @@ export default function RegisterPage() {
   };
 
   const update = (key: keyof FormData, value: string | boolean) => {
+    // Clear the error message when the user starts typing again
+    if (error) setError('');
+    
     // Strip spaces from specific fields
     let processedValue = value;
     if (key === 'phone' && typeof value === 'string') {
@@ -186,6 +203,8 @@ export default function RegisterPage() {
       processedValue = value.replace(/\D/g, '').slice(0, 5);
     } else if (key === 'postalCode' && typeof value === 'string') {
       processedValue = value.replace(/\D/g, '').slice(0, 4);
+    } else if (key === 'verificationCode' && typeof value === 'string') {
+      processedValue = value.replace(/\D/g, '').slice(0, 6);
     }
     // Auto-capitalize first letter for firstName and lastName
     if (typeof processedValue === 'string' && ['firstName', 'lastName'].includes(key) && processedValue.length > 0) {
@@ -283,48 +302,73 @@ export default function RegisterPage() {
     if (step === 0) return form.firstName && form.lastName && form.username && usernameValid && form.phone && isPhoneValid(form.phone) && form.email && isEmailValid(form.email) && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password);
     if (step === 1) return form.cityCode && form.barangayCode && form.unitHouseNo && form.street;
     if (step === 2) {
-      const paymentValid = form.paymentMethod === 'bank' ? !!(form.bankName && form.accountName && form.accountNumber) : form.paymentMethod === 'ewallet' ? !!(form.ewalletType && form.ewalletNumber) : form.paymentMethod === 'skip' ? true : false;
-      return paymentValid && form.termsAccepted;
+      return form.verificationCode.length === 6 && form.termsAccepted;
     }
     return false;
+  };
+
+  const handleContinueToStep3 = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      let user = getCurrentUser();
+      if (!user || user.email !== form.email) {
+         user = await registerUser(form.email, form.password);
+      }
+      
+      await sendOtp();
+      setStep(s => s + 1);
+    } catch (err: any) {
+      const firebaseCode: string | undefined = err?.code;
+      if (firebaseCode === 'auth/email-already-in-use') {
+        setError('Email already registered.');
+      } else if (firebaseCode === 'auth/invalid-email') {
+        setError('Invalid email.');
+      } else if (firebaseCode === 'auth/weak-password') {
+        setError('Password too weak.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Registration failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
     setError(''); setLoading(true);
     try {
-      const user = await registerUser(form.email, form.password);
-      // Save profile locally; will be written to Firestore after email verification
+      await verifyOtp(form.verificationCode);
+
+      const user = getCurrentUser();
+      await user?.reload();
+      
       const profile: any = {
-        uid: user.uid, email: form.email, username: form.username, role: form.role,
+        uid: user?.uid, email: form.email, username: form.username, role: form.role,
         first_name: form.firstName, last_name: form.lastName, phone: form.phone,
         unit_house_no: form.unitHouseNo, street: form.street, barangay: form.barangay,
         city: form.city, region: 'National Capital Region',
         postal_code: form.postalCode,
-        payment_method: form.paymentMethod,
-        bank_name: form.bankName,
-        account_name: form.accountName,
-        account_number: form.accountNumber,
-        ewallet_type: form.ewalletType,
-        ewallet_number: form.ewalletNumber,
       };
 
-      localStorage.setItem('pendingRegistration', JSON.stringify({ sentAt: Date.now(), profile }));
-      navigate(ROUTES.verifyEmail);
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profile),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save profile');
+      }
+      
+      await user?.getIdToken(true);
+
+      navigate(ROUTES.home || '/');
     } catch (err: any) {
-      const firebaseCode: string | undefined = err?.code;
-      if (firebaseCode === 'auth/email-already-in-use') {
-        setError('Email already registered.');
-        return;
-      }
-      if (firebaseCode === 'auth/invalid-email') {
-        setError('Invalid email.');
-        return;
-      }
-      if (firebaseCode === 'auth/weak-password') {
-        setError('Password too weak.');
-        return;
-      }
-      setError(err.response?.data?.message || err.message || 'Registration failed.');
+      setError(err.message || 'Verification failed.');
     } finally {
       setLoading(false);
     }
@@ -334,20 +378,13 @@ export default function RegisterPage() {
   const strengthColors = ['bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-brand-green'];
   const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
 
-  const handleTooltip = (text: string) => ({
-    onMouseEnter: (e: React.MouseEvent) => setActiveTooltip({ show: true, x: e.clientX, y: e.clientY, text }),
-    onMouseMove: (e: React.MouseEvent) => setActiveTooltip({ show: true, x: e.clientX, y: e.clientY, text }),
-    onMouseLeave: () => setActiveTooltip(prev => ({ ...prev, show: false }))
-  });
-
   return (
-    <div className="min-h-screen flex bg-surface-light dark:bg-surface-dark">
+    <div className="h-screen w-full overflow-hidden flex bg-surface-light dark:bg-surface-dark">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-2/5 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-2/5 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden h-full">
         <button 
           onClick={() => navigate('/')} 
           className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
-          {...handleTooltip("Go back")}
         >
           <ArrowLeft className="w-5 h-5" />
           <span className="font-semibold text-sm">Back to Home</span>
@@ -373,8 +410,8 @@ export default function RegisterPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="w-full max-w-lg">
+      <div className="flex-1 h-full overflow-y-auto p-6 lg:px-12 lg:py-6">
+        <div className="w-full max-w-lg mx-auto py-2">
           <div className="flex justify-end mb-4 lg:mb-6">
             <LampButton />
           </div>
@@ -390,17 +427,17 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-            {step === 0 ? 'Basic Information' : step === 1 ? 'Your Address' : 'Bank & Payment'}
+            {step === 0 ? 'Basic Information' : step === 1 ? 'Your Address' : 'Account Verification'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Step {step + 1} of {steps.length}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">Step {step + 1} of {steps.length}</p>
 
           {error && <div className="mb-4 p-3 rounded-xl bg-brand-red/10 border border-brand-red/20 text-brand-red text-sm">{error}</div>}
 
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               {step === 0 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
                       <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -411,7 +448,7 @@ export default function RegisterPage() {
                       <input value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className="input-base" placeholder="Dela Cruz" required />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
                       <div className="relative flex gap-2">
@@ -436,9 +473,14 @@ export default function RegisterPage() {
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} className="input-base pl-10 pr-10" placeholder="Min 8 characters" required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" {...handleTooltip(showPassword ? "Hide" : "Show")}>
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button></div>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <FormTooltip text={showPassword ? "Hide" : "Show"} position="top">
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 flex items-center justify-center p-1">
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </FormTooltip>
+                      </div>
+                    </div>
                     {form.password && (
                       <div className="mt-2">
                         <div className="flex gap-1">{[0,1,2,3].map(i => <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < strength ? strengthColors[strength-1] : 'bg-slate-200 dark:bg-slate-700'}`} />)}</div>
@@ -484,105 +526,34 @@ export default function RegisterPage() {
               )}
 
               {step === 2 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <button 
-                      type="button"
-                      onClick={() => update('paymentMethod', 'bank')}
-                      className={`p-5 border rounded-xl flex flex-col items-center justify-center gap-4 transition-all duration-300 ${form.paymentMethod === 'bank' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-md scale-[1.02]' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                    >
-                      <div className="flex gap-2 items-center justify-center h-12 bg-white py-1.5 px-3 rounded-lg shadow-sm border border-slate-200 w-full max-w-[160px] overflow-hidden">
-                         <img src="/images/visa-logo.png" alt="Visa" className="h-full object-contain w-[3.5rem]" />
-                         <div className="h-6 w-px min-w-[1px] bg-slate-200 shrink-0 mx-1"></div>
-                         <img src="/images/mastercard-logo.png" alt="Mastercard" className="h-full object-contain w-[3.5rem]" />
-                      </div>
-                      <span className={`text-sm font-semibold ${form.paymentMethod === 'bank' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-600 dark:text-slate-300'}`}>Bank Account</span>
-                    </button>
-                                      <button 
-                      type="button"
-                      onClick={() => update('paymentMethod', 'ewallet')}
-                      className={`p-5 border rounded-xl flex flex-col items-center justify-center gap-4 transition-all duration-300 ${form.paymentMethod === 'ewallet' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-md scale-[1.02]' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                    >
-                      <div className="flex gap-2 items-center justify-center h-12 bg-white py-1.5 px-2 rounded-lg shadow-sm border border-slate-200 w-full max-w-[160px] overflow-hidden">
-                         <img src="/images/gcash-logo.jpg" alt="GCash" className="h-full object-cover rounded shadow-sm w-16" />
-                         <div className="h-6 w-px min-w-[1px] bg-slate-200 shrink-0 mx-1"></div>
-                         <img src="/images/maya-logo.jpg" alt="Maya" className="h-full object-cover rounded shadow-sm w-16" />
-                      </div>
-                      <span className={`text-sm font-semibold ${form.paymentMethod === 'ewallet' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-600 dark:text-slate-300'}`}>E-Wallet</span>
-                    </button>
-                  </div>
-
-                  {/* Skip Button Box */}
-                  <div className={`mb-6 p-4 rounded-xl border transition-all cursor-pointer ${form.paymentMethod === 'skip' ? 'border-brand-navy bg-brand-navy/5 dark:border-brand-green dark:bg-brand-green/10 shadow-sm scale-[1.01]' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`} onClick={() => {
-                         update('paymentMethod', 'skip');
-                         update('bankName', '');
-                         update('accountName', '');
-                         update('accountNumber', '');
-                         update('ewalletType', '');
-                         update('ewalletNumber', '');
-                      }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2.5 rounded-full ${form.paymentMethod === 'skip' ? 'bg-brand-navy text-white dark:bg-brand-green dark:text-slate-900' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'}`}>
-                          {form.paymentMethod === 'skip' ? <Check className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <p className={`text-sm font-semibold ${form.paymentMethod === 'skip' ? 'text-brand-navy dark:text-brand-green' : 'text-slate-700 dark:text-slate-300'}`}>Undecided yet?</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Can't decide now? Add it later.</p>
-                        </div>
-                      </div>
-                      <span className={`text-sm font-medium px-5 py-2 rounded-full transition-colors ${form.paymentMethod === 'skip' ? 'bg-brand-navy text-white dark:bg-brand-green dark:text-slate-900 shadow' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-600'}`}>
-                        Skip for now
-                      </span>
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                    <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Verify Your Account</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                      Please enter the 6-digit verification code sent to your email or phone number.
+                      <button type="button" onClick={async () => { try { await sendOtp(); alert('Code resent!'); } catch(e:any) { alert(e.message); } }} className="block mx-auto mt-2 text-brand-green font-semibold hover:underline text-xs">Resend Code</button>
+                    </p>
+                    <div className="max-w-xs mx-auto">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={form.verificationCode}
+                        onChange={(e) => update('verificationCode', e.target.value)}
+                        className="input-base text-center text-2xl tracking-[0.5em] font-semibold"
+                        placeholder="000000"
+                        required
+                      />
                     </div>
                   </div>
 
-                  <AnimatePresence mode="wait">
-                    {form.paymentMethod === 'bank' && (
-                      <motion.div key="bank" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="space-y-4 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bank Name</label>
-                          <select value={form.bankName} onChange={(e) => update('bankName', e.target.value)} className="input-base">
-                            <option value="">Select Bank...</option>
-                            <option value="BDO Unibank">BDO Unibank</option>
-                            <option value="Bank of the Philippine Islands (BPI)">Bank of the Philippine Islands (BPI)</option>
-                            <option value="Metrobank">Metrobank</option>
-                            <option value="UnionBank">UnionBank</option>
-                            <option value="Security Bank">Security Bank</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
-                          <input value={form.accountName} onChange={(e) => update('accountName', e.target.value)} className="input-base" placeholder="Juan Dela Cruz" required />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
-                          <input value={form.accountNumber} onChange={(e) => update('accountNumber', e.target.value)} className="input-base" placeholder="XXXX XXXX XXXX" required />
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {form.paymentMethod === 'ewallet' && (
-                      <motion.div key="ewallet" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="space-y-4 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">E-Wallet Type</label>
-                          <select value={form.ewalletType} onChange={(e) => update('ewalletType', e.target.value)} className="input-base">
-                            <option value="">Select E-Wallet...</option>
-                            <option value="gcash">GCash</option>
-                            <option value="paymaya">Maya (PayMaya)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mobile Number</label>
-                          <input value={form.ewalletNumber} onChange={(e) => update('ewalletNumber', e.target.value)} className="input-base" placeholder="09XX XXX XXXX" required />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
                   <label className="flex items-start gap-3 cursor-pointer mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                    <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy" />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a> and <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>.</span>
+                    <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-1 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy shrink-0" />
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
+                      I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a>, <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>, and verify that I am booking as a real client.
+                    </span>
                   </label>
                 </div>
               )}
@@ -590,43 +561,29 @@ export default function RegisterPage() {
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-800/80">
             {step > 0 ? (
-              <div {...handleTooltip("Back")}>
-                <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
-              </div>
-            ) : <div />}
-            {step < 2 ? (
-              <div {...handleTooltip(canNext() ? "Next step" : "Fill required fields")}>
-                <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
-              </div>
+              <FormTooltip text="Back" position="top">
+                <div><Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button></div>
+              </FormTooltip>
             ) : (
-              <div {...handleTooltip(canNext() ? "Create account" : "Fill required fields")}>
-                <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Account</Button>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline transition-colors">Sign in</Link>
               </div>
+            )}
+            {step < 2 ? (
+              <FormTooltip text={canNext() ? "" : "Fill required fields"} position="top">
+                <div><Button onClick={() => step === 1 ? handleContinueToStep3() : setStep(s => s + 1)} loading={step === 1 && loading} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button></div>
+              </FormTooltip>
+            ) : (
+              <FormTooltip text={canNext() ? "" : "Enter verification code and accept terms"} position="top">
+                <div><Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Verify & Finish Registration</Button></div>
+              </FormTooltip>
             )}
           </div>
 
-          {step === 0 && (
-            <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-              Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
-            </p>
-          )}
         </div>
       </div>
-
-      {/* Global dynamically positioned tooltip */}
-      {activeTooltip.show && (
-        <div 
-          className="fixed bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999] pointer-events-none"
-          style={{
-            left: activeTooltip.x + 15 + 224 > window.innerWidth ? activeTooltip.x - 240 : activeTooltip.x + 15,
-            top: activeTooltip.y + 15 + 80 > window.innerHeight ? activeTooltip.y - 80 : activeTooltip.y + 15
-          }}
-        >
-          {activeTooltip.text}
-        </div>
-      )}
     </div>
   );
 }

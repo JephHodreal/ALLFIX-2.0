@@ -2290,26 +2290,26 @@ function ProfileTab() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-2 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
-              <User className="w-5 h-5 sm:w-6 sm:h-6" />
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             My Profile
           </h2>
-          <p className="text-sm text-slate-500">Manage your personal information and account security settings.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Manage your personal information and account security settings.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
 
         {/* ─── TOP LEFT: Profile Photo ──────────────────────────────────────── */}
         <div className="lg:col-span-1 flex flex-col">
-          <Card className="h-full flex flex-col items-center justify-center text-center p-6">
-            <div className="relative group mb-5">
-              <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+          <Card className="h-full flex flex-col items-center justify-center text-center p-4">
+            <div className="relative group mb-3">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -2336,14 +2336,14 @@ function ProfileTab() {
               />
             </div>
 
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white break-words w-full">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words w-full">
               {profile.first_name} {profile.last_name}
             </h2>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate w-full">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate w-full">
               {profile.email}
             </p>
 
-            <div className="mt-8 w-full flex flex-col gap-3 animate-in fade-in duration-200">
+            <div className="mt-3 w-full flex flex-col gap-2 animate-in fade-in duration-200">
               {!selectedAvatar ? (
                 <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
                   <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
@@ -2364,24 +2364,24 @@ function ProfileTab() {
         </div>
 
         {/* ─── TOP RIGHT: General Information ─────────────────────────────── */}
-        <div className="lg:col-span-2 xl:col-span-3 flex flex-col">
-          <Card className="h-full flex flex-col justify-between">
+        <div className="lg:col-span-2 flex flex-col">
+          <Card className="h-full flex flex-col justify-between p-4">
             <div>
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
                 {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
               </div>
 
               {!isEditingProfile ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in duration-200">
                   {[
                     ['First Name', profile.first_name], ['Last Name', profile.last_name],
                     ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
                     ['Barangay', (profile as any).barangay || '—'],
                   ].map(([label, val]) => (
-                    <div key={label as string} className={`flex flex-col p-4 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
-                      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400 mb-1">{label}</p>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
+                    <div key={label as string} className={`flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
+                      <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">{label}</p>
+                      <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
                     </div>
                   ))}
                 </div>
@@ -2419,18 +2419,58 @@ function ProfileTab() {
           </Card>
         </div>
 
-        {/* ─── BOTTOM ROW: Account Security ───────────────────────────────── */}
-        <div className="lg:col-start-2 lg:col-span-2 xl:col-start-2 xl:col-span-3">
-          <Card>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-6">Account Security</h2>
+        {/* ─── BOTTOM LEFT: Bank Details ───────────────────────────────── */}
+        <div className="lg:col-span-1 flex flex-col">
+          <Card className="h-full p-4 flex flex-col">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Bank Details</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+              <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 sm:col-span-2">
+                <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Payment Method</p>
+                <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white capitalize">{(profile as any).paymentMethod || (profile as any).payment_method || 'None setup'}</p>
+              </div>
+              {((profile as any).paymentMethod === 'bank' || (profile as any).payment_method === 'bank') ? (
+                <>
+                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 sm:col-span-2">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Bank Name</p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">{(profile as any).bankName || (profile as any).bank_name || '—'}</p>
+                  </div>
+                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Account Name</p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).accountName || (profile as any).account_name || '—'}</p>
+                  </div>
+                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Account No.</p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).accountNumber || (profile as any).account_number ? '••••' + String((profile as any).accountNumber || (profile as any).account_number).slice(-4) : '—'}</p>
+                  </div>
+                </>
+              ) : ((profile as any).paymentMethod === 'ewallet' || (profile as any).payment_method === 'ewallet') ? (
+                <>
+                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">E-Wallet Type</p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white capitalize">{(profile as any).ewalletType || (profile as any).ewallet_type || '—'}</p>
+                  </div>
+                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
+                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Mobile No.</p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).ewalletNumber || (profile as any).ewallet_number || '—'}</p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </Card>
+        </div>
 
-            <div className="space-y-6">
+        {/* ─── BOTTOM RIGHT: Account Security ───────────────────────────────── */}
+        <div className="lg:col-span-2 flex flex-col">
+          <Card className="h-full p-4 flex flex-col">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Account Security</h2>
+
+            <div className="space-y-3">
               {/* Email Block */}
               {!isEditingEmail ? (
-                <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-200">
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">{profile.email}</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
+                    <span className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">{profile.email}</span>
                   </div>
                   <EditButton onClick={() => setIsEditingEmail(true)} />
                 </div>
@@ -2449,10 +2489,10 @@ function ProfileTab() {
 
               {/* Password Block */}
               {!isEditingPassword ? (
-                <div className="flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-200">
                   <div className="flex flex-col flex-1">
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">••••••••••••</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
+                    <span className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">••••••••••••</span>
                   </div>
                   <EditButton onClick={() => setIsEditingPassword(true)} />
                 </div>

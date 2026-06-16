@@ -49,4 +49,10 @@ public class FirebaseAuthService {
         claims.put("firestore_id", firestoreId);
         mergeCustomClaims(uid, claims);
     }
+
+    public void updateEmailVerified(String uid, boolean emailVerified) throws Exception {
+        UserRecord.UpdateRequest request = new UserRecord.UpdateRequest(uid)
+                .setEmailVerified(emailVerified);
+        FirebaseAuth.getInstance().updateUser(request);
+    }
 }

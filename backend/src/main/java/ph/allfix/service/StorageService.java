@@ -54,6 +54,8 @@ public class StorageService {
                         contentType = "image/png";
                     } else if (header.contains("image/webp")) {
                         contentType = "image/webp";
+                    } else if (header.contains("application/pdf")) {
+                        contentType = "application/pdf";
                     }
                 }
             }
@@ -63,42 +65,33 @@ public class StorageService {
             // Determine file extension
             String extension = contentType.equals("image/jpeg") ? ".jpg"
                              : contentType.equals("image/webp") ? ".webp"
+                             : contentType.equals("application/pdf") ? ".pdf"
                              : ".png";
 
             String fileName = folder + "/" + UUID.randomUUID() + extension;
 
-            // Get the bucket from StorageClient
-            var bucket = StorageClient.getInstance().bucket(getBucketName());
-
-            // Create a download token for public access
-            String downloadToken = UUID.randomUUID().toString();
-
-            // Upload the file with metadata containing the download token
-            var blob = bucket.create(
-                fileName,
-                imageBytes,
-                contentType,
-                com.google.cloud.storage.Bucket.BlobTargetOption.doesNotExist()
-            );
-
-            // Update metadata with the Firebase download token
-            Map<String, String> metadata = new HashMap<>();
-            metadata.put("firebaseStorageDownloadTokens", downloadToken);
-            blob.toBuilder().setMetadata(metadata).build().update();
-
-            // Construct Firebase Storage download URL with token
-            String publicUrl = String.format(
-                "https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media&token=%s",
-                getBucketName(),
-                java.net.URLEncoder.encode(fileName, "UTF-8"),
-                downloadToken
-            );
-
-            logger.info("Uploaded image to Firebase Storage: {}", publicUrl);
-            return publicUrl;
-
+            // LOCAL STORAGE FALLBACK TO AVOID FIREBASE BLAZE PLAN BILLING
+            try {
+                java.nio.file.Path uploadDir = java.nio.file.Paths.get("uploads", folder);
+                if (!java.nio.file.Files.exists(uploadDir)) {
+                    java.nio.file.Files.createDirectories(uploadDir);
+                }
+                
+                String generatedFileName = UUID.randomUUID().toString() + extension;
+                java.nio.file.Path filePath = uploadDir.resolve(generatedFileName);
+                java.nio.file.Files.write(filePath, imageBytes);
+                
+                String publicUrl = "http://localhost:8080/uploads/" + folder + "/" + generatedFileName;
+                logger.info("Saved image locally to bypass Firebase Storage: {}", publicUrl);
+                return publicUrl;
+                
+            } catch (Exception ex) {
+                logger.error("Local upload failed", ex);
+                throw new RuntimeException("Failed to save image locally", ex);
+            }
+            
         } catch (Exception e) {
-            logger.error("Failed to upload image to Firebase Storage", e);
+            logger.error("Failed to process image upload", e);
             throw new RuntimeException("Failed to upload image: " + e.getMessage(), e);
         }
     }
@@ -111,7 +104,7 @@ public class StorageService {
         if (!FirebaseApp.getApps().isEmpty()) {
             String projectId = FirebaseApp.getInstance().getOptions().getProjectId();
             if (projectId != null) {
-                return projectId + ".firebasestorage.app";
+                return projectId + ".appspot.com";
             }
         }
         throw new RuntimeException("Firebase Storage bucket not configured. Set firebase.storage-bucket in application.properties.");

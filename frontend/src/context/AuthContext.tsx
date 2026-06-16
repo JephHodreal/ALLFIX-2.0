@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       setUser(firebaseUser);
-      if (firebaseUser && firebaseUser.emailVerified) {
+      if (firebaseUser) {
         await fetchProfile();
       } else {
         setProfile(null);

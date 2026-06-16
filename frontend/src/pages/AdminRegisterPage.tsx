@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Check, ChevronRight, ChevronLeft } from 'lucide-react';
@@ -18,6 +18,8 @@ interface FormData {
   password: string;
   confirmPassword: string;
   inviteCode: string;
+  verificationCode: string;
+  termsAccepted: boolean;
 }
 
 const initialFormData: FormData = {
@@ -28,64 +30,59 @@ const initialFormData: FormData = {
   password: '',
   confirmPassword: '',
   inviteCode: '',
+  verificationCode: '',
+  termsAccepted: false,
 };
 
-const steps = ['Basic Info', 'Invite Code'];
+const steps = ['Basic Info', 'Invite Code', 'Account Verification'];
 
 const AdminRegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(initialFormData);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [usernameValid, setUsernameValid] = useState(false);
 
-  const update = (key: keyof FormData, value: string) => {
-    let processedValue = value;
-    if (['username', 'email', 'password', 'confirmPassword', 'inviteCode'].includes(key)) {
-      processedValue = value.replace(/\s/g, '');
-    }
-    if (['firstName', 'lastName'].includes(key) && value.length > 0) {
-      processedValue = value.charAt(0).toUpperCase() + value.slice(1);
-    }
-    setForm((prev) => ({ ...prev, [key]: processedValue }));
-    if (key === 'username') {
-      setUsernameError('');
-      setUsernameValid(false);
-    }
-  };
+  // Clear global error when step changes
+  useEffect(() => {
+    setError('');
+  }, [step]);
 
-  const checkUsername = async (username: string) => {
-    if (!username || username.length < 3) {
-      setUsernameError('Min 3 chars');
+  const checkUsername = useCallback(async (username: string) => {
+    if (username.length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      setUsernameValid(false);
       return;
     }
     setUsernameCheckLoading(true);
+    setUsernameError('');
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/check-username?username=${encodeURIComponent(username)}`);
-      
-      if (!res.ok) {
+      const res = await api.get(`/api/auth/username/${username}`);
+      if (res.data.available) {
         setUsernameValid(true);
-        setUsernameError('');
-        return;
-      }
-
-      const data = await res.json();
-      if (data.available) {
-        setUsernameValid(true);
-        setUsernameError('');
       } else {
-        setUsernameError('Username taken');
         setUsernameValid(false);
+        setUsernameError('Username is already taken');
       }
-    } catch {
-      setUsernameValid(true);
-      setUsernameError('');
+    } catch (err: any) {
+      setUsernameValid(false);
+      setUsernameError('Error checking username');
     } finally {
       setUsernameCheckLoading(false);
+    }
+  }, []);
+
+  const update = (field: keyof FormData, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setError('');
+    if (field === 'username' && typeof value === 'string') {
+      setUsernameValid(false);
+      setUsernameError('');
     }
   };
 
@@ -106,61 +103,88 @@ const AdminRegisterPage: React.FC = () => {
     if (step === 1) {
       return form.inviteCode;
     }
+    if (step === 2) {
+      return form.verificationCode.length === 6 && form.termsAccepted;
+    }
     return false;
   };
 
-  const handleSubmit = async () => {
+  const handleContinueToStep3 = async () => {
+    setLoading(true);
     setError('');
-    
-    if (!canNext()) {
-      setError('Please fill in all fields correctly');
-      return;
-    }
-
     try {
-      setLoading(true);
-      
       // Check if invite code is valid BEFORE creating the auth user
       await api.post('/api/auth/check-invite-code', { inviteCode: form.inviteCode });
       
-      const userCred = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      const user = userCred.user;
+      let user = auth.currentUser;
+      if (!user || user.email !== form.email) {
+         const userCred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+         user = userCred.user;
+      }
       
-      await sendBackendVerificationEmail(form.email);
-
-      localStorage.setItem('pendingRegistration', JSON.stringify({
-        sentAt: Date.now(),
-        profile: {
-          uid: user.uid,
-          username: form.username,
-          email: form.email,
-          name: `${form.firstName} ${form.lastName}`,
-          inviteCode: form.inviteCode,
-          role: 'admin'
-        }
-      }));
-
-      navigate(ROUTES.verifyEmail);
+      const { sendOtp } = await import('../services/firebaseService');
+      await sendOtp();
+      setStep(2);
     } catch (err: any) {
       if (err?.response?.status === 400 && err?.response?.data?.message) {
-        setError(err.response.data.message); // Will show "Invalid invite code" or "Invite code already used"
+        setError(err.response.data.message);
         return;
       }
       
       const firebaseCode: string | undefined = err?.code;
       if (firebaseCode === 'auth/email-already-in-use') {
         setError('Email already registered.');
-        return;
-      }
-      if (firebaseCode === 'auth/invalid-email') {
+      } else if (firebaseCode === 'auth/invalid-email') {
         setError('Invalid email.');
-        return;
-      }
-      if (firebaseCode === 'auth/weak-password') {
+      } else if (firebaseCode === 'auth/weak-password') {
         setError('Password too weak.');
-        return;
+      } else {
+        setError(err.response?.data?.message || err.message || 'Registration failed.');
       }
-      setError(err.response?.data?.message || err.message || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const { verifyOtp, getCurrentUser } = await import('../services/firebaseService');
+      await verifyOtp(form.verificationCode);
+
+      const user = getCurrentUser();
+      await user?.reload();
+      
+      const profile = {
+        uid: user?.uid,
+        email: form.email,
+        username: form.username,
+        role: 'admin',
+        firstName: form.firstName,
+        lastName: form.lastName,
+        inviteCode: form.inviteCode,
+      };
+
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const res = await fetch(`${API_BASE_URL}/api/auth/register-admin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profile),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save profile');
+      }
+
+      await user?.getIdToken(true);
+
+      navigate(ROUTES.admin || '/admin');
+    } catch (err: any) {
+      setError(err.message || 'Verification failed.');
     } finally {
       setLoading(false);
     }
@@ -306,6 +330,37 @@ const AdminRegisterPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg text-sm mb-4">
+                    We've sent a 6-digit verification code to <strong>{form.email}</strong>. Please enter it below.
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Verification Code</label>
+                    <input 
+                      value={form.verificationCode} 
+                      onChange={(e) => update('verificationCode', e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                      className="input-base text-center tracking-widest text-2xl font-bold font-mono" 
+                      placeholder="000000" 
+                      required 
+                    />
+                  </div>
+
+                  <label className="flex items-start gap-3 cursor-pointer mt-6">
+                    <input 
+                      type="checkbox" 
+                      checked={form.termsAccepted} 
+                      onChange={(e) => update('termsAccepted', e.target.checked)} 
+                      className="mt-1 flex-shrink-0 w-4 h-4 text-brand-green rounded border-slate-300 focus:ring-brand-green" 
+                    />
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
+                  I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a> and <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>.
+                </span>
+                  </label>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
 
@@ -314,10 +369,14 @@ const AdminRegisterPage: React.FC = () => {
             {step > 0 ? (
               <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
             ) : <div />}
-            {step < 1 ? (
+            {step === 0 && (
               <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
-            ) : (
-              <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Admin Account</Button>
+            )}
+            {step === 1 && (
+              <Button onClick={handleContinueToStep3} loading={loading} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Verify Invite</Button>
+            )}
+            {step === 2 && (
+              <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Verify & Create Account</Button>
             )}
           </div>
 

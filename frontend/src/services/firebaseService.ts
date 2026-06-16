@@ -29,12 +29,46 @@ export async function sendBackendVerificationEmail(email: string) {
   }
 }
 
+export async function sendOtp() {
+  const token = await getIdToken();
+  if (!token) throw new Error('No user signed in to request OTP');
+
+  const res = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to send OTP');
+  }
+}
+
+export async function verifyOtp(code: string) {
+  const token = await getIdToken();
+  if (!token) throw new Error('No user signed in to verify OTP');
+
+  const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ code })
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to verify OTP');
+  }
+}
+
 /**
  * Register a new user with email and password
  */
 export async function registerUser(email: string, password: string) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  await sendBackendVerificationEmail(email);
   return userCredential.user;
 }
 
@@ -63,12 +97,10 @@ export async function getIdToken(): Promise<string | null> {
 }
 
 /**
- * Resend email verification to the current user
+ * Resend OTP to the current user
  */
 export async function resendVerificationEmail() {
-  const user = auth.currentUser;
-  if (!user || !user.email) throw new Error('No user is currently signed in or user has no email');
-  await sendBackendVerificationEmail(user.email);
+  await sendOtp();
 }
 
 /**

@@ -45,10 +45,7 @@ export default function LoginPage() {
       const email = userData.email;
 
       const user = await loginUser(email, password);
-      if (!user.emailVerified) {
-        navigate(ROUTES.verifyEmail);
-        return;
-      }
+      // Email verified check removed per user request
 
       // Ensure profile is loaded with retry
       const profileData = await refreshProfile();
@@ -157,9 +154,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-surface-light dark:bg-surface-dark">
+    <div className="h-screen w-full overflow-hidden flex bg-surface-light dark:bg-surface-dark">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-brand-gradient items-center justify-center p-12 relative overflow-hidden h-full">
         <button 
           onClick={() => navigate(fromPath)} 
           className="absolute top-8 left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors z-20"
@@ -179,8 +176,8 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+      <div className="flex-1 h-full overflow-y-auto p-6 lg:p-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md mx-auto py-8">
           <div className="flex justify-end mb-4">
             <LampButton />
           </div>
@@ -208,7 +205,7 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Username</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" required className="input-base pl-10" />
+                <input type="text" value={username} onChange={(e) => { if(error) setError(''); setUsername(e.target.value); }} placeholder="username" required className="input-base pl-10" />
               </div>
             </div>
             <div>
@@ -220,7 +217,7 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="input-base pl-10 pr-10" />
+                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => { if(error) setError(''); setPassword(e.target.value); }} placeholder="••••••••" required className="input-base pl-10 pr-10" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

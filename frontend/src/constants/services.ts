@@ -70,6 +70,14 @@ export const VENDOR_SERVICES: ServiceOption[] = [
       { name: 'Parking', description: 'Find and manage available parking spaces for vehicles in your area. Convenient, secure, and affordable parking solutions.' },
     ],
   },
+  {
+    name: 'PoolFix',
+    description: 'Professional pool cleaning, maintenance, and repair services that keep your pool crystal clear and swim-ready.',
+    sub: [
+      { name: 'Pool Cleaning', description: 'Professional pool cleaning services that keep your pool sparkling, balanced, and ready to enjoy.' },
+      { name: 'Pool Repair', description: 'Identifies and fixes water leaks in pool walls, plumbing, and equipment to prevent water loss and structural damage.' },
+    ],
+  },
 ];
 
 export const getServiceDisplayName = (serviceType: string): string => {

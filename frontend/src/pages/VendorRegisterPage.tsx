@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, Upload, X, CreditCard, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, ChevronRight, ChevronLeft, Check, Upload, X, CreditCard, ArrowLeft, FileText, Shield, Wallet, Image as ImageIcon } from 'lucide-react';
 import { registerUser } from '../services/firebaseService';
 import { Button } from '../components/shared/Button';
 import { ROUTES } from '../routes/paths';
@@ -11,18 +11,23 @@ import LampButton from '../components/shared/LampButton';
 import api from '../services/apiService';
 
 interface FormData {
-  firstName: string; lastName: string; username: string; email: string; password: string; confirmPassword: string;
+  companyName: string; username: string; email: string; password: string; confirmPassword: string;
   phone: string; role: 'vendor';
-  // Address
+  // Business Details
   city: string; cityCode: string;
-  barangay: string; barangayCode: string; unitHouseNo: string; street: string; postalCode: string;
-  // Vendor-specific
-  companyName: string;
+  unitHouseNo: string; street: string; postalCode: string;
+  bio: string;
+  // Compliance
   termsAccepted: boolean;
-  businessPermitUrl: string;
-  birCertificateUrl: string;
+  businessPermitUrl: string | null;
+  birCertificateUrl: string | null;
+  professionalLicenseUrl: string | null;
+  proofOfInsuranceUrl: string | null;
+  // Payout
   accountName: string;
+  bankName: string;
   accountNumber: string;
+  verificationCode: string;
 }
 
 interface SelectedService {
@@ -37,20 +42,24 @@ interface SelectedService {
 }
 
 const initialFormData: FormData = {
-  firstName: '', lastName: '', username: '', email: '', password: '', confirmPassword: '',
+  companyName: '', username: '', email: '', password: '', confirmPassword: '',
   phone: '', role: 'vendor' as const,
   city: '', cityCode: '',
-  barangay: '', barangayCode: '', unitHouseNo: '', street: '', postalCode: '',
-  companyName: '',
+  unitHouseNo: '', street: '', postalCode: '',
+  bio: '',
   termsAccepted: false,
-  businessPermitUrl: '',
-  birCertificateUrl: '',
+  businessPermitUrl: null,
+  birCertificateUrl: null,
+  professionalLicenseUrl: null,
+  proofOfInsuranceUrl: null,
   accountName: '',
+  bankName: '',
   accountNumber: '',
+  verificationCode: '',
 };
 
 const LOCATION_API = import.meta.env.VITE_LOCATION_API || 'https://psgc.gitlab.io/api';
-const steps = ['Basic Info', 'Address', 'Company & Services', 'Contact'];
+const steps = ['Basic Info', 'Business Details', 'Compliance', 'Payout Details', 'Terms and Conditions'];
 
 export default function VendorRegisterPage() {
   const navigate = useNavigate();
@@ -60,8 +69,7 @@ export default function VendorRegisterPage() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>({
     ...initialFormData,
-    firstName: prefillData?.firstName || '',
-    lastName: prefillData?.lastName || '',
+    companyName: prefillData?.companyName || '',
     username: prefillData?.username || '',
     email: prefillData?.email || '',
   });
@@ -76,9 +84,33 @@ export default function VendorRegisterPage() {
   const [usernameValid, setUsernameValid] = useState(false);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [expandedService, setExpandedService] = useState<string | null>(null);
+  const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [citiesDropdownOpen, setCitiesDropdownOpen] = useState(false);
+  const citiesDropdownRef = useRef<HTMLDivElement>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ show: boolean, x: number, y: number, text: string }>({ show: false, x: 0, y: 0, text: '' });
   const [servicesCatalog, setServicesCatalog] = useState<any[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
+
+  // Clear global error when step changes
+  useEffect(() => {
+    if (error) setError('');
+  }, [step]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setServicesDropdownOpen(false);
+      }
+      if (citiesDropdownRef.current && !citiesDropdownRef.current.contains(event.target as Node)) {
+        setCitiesDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // [CAVEMAN] Log mounting
   useEffect(() => {
@@ -87,6 +119,18 @@ export default function VendorRegisterPage() {
 
   useEffect(() => {
     setLoadingCatalog(true);
+    
+    // First, define the fallback which has all 9 services
+    const fallback = VENDOR_SERVICES.map(svc => ({
+      name: svc.name,
+      description: svc.description,
+      sub: svc.sub.map(s => ({
+        name: s.name,
+        description: s.description,
+        workTypes: WORK_TYPES_MAPPING[s.name] || []
+      }))
+    }));
+
     fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/services`)
       .then((r) => {
         if (!r.ok) throw new Error('API failed');
@@ -94,7 +138,7 @@ export default function VendorRegisterPage() {
       })
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const formatted = data.map((svc: any) => ({
+          const formattedBackend = data.map((svc: any) => ({
             name: svc.name,
             description: svc.description || '',
             sub: (svc.subServices || []).map((sub: any) => ({
@@ -103,23 +147,28 @@ export default function VendorRegisterPage() {
               workTypes: sub.workTypes || []
             }))
           }));
-          setServicesCatalog(formatted);
-          console.log("[CAVEMAN] Successfully loaded services catalog. Found " + formatted.length + " services.");
+          
+          // Merge: use backend data for any services that exist there, else use fallback
+          const merged = fallback.map(fb => {
+             const found = formattedBackend.find(f => f.name.toLowerCase() === fb.name.toLowerCase());
+             return found || fb;
+          });
+          
+          // Add any extras from backend that weren't in fallback (just in case)
+          formattedBackend.forEach(f => {
+             if (!merged.find(m => m.name.toLowerCase() === f.name.toLowerCase())) {
+                merged.push(f);
+             }
+          });
+
+          setServicesCatalog(merged);
+          console.log("[CAVEMAN] Successfully merged database services with fallback. Found " + merged.length + " services.");
         } else {
-          throw new Error('Empty database services');
+          setServicesCatalog(fallback);
         }
       })
       .catch(() => {
         console.log("[CAVEMAN] Failed to load database services. Loading fallback services catalog.");
-        const fallback = VENDOR_SERVICES.map(svc => ({
-          name: svc.name,
-          description: svc.description,
-          sub: svc.sub.map(s => ({
-            name: s.name,
-            description: s.description,
-            workTypes: WORK_TYPES_MAPPING[s.name] || []
-          }))
-        }));
         setServicesCatalog(fallback);
       })
       .finally(() => setLoadingCatalog(false));
@@ -167,6 +216,7 @@ export default function VendorRegisterPage() {
   };
 
   const update = (key: keyof FormData, value: string | boolean) => {
+    if (error) setError('');
     if (key === 'companyName') {
       console.log("[CAVEMAN] Company name changed:", value);
     }
@@ -239,20 +289,7 @@ export default function VendorRegisterPage() {
       .catch(() => setCitiesLoading(false));
   }, []);
 
-  // Fetch barangays when city changes
-  useEffect(() => {
-    if (!form.cityCode) { 
-      setBarangays([]); 
-      return; 
-    }
-    setBarangays([]);
-    update('barangay', ''); 
-    update('barangayCode', '');
-    fetch(`${LOCATION_API}/cities-municipalities/${form.cityCode}/barangays/`)
-      .then((r) => r.json())
-      .then((data) => setBarangays(data.sort((a: any, b: any) => a.name.localeCompare(b.name))))
-      .catch(() => {});
-  }, [form.cityCode]);
+  // Barangays removed per requirements
 
   const passwordStrength = useCallback((pw: string) => {
     let s = 0;
@@ -265,15 +302,52 @@ export default function VendorRegisterPage() {
     return /^\d{11}$/.test(phone.replace(/\D/g, ''));
   };
 
+  const renderUploadedFile = (url: string, title: string, fieldName: keyof FormData) => {
+    const isPdf = url.toLowerCase().endsWith('.pdf');
+    return (
+      <div 
+        className="relative w-full h-full rounded-lg overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 group/file shadow-sm"
+        onClick={() => window.open(url, '_blank')}
+        title={`Click to view ${title}`}
+      >
+        <div className="flex-1 flex items-center justify-center w-full p-2 overflow-hidden relative">
+          {isPdf ? (
+            <FileText className="w-10 h-10 text-blue-500 group-hover/file:scale-110 transition-transform" />
+          ) : (
+            <img src={url} alt={title} className="max-h-full max-w-full object-contain rounded-md drop-shadow-sm group-hover/file:scale-[1.02] transition-transform" />
+          )}
+          <div className="absolute inset-0 bg-black/0 group-hover/file:bg-black/5 transition-colors" />
+        </div>
+        <div className="w-full bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-1.5 px-2 flex items-center gap-1.5 z-10 shrink-0">
+          {isPdf ? <FileText className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" /> : <ImageIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+          <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate">{title} {isPdf ? '(PDF)' : '(Image)'}</span>
+        </div>
+        <button 
+          type="button" 
+          onClick={(e) => { e.stopPropagation(); update(fieldName, ''); }} 
+          className="absolute top-1.5 right-1.5 p-1 bg-black/40 hover:bg-black text-white rounded-full transition-colors z-20 backdrop-blur-sm"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  };
+
+
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const [uploadingBIR, setUploadingBIR] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const [uploadingInsurance, setUploadingInsurance] = useState(false);
 
-  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, type: 'permit' | 'bir') => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, type: 'permit' | 'bir' | 'license' | 'insurance') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (type === 'permit') setUploadingPermit(true);
-    else setUploadingBIR(true);
+    else if (type === 'bir') setUploadingBIR(true);
+    else if (type === 'license') setUploadingLicense(true);
+    else if (type === 'insurance') setUploadingInsurance(true);
+    
     setError('');
 
     const reader = new FileReader();
@@ -285,17 +359,18 @@ export default function VendorRegisterPage() {
           image: base64Data,
           folder: 'vendors/documents'
         });
-        if (type === 'permit') {
-          update('businessPermitUrl', res.data.url);
-        } else {
-          update('birCertificateUrl', res.data.url);
-        }
+        if (type === 'permit') update('businessPermitUrl', res.data.url);
+        else if (type === 'bir') update('birCertificateUrl', res.data.url);
+        else if (type === 'license') update('professionalLicenseUrl', res.data.url);
+        else if (type === 'insurance') update('proofOfInsuranceUrl', res.data.url);
       } catch (err: any) {
         console.error(`[CAVEMAN] VendorRegisterPage: Upload failed for ${type}`, err);
-        setError(`Failed to upload ${type === 'permit' ? 'Business Permit' : 'BIR Certificate'}. Please try again.`);
+        setError(`Failed to upload document. Please try again.`);
       } finally {
         if (type === 'permit') setUploadingPermit(false);
-        else setUploadingBIR(false);
+        else if (type === 'bir') setUploadingBIR(false);
+        else if (type === 'license') setUploadingLicense(false);
+        else if (type === 'insurance') setUploadingInsurance(false);
       }
     };
     reader.readAsDataURL(file);
@@ -304,26 +379,65 @@ export default function VendorRegisterPage() {
   const canNext = () => {
     let ok = false;
     if (step === 0) {
-      ok = !!(form.firstName && form.lastName && form.username && usernameValid && form.email && form.password && form.password === form.confirmPassword && form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password));
+      ok = !!(form.companyName && form.username && usernameValid && form.email && 
+             form.password && form.password === form.confirmPassword && form.password.length >= 8 &&
+             form.phone && form.phone.length === 11);
     } else if (step === 1) {
-      ok = !!(form.cityCode && form.barangayCode && form.unitHouseNo && form.street);
+      ok = !!(form.cityCode && form.street && selectedServices.length > 0 && form.bio);
     } else if (step === 2) {
-      const hasCompanyName = !!form.companyName.trim();
-      const hasServices = selectedServices.length > 0;
-      const allHaveSubs = selectedServices.every(s => s.sub_services && s.sub_services.length > 0);
-      ok = hasCompanyName && hasServices && allHaveSubs;
+      // Compliance
+      ok = !!(form.businessPermitUrl && form.birCertificateUrl && form.professionalLicenseUrl);
     } else if (step === 3) {
-      ok = !!(form.phone && isPhoneValid(form.phone) && form.termsAccepted);
+      // Payout
+      ok = !!(form.accountName && form.bankName && form.accountNumber);
+    } else if (step === 4) {
+      // Terms
+      ok = form.termsAccepted;
+    } else if (step === 5) {
+      // Verification
+      ok = form.verificationCode.length === 6;
     }
     console.log("[CAVEMAN] Checking step validity. Step:", step, "canNext:", ok);
     return ok;
+  };
+
+  const handleContinueToVerification = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { registerUser, getCurrentUser, sendOtp } = await import('../services/firebaseService');
+      let user = getCurrentUser();
+      if (!user || user.email !== form.email) {
+         user = await registerUser(form.email, form.password);
+      }
+      
+      await sendOtp();
+      setStep(5);
+    } catch (err: any) {
+      const firebaseCode: string | undefined = err?.code;
+      if (firebaseCode === 'auth/email-already-in-use') {
+        setError('Email already registered.');
+      } else if (firebaseCode === 'auth/invalid-email') {
+        setError('Invalid email.');
+      } else if (firebaseCode === 'auth/weak-password') {
+        setError('Password too weak.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Registration failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
     console.log("[CAVEMAN] handleSubmit vendor registration triggered!");
     setError(''); setLoading(true);
     try {
-      const user = await registerUser(form.email, form.password);
+      const { verifyOtp, getCurrentUser } = await import('../services/firebaseService');
+      await verifyOtp(form.verificationCode);
+      
+      const user = getCurrentUser();
+      await user?.reload();
       
       // Prepare services payload
       const servicesPayload = selectedServices.map(s => ({
@@ -334,50 +448,55 @@ export default function VendorRegisterPage() {
       
       const firstServiceName = servicesPayload.length > 0 ? servicesPayload[0].service : '';
 
-      // Save profile locally; will be written to Firestore after email verification
+      // Save profile directly to database
       const profile: any = {
-        uid: user.uid,
+        uid: user?.uid,
         email: form.email,
         username: form.username,
         role: 'vendor',
-        first_name: form.firstName,
-        last_name: form.lastName,
+        first_name: form.companyName,
+        last_name: '',
         phone: form.phone,
-        unit_house_no: form.unitHouseNo,
+        unit_house_no: '',
         street: form.street,
-        barangay: form.barangay,
         city: form.city,
         region: 'National Capital Region',
         postal_code: form.postalCode,
+        bio: form.bio,
         company_name: form.companyName,
         services: servicesPayload,
         service_type: firstServiceName,
         business_permit_url: form.businessPermitUrl || '',
         bir_certificate_url: form.birCertificateUrl || '',
+        professional_license_url: form.professionalLicenseUrl || '',
+        proof_of_insurance_url: form.proofOfInsuranceUrl || '',
         account_name: form.accountName || '',
+        bank_name: form.bankName || '',
         account_number: form.accountNumber || ''
       };
 
       console.log("[CAVEMAN] Submitting Vendor registration profile:", profile);
-      localStorage.setItem('pendingRegistration', JSON.stringify({ sentAt: Date.now(), profile }));
-      console.log("[CAVEMAN] Registration successful. Redirecting to verify email.");
-      navigate(ROUTES.verifyEmail);
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profile),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save profile');
+      }
+
+      await user?.getIdToken(true);
+
+      console.log("[CAVEMAN] Registration successful. Redirecting to home.");
+      navigate(ROUTES.home || '/');
     } catch (err: any) {
       console.log("[CAVEMAN] Registration error:", err.message);
-      const firebaseCode: string | undefined = err?.code;
-      if (firebaseCode === 'auth/email-already-in-use') {
-        setError('Email already registered.');
-        return;
-      }
-      if (firebaseCode === 'auth/invalid-email') {
-        setError('Invalid email.');
-        return;
-      }
-      if (firebaseCode === 'auth/weak-password') {
-        setError('Password too weak.');
-        return;
-      }
-      setError(err.response?.data?.message || err.message || 'Registration failed.');
+      setError(err.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -419,9 +538,9 @@ export default function VendorRegisterPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="w-full max-w-lg animate-fade-in">
-          <div className="flex justify-end mb-4 lg:mb-6">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="w-full max-w-lg animate-fade-in relative">
+          <div className="absolute -top-2 right-0">
             <LampButton />
           </div>
           <div className="lg:hidden flex items-center gap-2 mb-6">
@@ -435,267 +554,281 @@ export default function VendorRegisterPage() {
             ))}
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-            {step === 0 ? 'Basic Information' : step === 1 ? 'Business Location' : step === 2 ? 'Company Details' : 'Contact Person'}
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-0.5 mt-4 lg:mt-0">
+            {step === 0 ? 'Basic Information' : step === 1 ? 'Business Location' : step === 2 ? 'Company Details' : step === 3 ? 'Payout & Banking Details' : step === 4 ? 'Terms & Conditions' : 'Account Verification'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Step {step + 1} of {steps.length}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">Step {step + 1} of {steps.length}</p>
 
-          {error && <div className="mb-4 p-3 rounded-xl bg-brand-red/10 border border-brand-red/20 text-brand-red text-sm">{error}</div>}
+          {error && <div className="mb-3 p-3 rounded-xl bg-brand-red/10 border border-brand-red/20 text-brand-red text-sm">{error}</div>}
 
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               {step === 0 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
-                      <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input value={form.firstName} onChange={(e) => update('firstName', e.target.value)} className="input-base pl-10" placeholder="Juan" required /></div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
-                      <input value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className="input-base" placeholder="Dela Cruz" required />
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Business / Trade Name</label>
+                    <div className="relative"><Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input value={form.companyName} onChange={(e) => update('companyName', e.target.value.slice(0, 45))} maxLength={45} className="input-base !py-2 pl-10" placeholder="e.g. FixIt Quick Plumbing" required />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Username</label>
                     <div className="relative flex gap-2">
-                      <input value={form.username} onChange={(e) => update('username', e.target.value)} onBlur={() => form.username && checkUsername(form.username)} className="input-base flex-1" placeholder="username" required />
-                      {usernameCheckLoading && <div className="text-xs text-slate-400 flex items-center">Checking...</div>}
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input value={form.username} onChange={(e) => update('username', e.target.value.slice(0, 30))} maxLength={30} onBlur={() => form.username && checkUsername(form.username)} className="input-base !py-2 pl-10 flex-1" placeholder="username" required />
+                      {usernameCheckLoading && <div className="text-[10px] text-slate-400 flex items-center">Checking...</div>}
                     </div>
-                    {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
+                    {usernameError && <p className="text-[10px] text-brand-red mt-0.5">{usernameError}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Primary Contact Email</label>
                     <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className="input-base pl-10" placeholder="you@example.com" required /></div>
+                      <input type="email" value={form.email} onChange={(e) => update('email', e.target.value.slice(0, 35))} maxLength={35} className="input-base !py-2 pl-10" placeholder="you@example.com" required /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Phone Number</label>
+                    <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input value={form.phone} onChange={(e) => update('phone', e.target.value.replace(/\D/g, '').slice(0, 11))} className="input-base !py-2 pl-10" placeholder="09XX XXX XXXX" required /></div>
+                    {form.phone && form.phone.length !== 11 && <p className="text-[10px] text-brand-red mt-0.5">Phone must be exactly 11 digits</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} className="input-base pl-10 pr-10" placeholder="Min 8 characters" required />
+                      <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value.slice(0, 20))} className="input-base !py-2 pl-10 pr-10" placeholder="Min 8 characters" required />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button></div>
                     {form.password && (
-                      <div className="mt-2">
+                      <div className="mt-1">
                         <div className="flex gap-1">{[0,1,2,3].map(i => <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < strength ? strengthColors[strength-1] : 'bg-slate-200 dark:bg-slate-700'}`} />)}</div>
-                        <p className="text-xs mt-1 text-slate-500">{strengthLabels[strength-1] || 'Too weak'}</p>
+                        <p className="text-[10px] mt-0.5 text-slate-500">{strengthLabels[strength-1] || 'Too weak'}</p>
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Confirm Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="password" value={form.confirmPassword} onChange={(e) => update('confirmPassword', e.target.value)} className="input-base pl-10" placeholder="Re-enter password" required /></div>
-                    {form.confirmPassword && form.password !== form.confirmPassword && <p className="text-xs text-brand-red mt-1">Passwords don't match</p>}
+                      <input type="password" value={form.confirmPassword} onChange={(e) => update('confirmPassword', e.target.value.slice(0, 20))} className="input-base !py-2 pl-10" placeholder="Re-enter password" required /></div>
+                    {form.confirmPassword && form.password !== form.confirmPassword && <p className="text-[10px] text-brand-red mt-0.5">Passwords don't match</p>}
                   </div>
                 </div>
               )}
 
               {step === 1 && (
-                <div className="space-y-4">
-                  <p className="text-xs text-slate-400 mb-2"><MapPin className="w-3 h-3 inline mr-1" />Region: National Capital Region (NCR) — auto-filled</p>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cities / Municipalities (Service Areas)</label>
-                    <div className="max-h-48 overflow-y-auto pr-1 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
-                      {citiesLoading ? (
-                        <p className="text-sm p-2 text-slate-500">Loading cities...</p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                          {cities.map(c => {
-                            const selectedCities = form.city ? form.city.split(', ') : [];
-                            const isSelected = selectedCities.includes(c.name);
-                            return (
-                              <label key={c.code} className="flex items-center gap-2 p-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    let updated = [...selectedCities];
-                                    if (e.target.checked) {
-                                      updated.push(c.name);
-                                    } else {
-                                      updated = updated.filter(city => city !== c.name);
-                                    }
-                                    update('city', updated.join(', '));
-                                    update('cityCode', updated.length > 0 ? 'selected' : '');
-                                  }}
-                                  className="w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
-                                />
-                                <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
+                <div className="space-y-2">
+                  <div className="relative" ref={dropdownRef}>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Services You Offer <span className="text-slate-400 text-[10px] font-normal">(Select all that apply)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setServicesDropdownOpen(!servicesDropdownOpen)}
+                      className="w-full flex items-center justify-between input-base !py-2 bg-white dark:bg-slate-900/50"
+                    >
+                      <span className={selectedServices.length ? "text-slate-900 dark:text-white font-medium" : "text-slate-400"}>
+                        {selectedServices.length > 0 ? `${selectedServices.length} service(s) selected` : 'Select your services...'}
+                      </span>
+                      <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${servicesDropdownOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {servicesDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute z-50 top-full left-0 right-0 mt-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-2xl"
+                        >
+                          <div className="p-1 space-y-1 max-h-[180px] overflow-y-auto">
+                            {loadingCatalog ? (
+                              <p className="text-sm text-slate-400 p-2 animate-pulse">Loading service catalog...</p>
+                            ) : servicesCatalog.length === 0 ? (
+                              <p className="text-sm text-slate-400 p-2">No services available.</p>
+                            ) : (
+                              servicesCatalog.map((svc) => {
+                                const isSvcSelected = selectedServices.some(s => s.service === svc.name);
+                                const isExpanded = expandedService === svc.name;
+                                
+                                return (
+                                  <div key={svc.name} className="border border-slate-100 dark:border-slate-700 rounded-lg overflow-hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleService(svc.name)}
+                                      className={`w-full flex items-center justify-between p-2 text-left transition-colors ${
+                                        isSvcSelected 
+                                          ? 'bg-brand-green/10 dark:bg-brand-green/5 text-slate-900 dark:text-white' 
+                                          : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                          isSvcSelected 
+                                            ? 'border-brand-green bg-brand-green text-white' 
+                                            : 'border-slate-300 dark:border-slate-600 bg-transparent'
+                                        }`}>
+                                          {isSvcSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold text-xs">{svc.name}</span>
+                                        </div>
+                                      </div>
+                                      <span className="text-[10px] text-slate-400 font-medium">
+                                        {isExpanded ? 'Collapse' : 'Expand'}
+                                      </span>
+                                    </button>
+
+                                    <AnimatePresence>
+                                      {isSvcSelected && isExpanded && svc.sub && svc.sub.length > 0 && (
+                                        <motion.div
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: 'auto', opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 p-2 pl-6 space-y-1"
+                                        >
+                                          <p className="text-[10px] font-medium text-slate-400 mb-1">Select sub-services:</p>
+                                          {svc.sub.map((sub: any) => {
+                                            const subSvcSelected = selectedServices.find(s => s.service === svc.name)?.sub_services.includes(sub.name);
+                                            return (
+                                              <div 
+                                                key={sub.name} 
+                                                className="py-0.5 group border-b border-slate-200/50 dark:border-slate-700 last:border-0"
+                                              >
+                                                <label className="flex items-start gap-2 cursor-pointer">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={!!subSvcSelected}
+                                                    onChange={() => toggleSubService(svc.name, sub.name)}
+                                                    className="mt-0.5 w-3 h-3 rounded border-slate-300 text-brand-green focus:ring-brand-green bg-transparent"
+                                                  />
+                                                  <div
+                                                    onMouseEnter={(e) => sub.description && handleMouseMove(e, sub.description)}
+                                                    onMouseLeave={hideTooltip}
+                                                  >
+                                                    <span className="text-[11px] text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                                                      {sub.name}
+                                                    </span>
+                                                  </div>
+                                                </label>
+                                                
+                                                {subSvcSelected && sub.workTypes && sub.workTypes.length > 0 && (
+                                                  <div 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="mt-1 ml-5 pl-1.5 pr-1.5 py-1 bg-slate-100/80 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700"
+                                                  >
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {sub.workTypes.map((wt: string) => (
+                                                        <span 
+                                                          key={wt} 
+                                                          className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 transition-colors"
+                                                        >
+                                                          {wt}
+                                                        </span>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </motion.div>
                       )}
-                    </div>
-                    {form.city && (
-                      <p className="text-xs text-brand-green mt-1 font-medium">Selected: {form.city.split(', ').length} cities</p>
-                    )}
+                    </AnimatePresence>
                   </div>
+
+                  <p className="text-[10px] text-slate-400 mb-0.5"><MapPin className="w-2.5 h-2.5 inline mr-1" />Region: National Capital Region (NCR) — auto-filled</p>
+                  <div className="relative" ref={citiesDropdownRef}>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cities / Municipalities (Service Areas)</label>
+                    <button
+                      type="button"
+                      onClick={() => setCitiesDropdownOpen(!citiesDropdownOpen)}
+                      className="w-full flex items-center justify-between input-base !py-2 bg-white dark:bg-slate-900/50"
+                    >
+                      <span className={form.city ? "text-slate-900 dark:text-white font-medium" : "text-slate-400"}>
+                        {form.city ? `${form.city.split(', ').length} coverage area(s) selected` : 'Select Coverage Area of your service...'}
+                      </span>
+                      <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${citiesDropdownOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {citiesDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute z-[60] top-full left-0 right-0 mt-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-2xl"
+                        >
+                          <div className="max-h-40 overflow-y-auto p-1">
+                            {citiesLoading ? (
+                              <p className="text-sm p-2 text-slate-500">Loading cities...</p>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                {cities.map(c => {
+                                  const selectedCities = form.city ? form.city.split(', ') : [];
+                                  const isSelected = selectedCities.includes(c.name);
+                                  return (
+                                    <label key={c.code} className="flex items-center gap-2 p-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          let updated = [...selectedCities];
+                                          if (e.target.checked) {
+                                            updated.push(c.name);
+                                          } else {
+                                            updated = updated.filter(city => city !== c.name);
+                                          }
+                                          update('city', updated.join(', '));
+                                          update('cityCode', updated.length > 0 ? 'selected' : '');
+                                        }}
+                                        className="w-3.5 h-3.5 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
+                                      />
+                                      <span className="text-xs text-slate-700 dark:text-slate-300">{c.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Barangay (Optional)</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Business Full Address</label>
                     <input 
-                      value={form.barangay} 
-                      onChange={(e) => { update('barangay', e.target.value); update('barangayCode', e.target.value || 'skipped'); }} 
-                      className="input-base" 
-                      placeholder="e.g. Brgy. San Lorenzo" 
+                      value={form.street} 
+                      onChange={(e) => update('street', e.target.value)} 
+                      className="input-base !py-2" 
+                      placeholder="e.g. Unit 5B, Rizal Ave, Brgy. San Jose" 
+                      required 
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit / House No.</label>
-                      <input value={form.unitHouseNo} onChange={(e) => update('unitHouseNo', e.target.value)} className="input-base" placeholder="e.g. Unit 5B" required /></div>
-                    <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Street</label>
-                      <input value={form.street} onChange={(e) => update('street', e.target.value)} className="input-base" placeholder="e.g. Rizal Ave" required /></div>
-                  </div>
                   <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Postal Code</label>
-                    <input value={form.postalCode} onChange={(e) => update('postalCode', e.target.value)} className="input-base" placeholder="e.g. 1000" /></div>
+                    <input value={form.postalCode} onChange={(e) => update('postalCode', e.target.value)} className="input-base !py-2" placeholder="e.g. 1000" /></div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bio / Description</label>
+                    <textarea 
+                      value={form.bio} 
+                      onChange={(e) => update('bio', e.target.value.slice(0, 100))} 
+                      className="input-base min-h-[50px] !py-2 resize-none" 
+                      placeholder="Short introduction about your service" 
+                      required 
+                    />
+                    <p className="text-xs text-slate-400 text-right mt-1">{form.bio.length}/100</p>
+                  </div>
                 </div>
               )}
 
               {step === 2 && (
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        value={form.companyName} 
-                        onChange={(e) => update('companyName', e.target.value)} 
-                        className="input-base pl-10" 
-                        placeholder="e.g. FixIt Pro Solutions Co." 
-                        required 
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Services You Offer <span className="text-slate-400 text-xs font-normal">(Select all that apply)</span>
-                    </label>
-                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50 p-4 space-y-3 max-h-[300px] overflow-y-auto">
-                      {loadingCatalog ? (
-                        <p className="text-sm text-slate-400 animate-pulse">Loading service catalog...</p>
-                      ) : servicesCatalog.length === 0 ? (
-                        <p className="text-sm text-slate-400">No services available.</p>
-                      ) : (
-                        servicesCatalog.map((svc) => {
-                          const isSvcSelected = selectedServices.some(s => s.service === svc.name);
-                          const isExpanded = expandedService === svc.name;
-                          
-                          return (
-                            <div key={svc.name} className="border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden">
-                              {/* Service Header Row */}
-                              <button
-                                type="button"
-                                onClick={() => toggleService(svc.name)}
-                                className={`w-full flex items-center justify-between p-3 text-left transition-colors ${
-                                  isSvcSelected 
-                                    ? 'bg-brand-green/10 dark:bg-brand-green/5 text-slate-900 dark:text-white' 
-                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                    isSvcSelected 
-                                      ? 'border-brand-green bg-brand-green text-white' 
-                                      : 'border-slate-300 dark:border-slate-600 bg-transparent'
-                                  }`}>
-                                    {isSvcSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                                  </div>
-                                  <div>
-                                    <span className="font-semibold text-sm">{svc.name}</span>
-                                    {svc.description && (
-                                      <p className="text-xs text-slate-400 line-clamp-1">{svc.description}</p>
-                                    )}
-                                  </div>
-                                </div>
-                                <span className="text-xs text-slate-400 font-medium">
-                                  {isExpanded ? 'Collapse' : 'Expand'}
-                                </span>
-                              </button>
-
-                              {/* Sub-services selection (rendered when service is selected and expanded) */}
-                              <AnimatePresence>
-                                {isSvcSelected && isExpanded && svc.sub && svc.sub.length > 0 && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 p-3 pl-8 space-y-2"
-                                  >
-                                    <p className="text-xs font-medium text-slate-400 mb-2">Select sub-services:</p>
-                                    {svc.sub.map((sub: any) => {
-                                      const subSvcSelected = selectedServices.find(s => s.service === svc.name)?.sub_services.includes(sub.name);
-                                      return (
-                                        <div 
-                                          key={sub.name} 
-                                          className="py-1.5 group border-b border-slate-100/50 dark:border-slate-800/30 last:border-0"
-                                        >
-                                          <label className="flex items-start gap-2.5 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={!!subSvcSelected}
-                                              onChange={() => toggleSubService(svc.name, sub.name)}
-                                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-green focus:ring-brand-green bg-transparent"
-                                            />
-                                            <div
-                                              onMouseEnter={(e) => sub.description && handleMouseMove(e, sub.description)}
-                                              onMouseLeave={hideTooltip}
-                                            >
-                                              <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                                                {sub.name}
-                                              </span>
-                                              {sub.description && (
-                                                <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{sub.description}</p>
-                                              )}
-                                            </div>
-                                          </label>
-                                          
-                                          {subSvcSelected && sub.workTypes && sub.workTypes.length > 0 && (
-                                            <div 
-                                              onClick={(e) => e.stopPropagation()}
-                                              className="mt-2 ml-6 pl-3 pr-2 py-2 bg-slate-100/50 dark:bg-slate-800/40 rounded-lg border border-slate-200/50 dark:border-slate-700/50"
-                                            >
-                                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
-                                                Available Work Types (Reference Only)
-                                              </span>
-                                              <div className="flex flex-wrap gap-1.5">
-                                                {sub.workTypes.map((wt: string) => (
-                                                  <span 
-                                                    key={wt} 
-                                                    className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/80 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 border border-slate-300/40 dark:border-slate-700/40 transition-colors"
-                                                  >
-                                                    {wt}
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
                 <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                    <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base pl-10" placeholder="09XX XXX XXXX" required /></div>
-                    {form.phone && !isPhoneValid(form.phone) && <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>}
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -705,82 +838,123 @@ export default function VendorRegisterPage() {
                         {uploadingPermit ? (
                           <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
                         ) : form.businessPermitUrl ? (
-                          <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center">
-                            <img src={form.businessPermitUrl} alt="Business Permit" className="max-h-full object-contain" />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                update('businessPermitUrl', '');
-                              }}
-                              className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black text-white rounded transition-colors z-10"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          renderUploadedFile(form.businessPermitUrl, "Business Permit", "businessPermitUrl")
                         ) : (
                           <>
                             <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">
-                              Upload Business Permit
-                            </span>
-                            <span className="text-[9px] text-slate-400 mt-0.5">PNG, JPG, WEBP</span>
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">Upload Business Permit</span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PDF, JPG</span>
                           </>
                         )}
                         {!form.businessPermitUrl && !uploadingPermit && (
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => handleUploadFile(e, 'permit')}
-                          />
+                          <input type="file" accept=".pdf, .jpg, .jpeg" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUploadFile(e, 'permit')} />
                         )}
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        BIR Certificate (Form 2303)
+                        BIR Certificate
                       </label>
                       <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-28">
                         {uploadingBIR ? (
                           <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
                         ) : form.birCertificateUrl ? (
-                          <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center">
-                            <img src={form.birCertificateUrl} alt="BIR Certificate" className="max-h-full object-contain" />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                update('birCertificateUrl', '');
-                              }}
-                              className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black text-white rounded transition-colors z-10"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          renderUploadedFile(form.birCertificateUrl, "BIR Certificate", "birCertificateUrl")
                         ) : (
                           <>
                             <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">
-                              Upload BIR Certificate
-                            </span>
-                            <span className="text-[9px] text-slate-400 mt-0.5">PNG, JPG, WEBP</span>
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">Upload BIR Certificate</span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PDF, JPG</span>
                           </>
                         )}
                         {!form.birCertificateUrl && !uploadingBIR && (
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => handleUploadFile(e, 'bir')}
-                          />
+                          <input type="file" accept=".pdf, .jpg, .jpeg" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUploadFile(e, 'bir')} />
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        DTI Number
+                      </label>
+                      <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-28">
+                        {uploadingLicense ? (
+                          <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
+                        ) : form.professionalLicenseUrl ? (
+                          renderUploadedFile(form.professionalLicenseUrl, "DTI Number", "professionalLicenseUrl")
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">Upload DTI Number</span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PDF, JPG</span>
+                          </>
+                        )}
+                        {!form.professionalLicenseUrl && !uploadingLicense && (
+                          <input type="file" accept=".pdf, .jpg, .jpeg" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUploadFile(e, 'license')} />
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Proof of Insurance
+                      </label>
+                      <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-28">
+                        {uploadingInsurance ? (
+                          <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading...</div>
+                        ) : form.proofOfInsuranceUrl ? (
+                          renderUploadedFile(form.proofOfInsuranceUrl, "Proof of Insurance", "proofOfInsuranceUrl")
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-semibold text-slate-650 dark:text-slate-400 text-center">Upload Proof of Insurance (Optional)</span>
+                            <span className="text-[9px] text-slate-400 mt-0.5">PDF, JPG</span>
+                          </>
+                        )}
+                        {!form.proofOfInsuranceUrl && !uploadingInsurance && (
+                          <input type="file" accept=".pdf, .jpg, .jpeg" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUploadFile(e, 'insurance')} />
                         )}
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
 
+              {step === 3 && (
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Bank Name / eWallet
+                      </label>
+                      <div className="relative">
+                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select
+                          value={form.bankName}
+                          onChange={(e) => {
+                            update('bankName', e.target.value);
+                            update('accountNumber', ''); // reset number on change
+                          }}
+                          className="input-base pl-10 text-sm appearance-none"
+                          required
+                        >
+                          <option value="" disabled>Select Bank / eWallet</option>
+                          <optgroup label="eWallets">
+                            <option value="GCash">GCash</option>
+                            <option value="Maya">Maya</option>
+                          </optgroup>
+                          <optgroup label="Banks">
+                            <option value="BDO">BDO</option>
+                            <option value="BPI">BPI</option>
+                            <option value="Metrobank">Metrobank</option>
+                            <option value="UnionBank">UnionBank</option>
+                            <option value="Security Bank">Security Bank</option>
+                            <option value="PNB">PNB</option>
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Account Name
@@ -790,9 +964,13 @@ export default function VendorRegisterPage() {
                         <input
                           type="text"
                           value={form.accountName}
-                          onChange={(e) => update('accountName', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^A-Za-z\s-]/g, '').slice(0, 40);
+                            update('accountName', val);
+                          }}
                           className="input-base pl-10 text-sm"
-                          placeholder="Enter Bank or GCash Account Name..."
+                          placeholder="e.g. Juan Dela Cruz"
+                          required
                         />
                       </div>
                     </div>
@@ -805,38 +983,112 @@ export default function VendorRegisterPage() {
                         <input
                           type="text"
                           value={form.accountNumber}
-                          onChange={(e) => update('accountNumber', e.target.value)}
+                          onChange={(e) => {
+                            const isEwallet = ['GCash', 'Maya'].includes(form.bankName);
+                            const maxLen = isEwallet ? 11 : 16;
+                            const val = e.target.value.replace(/\D/g, '').slice(0, maxLen);
+                            update('accountNumber', val);
+                          }}
                           className="input-base pl-10 text-sm"
-                          placeholder="Enter Bank or GCash Account Number..."
+                          placeholder={['GCash', 'Maya'].includes(form.bankName) ? "11 digit number" : "Up to 16 digit number"}
+                          required
                         />
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  <label className="flex items-start gap-3 cursor-pointer mt-4">
-                    <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy" />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a> and <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>.</span>
+              {step === 4 && (
+                <div className="space-y-4">
+                  <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900/50 h-[400px] overflow-y-auto">
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-2 mb-2">1. Introduction & Account Registration</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>The Relationship:</strong> allfix is an on-demand service marketplace platform connecting independent service providers ("Vendors") with customers. This agreement does not create an employer-employee relationship.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Eligibility:</strong> Vendors must be at least 18 years old, legally allowed to work in the Philippines, and possess all necessary local government permits (e.g., DTI/SEC, BIR, Barangay Clearance, or professional licenses) required for their specific trade.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Accuracy of Information:</strong> The Vendor agrees to provide true, accurate, and updated documents during the step-by-step registration. Falsifying documents will result in an immediate and permanent ban.</p>
+
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-6 mb-2">2. Platform Fees, Payments, and Payouts</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Platform Commission:</strong> allfix charges a platform commission fee of 15% on the total booking amount for every successfully completed service.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Payment Processing:</strong> All customer payments are processed securely through allfix’s designated payment gateway partner. Vendors must not solicit direct cash/bank transfers from customers outside the platform to bypass platform fees.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Payout Schedule:</strong> Earnings (minus the platform commission) will be transferred to the Vendor’s registered bank account or e-wallet every Friday.</p>
+
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-6 mb-2">3. Vendor Service Standards & Conduct</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Quality of Work:</strong> Vendors agree to perform services professionally, safely, and up to standard.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Pricing Transparency:</strong> Vendors must honor the pricing guidelines or quotes agreed upon through the allfix app. Unauthorized price overcharging upon arrival at the customer's location is strictly prohibited.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Cancellations:</strong> If a Vendor accepts a booking and cancels without a valid emergency within 2 hours of the scheduled job, they may face a cancellation penalty of ₱100 deducted from their next payout.</p>
+
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-6 mb-2">4. Liability and Customer Property Damage</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Vendor Liability:</strong> The Vendor operates as an independent contractor. The Vendor is fully liable for any damages to the customer’s property, theft, or bodily injury caused during the performance of the service.</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Platform Indemnification:</strong> allfix acts solely as an intermediary matching platform and is not responsible or legally liable for any disputes, damages, or losses resulting from a job.</p>
+
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-6 mb-2">5. Data Privacy Compliance (RA 10173)</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2"><strong>Customer Data:</strong> Vendors will receive customer data (Name, Phone Number, Address) strictly to complete the service. Vendors are legally prohibited under the Data Privacy Act of 2012 from saving, sharing, or using this data for marketing or private contact after the job is closed.</p>
+
+                    <h3 className="font-bold text-slate-800 dark:text-white mt-6 mb-2">6. Termination of Account</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">allfix reserves the right to suspend or permanently terminate a Vendor’s account at any time without prior notice for violations including, but not limited to:</p>
+                    <ul className="list-disc pl-5 text-sm text-slate-600 dark:text-slate-400 mb-2 space-y-1">
+                      <li>Low customer ratings (consistently below 3.5 stars).</li>
+                      <li>Verbal, physical, or sexual harassment of customers.</li>
+                      <li>Attempting to transact with allfix clients outside the app (side-stepping).</li>
+                    </ul>
+                  </div>
+
+                  <label className="flex items-start gap-3 cursor-pointer mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <input 
+                      type="checkbox" 
+                      checked={form.termsAccepted} 
+                      onChange={(e) => update('termsAccepted', e.target.checked)} 
+                      className="mt-1 flex-shrink-0 w-5 h-5 text-brand-green rounded border-slate-300 focus:ring-brand-green" 
+                    />
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      I have read, understood, and agree to the Terms & Conditions and Data Privacy Act.
+                    </span>
                   </label>
+                </div>
+              )}
+
+              {step === 5 && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg text-sm mb-4">
+                    We've sent a 6-digit verification code to <strong>{form.email}</strong>. Please enter it below.
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Verification Code</label>
+                    <input 
+                      value={form.verificationCode} 
+                      onChange={(e) => update('verificationCode', e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                      className="input-base text-center tracking-widest text-2xl font-bold font-mono" 
+                      placeholder="000000" 
+                      required 
+                    />
+                  </div>
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="flex items-center justify-between mt-6">
             {step > 0 ? (
               <Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button>
             ) : <div />}
-            {step < 3 ? (
+            {step < 4 && (
               <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />}>Continue</Button>
-            ) : (
-              <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Create Account</Button>
+            )}
+            {step === 4 && (
+              <Button onClick={handleContinueToVerification} loading={loading} disabled={!canNext()} icon={<ChevronRight className="w-4 h-4" />} variant="success">Accept & Verify Account</Button>
+            )}
+            {step === 5 && (
+              <Button onClick={handleSubmit} loading={loading} disabled={!canNext()} variant="success">Verify & Create</Button>
             )}
           </div>
 
-          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
-          </p>
+          {step === 0 && (
+            <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
+              Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline">Sign in</Link>
+            </p>
+          )}
         </div>
       </div>
 

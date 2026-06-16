@@ -28,10 +28,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to={ROUTES.home} state={{ from: location }} replace />;
   }
 
-  // Email not verified → go to verification
-  if (!user.emailVerified) {
-    return <Navigate to={ROUTES.verifyEmail} replace />;
-  }
+  // Email verified check removed based on user request
 
   // Temporary password reset required -> force redirect to /reset-password
   if (profile?.requires_password_reset && location.pathname !== '/reset-password') {

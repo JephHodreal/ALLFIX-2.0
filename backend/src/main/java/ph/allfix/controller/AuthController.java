@@ -374,4 +374,68 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            var decodedToken = authService.verifyToken(token);
+            String uid = decodedToken.getUid();
+            var user = authService.getUser(uid);
+            String email = user.getEmail();
+            
+            if (email == null || email.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "User does not have an email address"));
+            }
+            
+            String code = String.format("%06d", new java.util.Random().nextInt(999999));
+            long expiresAt = System.currentTimeMillis() + 5 * 60 * 1000; // 5 minutes
+
+            Map<String, Object> otpData = new java.util.HashMap<>();
+            otpData.put("code", code);
+            otpData.put("expiresAt", expiresAt);
+
+            firestoreService.createWithId("otps", uid, otpData);
+
+            emailVerificationService.sendOtpEmail(email, code);
+            return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage() != null ? e.getMessage() : e.toString()));
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String, String> body) {
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            var decodedToken = authService.verifyToken(token);
+            String uid = decodedToken.getUid();
+
+            String code = body.get("code");
+            if (code == null || code.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Missing OTP code"));
+            }
+
+            Map<String, Object> otpData = firestoreService.getById("otps", uid);
+            if (otpData == null || !code.equals(otpData.get("code"))) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
+            }
+
+            long expiresAt = (long) otpData.get("expiresAt");
+            if (System.currentTimeMillis() > expiresAt) {
+                return ResponseEntity.badRequest().body(Map.of("message", "OTP has expired"));
+            }
+
+            // Valid code -> Mark user as verified
+            authService.updateEmailVerified(uid, true);
+
+            // Cleanup OTP
+            firestoreService.delete("otps", uid);
+
+            return ResponseEntity.ok(Map.of("message", "OTP verified successfully"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage() != null ? e.getMessage() : e.toString()));
+        }
+    }
 }

@@ -129,6 +129,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.equals("/api/auth/register") || path.equals("/api/auth/verify") || path.equals("/api/auth/me") || path.equals("/api/health") || path.equals("/api/auth/send-verification") || path.equals("/api/support/contact") || path.equals("/api/upload/image") || path.equals("/api/partner-logos");
+        if (path.startsWith("/uploads/")) return true;
+        return path.equals("/api/auth/register") || path.equals("/api/auth/verify") || path.equals("/api/auth/me") || path.equals("/api/health") || path.equals("/api/auth/send-verification") || path.equals("/api/support/contact") || path.equals("/api/upload/image") || path.equals("/api/partner-logos") || path.equals("/api/auth/send-otp") || path.equals("/api/auth/verify-otp");
     }
 }

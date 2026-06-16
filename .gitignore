@@ -49,3 +49,4 @@ supabase/.temp/
 caveman-dev/
 .agents/
 skills-lock.json
+backend/uploads/
