@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.core.env.Environment;
 import ph.allfix.service.FirestoreService;
+import ph.allfix.service.EmailVerificationService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserRecord;
 
@@ -25,11 +26,13 @@ public class AdminController {
     private final FirestoreService firestoreService;
     private final Environment env;
     private final JavaMailSender mailSender;
+    private final EmailVerificationService emailVerificationService;
 
-    public AdminController(FirestoreService firestoreService, Environment env, JavaMailSender mailSender) {
+    public AdminController(FirestoreService firestoreService, Environment env, JavaMailSender mailSender, EmailVerificationService emailVerificationService) {
         this.firestoreService = firestoreService;
         this.env = env;
         this.mailSender = mailSender;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping("/vendors/pending")
@@ -58,6 +61,20 @@ public class AdminController {
             firestoreService.updateField("vendors", vendorId, "acc_approve", "approved");
             firestoreService.updateField("vendors", vendorId, "temp_delete", 0);
             firestoreService.updateField("vendors", vendorId, "is_approved", true);
+
+            // Fetch vendor email and send email
+            Map<String, Object> vendor = firestoreService.getById("vendors", vendorId);
+            if (vendor != null) {
+                String email = (String) vendor.get("email");
+                if (email != null && !email.isBlank()) {
+                    try {
+                        emailVerificationService.sendVendorApprovedEmail(email);
+                    } catch (Exception ex) {
+                        logger.error("Failed to send vendor approved email to: " + email, ex);
+                    }
+                }
+            }
+
             return ResponseEntity.ok(Map.of("message", "Vendor approved"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -428,53 +445,7 @@ public class AdminController {
 
             // 3. Send welcome email
             try {
-                String appPassword = env.getProperty("spring.mail.password");
-                if (appPassword == null || appPassword.isBlank() || "your-app-password".equalsIgnoreCase(appPassword.trim())) {
-                    appPassword = env.getProperty("APP_PASSWORD");
-                }
-                if (appPassword == null || appPassword.isBlank() || "your-app-password".equalsIgnoreCase(appPassword.trim())) {
-                    appPassword = System.getenv("APP_PASSWORD");
-                }
-
-                String fromEmail = env.getProperty("spring.mail.username");
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = env.getProperty("EMAIL_USERNAME");
-                }
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = System.getenv("EMAIL_USERNAME");
-                }
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = "allfix.ph@gmail.com";
-                }
-
-                if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl) {
-                    org.springframework.mail.javamail.JavaMailSenderImpl impl = (org.springframework.mail.javamail.JavaMailSenderImpl) mailSender;
-                    impl.setUsername(fromEmail);
-                    impl.setPassword(appPassword);
-                }
-
-                String htmlBody = String.format(
-                    "<h3>Welcome to AllFix!</h3>" +
-                    "<p>An account has been created for you as vendor.</p>" +
-                    "<p><strong>Username:</strong> %s</p>" +
-                    "<p><strong>Email:</strong> %s</p>" +
-                    "<p><strong>Temporary Password:</strong> %s</p>" +
-                    "<br/>" +
-                    "<p>Best regards,<br/>AllFix Team</p>",
-                    username,
-                    email,
-                    password
-                );
-
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                helper.setFrom(fromEmail);
-                helper.setTo(email);
-                helper.setSubject("Welcome to AllFix - Your Vendor Account is Ready!");
-                helper.setText(htmlBody, true);
-
-                mailSender.send(message);
-                logger.info("Successfully sent welcome email via SMTP to {}", email);
+                emailVerificationService.sendAdminCreatedVendorWelcomeEmail(username, email, password);
             } catch (Exception e) {
                 logger.error("Welcome email transmission failed for email: " + email, e);
             }

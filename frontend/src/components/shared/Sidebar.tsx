@@ -9,6 +9,7 @@ import {
   Bell, HelpCircle, ChevronDown, MapPin, Image
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
+import { useConfirm } from '../../hooks/useConfirm';
 import { UserRole } from '../../context/AuthContext';
 
 interface SidebarItem { label: string; path: string; icon: React.ReactNode; end?: boolean; }
@@ -156,13 +157,23 @@ function SidebarTooltip({
 
 export function LogoutButton({ showText = true }: { showText?: boolean }) {
   const navigate = useNavigate();
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  const { confirm, ConfirmComponent } = useConfirm();
+
+  const handleLogout = () => {
+    confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out of your account?',
+      confirmText: 'Sign Out',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          await logoutUser();
+          navigate('/login');
+        } catch (error) {
+          console.error('Logout failed:', error);
+        }
+      }
+    });
   };
 
   const buttonContent = (
@@ -179,11 +190,14 @@ export function LogoutButton({ showText = true }: { showText?: boolean }) {
 
   return (
     <div className="relative w-full overflow-visible">
-      {!showText ? (
-        <SidebarTooltip text="Logout">{buttonContent}</SidebarTooltip>
-      ) : (
-        buttonContent
-      )}
+      <>
+        {!showText ? (
+          <SidebarTooltip text="Logout">{buttonContent}</SidebarTooltip>
+        ) : (
+          buttonContent
+        )}
+        <ConfirmComponent />
+      </>
     </div>
   );
 }

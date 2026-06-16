@@ -533,7 +533,9 @@ export default function VendorRegisterPage() {
               </div>
             ))}
           </div>
-          <p className="text-white/50 text-sm mt-3">Step {step + 1}: {steps[step]}</p>
+          {step < steps.length && (
+            <p className="text-white/50 text-sm mt-3">Step {step + 1}: {steps[step]}</p>
+          )}
         </div>
       </div>
 
@@ -555,9 +557,11 @@ export default function VendorRegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-0.5 mt-4 lg:mt-0">
-            {step === 0 ? 'Basic Information' : step === 1 ? 'Business Location' : step === 2 ? 'Company Details' : step === 3 ? 'Payout & Banking Details' : step === 4 ? 'Terms & Conditions' : 'Account Verification'}
+            {step === 0 ? 'Basic Information' : step === 1 ? 'Business Location' : step === 2 ? 'Company Details' : step === 3 ? 'Payout & Banking Details' : step === 4 ? 'Terms & Conditions' : 'Email Verification'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">Step {step + 1} of {steps.length}</p>
+          {step < steps.length && (
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">Step {step + 1} of {steps.length}</p>
+          )}
 
           {error && <div className="mb-3 p-3 rounded-xl bg-brand-red/10 border border-brand-red/20 text-brand-red text-sm">{error}</div>}
 
@@ -805,14 +809,15 @@ export default function VendorRegisterPage() {
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Business Full Address</label>
                     <input 
                       value={form.street} 
-                      onChange={(e) => update('street', e.target.value)} 
+                      onChange={(e) => update('street', e.target.value.slice(0, 100))} 
                       className="input-base !py-2" 
                       placeholder="e.g. Unit 5B, Rizal Ave, Brgy. San Jose" 
+                      maxLength={100}
                       required 
                     />
                   </div>
                   <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Postal Code</label>
-                    <input value={form.postalCode} onChange={(e) => update('postalCode', e.target.value)} className="input-base !py-2" placeholder="e.g. 1000" /></div>
+                    <input value={form.postalCode} onChange={(e) => update('postalCode', e.target.value.replace(/\D/g, '').slice(0, 4))} className="input-base !py-2" placeholder="e.g. 1000" maxLength={4} /></div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bio / Description</label>
                     <textarea 

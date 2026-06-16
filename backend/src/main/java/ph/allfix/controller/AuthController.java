@@ -79,6 +79,17 @@ public class AuthController {
             authService.setRole(uid, role);
             authService.setFirestoreId(uid, customId);
 
+            if (role.equals("vendor")) {
+                String email = (String) profile.get("email");
+                if (email != null && !email.isBlank()) {
+                    try {
+                        emailVerificationService.sendVendorPendingReviewEmail(email);
+                    } catch (Exception e) {
+                        System.err.println("Failed to send vendor pending review email: " + e.getMessage());
+                    }
+                }
+            }
+
             return ResponseEntity.ok(Map.of("message", "Profile saved", "role", role, "custom_id", customId));
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", e.getReason()));

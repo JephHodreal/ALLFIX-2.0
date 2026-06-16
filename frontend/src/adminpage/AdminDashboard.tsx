@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useConfirm } from '../hooks/useConfirm';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet } from 'lucide-react';
@@ -72,11 +73,28 @@ function DashboardHome() {
 
 // ─── Customers Tab ──────────────────────────────────────────────────────────
 function CustomersTab() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
   useEffect(() => { api.get('/api/customers').then(r => setCustomers(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
-  const handleDelete = async (id: string) => { await api.delete(`/api/customers/${id}`); setCustomers(cs => cs.filter(c => c.id !== id)); };
+  const handleDelete = (id: string, name?: string) => { 
+    confirm({
+      title: 'Delete Customer',
+      message: `Are you sure you want to delete ${name || 'this customer'}? This action cannot be undone.`,
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/customers/${id}`); 
+          setCustomers(cs => cs.filter(c => c.id !== id)); 
+        } catch (error) {
+          console.error('Delete failed:', error);
+          alert('Failed to delete customer.');
+        }
+      }
+    });
+  };
   const handleEditSave = async (data: Record<string, any>) => {
     await api.put(`/api/customers/${editItem.id}`, data);
     setCustomers(cs => cs.map(c => c.id === editItem.id ? { ...c, ...data } : c));
@@ -100,7 +118,7 @@ function CustomersTab() {
           key: 'actions', label: 'Actions', render: (item: any) => (
             <div className="flex gap-2">
               <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
-              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+              <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id, `${item.first_name} ${item.last_name}`); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
             </div>
           )
         },
@@ -118,6 +136,7 @@ function CustomersTab() {
           onClose={() => setEditItem(null)}
         />
       )}
+      <ConfirmComponent />
     </>
   );
 }
@@ -166,8 +185,10 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
               </h4>
               <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Contact Person</span>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.first_name} {vendor.last_name}</p>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Business / Trade Name</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    {vendor.company_name || vendor.contact_person || (vendor.first_name ? `${vendor.first_name} ${vendor.last_name || ''}`.trim() : 'N/A')}
+                  </p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Username</span>
@@ -199,10 +220,6 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Barangay</span>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.barangay || 'N/A'}</p>
-                </div>
-                <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">City / Municipality</span>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.city || 'N/A'}</p>
                 </div>
@@ -220,6 +237,10 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
                 Payout & Bank Details
               </h4>
               <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Bank Name / eWallet</span>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.bank_name || 'N/A'}</p>
+                </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Account Name</span>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{vendor.account_name || 'N/A'}</p>
@@ -287,7 +308,7 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
                     <img
                       src={vendor.business_permit_url}
                       alt="Business Permit"
-                      className="max-h-48 object-contain rounded transition-transform group-hover:scale-[1.02]"
+                      className="max-h-48 w-full object-contain rounded transition-transform group-hover:scale-[1.02]"
                     />
                   ) : (
                     <div className="text-center p-6">
@@ -318,12 +339,74 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
                     <img
                       src={vendor.bir_certificate_url}
                       alt="BIR Certificate"
-                      className="max-h-48 object-contain rounded transition-transform group-hover:scale-[1.02]"
+                      className="max-h-48 w-full object-contain rounded transition-transform group-hover:scale-[1.02]"
                     />
                   ) : (
                     <div className="text-center p-6">
                       <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <span className="text-xs text-slate-400 font-medium">No BIR Certificate uploaded</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DTI Number Card */}
+              <div className="border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col bg-white dark:bg-slate-800">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-white">DTI Number</span>
+                  {vendor.professional_license_url && (
+                    <a
+                      href={vendor.professional_license_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Full Size
+                    </a>
+                  )}
+                </div>
+                <div className="bg-slate-100 dark:bg-slate-900/50 flex-1 flex items-center justify-center min-h-[160px] p-4 relative group">
+                  {vendor.professional_license_url ? (
+                    <img
+                      src={vendor.professional_license_url}
+                      alt="DTI Number"
+                      className="max-h-48 w-full object-contain rounded transition-transform group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="text-center p-6">
+                      <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <span className="text-xs text-slate-400 font-medium">No DTI Number uploaded</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Proof of Insurance Card */}
+              <div className="border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col bg-white dark:bg-slate-800">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-white">Proof of Insurance</span>
+                  {vendor.proof_of_insurance_url && (
+                    <a
+                      href={vendor.proof_of_insurance_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-navy dark:text-brand-green hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Full Size
+                    </a>
+                  )}
+                </div>
+                <div className="bg-slate-100 dark:bg-slate-900/50 flex-1 flex items-center justify-center min-h-[160px] p-4 relative group">
+                  {vendor.proof_of_insurance_url ? (
+                    <img
+                      src={vendor.proof_of_insurance_url}
+                      alt="Proof of Insurance"
+                      className="max-h-48 w-full object-contain rounded transition-transform group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="text-center p-6">
+                      <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <span className="text-xs text-slate-400 font-medium">No Proof of Insurance uploaded</span>
                     </div>
                   )}
                 </div>
@@ -630,10 +713,12 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
 
 // ─── Vendors Tab ────────────────────────────────────────────────────────────
 function VendorsTab() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
   const [viewItem, setViewItem] = useState<any>(null);
+  const [viewServicesVendor, setViewServicesVendor] = useState<any>(null);
   const [personnelCounts, setPersonnelCounts] = useState<Record<string, number>>({});
 
   // Creation form states
@@ -718,13 +803,58 @@ function VendorsTab() {
     }).catch(() => { }).finally(() => setLoading(false));
   }, []);
 
-  const handleApprove = async (id: string) => { await api.post(`/api/admin/vendors/${id}/approve`); setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'approved', is_approved: true } : v)); };
-  const handleReject = async (id: string) => { await api.post(`/api/admin/vendors/${id}/reject`); setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'rejected', is_approved: false } : v)); };
-  const handleDelete = async (id: string) => { 
-    if (window.confirm('Are you sure you want to delete this vendor?')) {
-      await api.delete(`/api/vendors/${id}`); 
-      setVendors(vs => vs.filter(v => v.id !== id)); 
-    }
+  const handleApprove = (id: string, companyName?: string) => { 
+    confirm({
+      title: 'Approve Vendor',
+      message: `Are you sure you want to approve ${companyName || 'this vendor'}? They will be notified via email and granted access to the platform.`,
+      confirmText: 'Approve Vendor',
+      type: 'success',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/admin/vendors/${id}/approve`); 
+          setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'approved', is_approved: true } : v)); 
+        } catch (error) {
+          console.error('Approval failed:', error);
+          alert('Failed to approve vendor.');
+        }
+      }
+    });
+  };
+  
+  const handleReject = (id: string, companyName?: string) => { 
+    confirm({
+      title: 'Reject Vendor',
+      message: `Are you sure you want to reject ${companyName || 'this vendor'}? Their registration will be marked as rejected.`,
+      confirmText: 'Reject Vendor',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/admin/vendors/${id}/reject`); 
+          setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'rejected', is_approved: false } : v)); 
+        } catch (error) {
+          console.error('Rejection failed:', error);
+          alert('Failed to reject vendor.');
+        }
+      }
+    });
+  };
+
+  const handleDelete = (id: string, companyName?: string) => { 
+    confirm({
+      title: 'Delete Vendor',
+      message: `Are you sure you want to permanently delete ${companyName || 'this vendor'}? This action cannot be undone.`,
+      confirmText: 'Delete Vendor',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/vendors/${id}`); 
+          setVendors(vs => vs.filter(v => v.id !== id)); 
+        } catch (error) {
+          console.error('Deletion failed:', error);
+          alert('Failed to delete vendor.');
+        }
+      }
+    });
   };
   const handleEditSave = async (data: any) => {
     await api.put(`/api/vendors/${editItem.id}`, data);
@@ -938,7 +1068,16 @@ function VendorsTab() {
 
       <DataTable columns={[
         { key: 'company_name', label: 'Company', sortable: true },
-        { key: 'contact_person', label: 'Contact', sortable: true },
+        { 
+          key: 'contact_person', 
+          label: 'Phone Number', 
+          sortable: true,
+          render: (item: any) => {
+            const phone = item.phone || '';
+            if (!phone) return <span className="text-xs text-slate-400">—</span>;
+            return <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{phone}</span>;
+          }
+        },
         { key: 'email', label: 'Email', sortable: true },
         {
           key: 'last_login', label: 'Last Login', sortable: true, render: (item: any) => {
@@ -953,15 +1092,20 @@ function VendorsTab() {
               return <span className="text-xs text-slate-400">—</span>;
             }
             return (
-              <div className="flex flex-col gap-1 max-w-[250px] max-h-24 overflow-y-auto pr-2">
-                {item.services.map((s: any, i: number) => (
-                  <div key={i} className="text-xs leading-tight">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{s.service}</span>
-                    {s.sub_services && Array.isArray(s.sub_services) && s.sub_services.length > 0 && (
-                      <span className="text-slate-500 block ml-2">• {s.sub_services.join(', ')}</span>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-wrap gap-1.5 max-w-[280px]">
+                {item.services.map((s: any, i: number) => {
+                  const hasSubServices = s.sub_services && Array.isArray(s.sub_services) && s.sub_services.length > 0;
+                  return (
+                    <button
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); setViewServicesVendor({ vendor: item, service: s }); }}
+                      className="group inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 cursor-pointer transition-colors hover:bg-brand-navy hover:text-white hover:border-brand-navy dark:hover:bg-brand-green dark:hover:text-slate-900 dark:hover:border-brand-green"
+                    >
+                      {s.service}
+                      {hasSubServices && <span className="ml-1.5 text-[10px] bg-slate-200/80 dark:bg-slate-700 group-hover:bg-white/20 group-hover:text-white dark:group-hover:bg-slate-900/20 dark:group-hover:text-slate-900 px-1.5 rounded font-bold text-slate-600 dark:text-slate-400 transition-colors">{s.sub_services.length}</span>}
+                    </button>
+                  );
+                })}
               </div>
             );
           }
@@ -980,14 +1124,14 @@ function VendorsTab() {
             return status === 'pending' ? (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={(e: any) => { e.stopPropagation(); setViewItem(item); }}>View</Button>
-                <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id); }}>Approve</Button>
-                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id); }}>Reject</Button>
+                <Button variant="success" size="sm" onClick={(e: any) => { e.stopPropagation(); handleApprove(item.id, item.company_name); }}>Approve</Button>
+                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleReject(item.id, item.company_name); }}>Reject</Button>
               </div>
             ) : status === 'approved' ? (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={(e: any) => { e.stopPropagation(); setViewItem(item); }}>View</Button>
                 <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white" onClick={(e: any) => { e.stopPropagation(); setEditItem(item); }} icon={<Edit className="w-4 h-4" />}>Edit</Button>
-                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+                <Button variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(item.id, item.company_name); }} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -998,7 +1142,9 @@ function VendorsTab() {
         },
       ]} data={vendors} loading={loading} searchPlaceholder="Search vendors..." />
       {editItem && <VendorEditModal vendor={editItem} onSave={handleEditSave} onClose={() => setEditItem(null)} />}
-      {viewItem && <VendorViewModal vendor={viewItem} onClose={() => setViewItem(null)} onApprove={(id) => { handleApprove(id); setViewItem(null); }} onReject={(id) => { handleReject(id); setViewItem(null); }} />}
+      {viewItem && <VendorViewModal vendor={viewItem} onClose={() => setViewItem(null)} onApprove={(id) => { handleApprove(id, viewItem?.company_name); setViewItem(null); }} onReject={(id) => { handleReject(id, viewItem?.company_name); setViewItem(null); }} />}
+      
+      <ConfirmComponent />
 
       {/* Create Modal */}
       <AnimatePresence>
@@ -1309,6 +1455,44 @@ function VendorsTab() {
                     >
                       Create Vendor
                     </Button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Services Modal */}
+      <AnimatePresence>
+        {viewServicesVendor && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewServicesVendor(null)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <Card>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">{viewServicesVendor.service.service} Sub-services</h3>
+                    <button onClick={() => setViewServicesVendor(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50 max-h-[60vh] overflow-y-auto">
+                    {viewServicesVendor.service.sub_services && viewServicesVendor.service.sub_services.length > 0 ? (
+                      <ul className="space-y-2">
+                        {viewServicesVendor.service.sub_services.map((sub: string, idx: number) => (
+                          <li key={idx} className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-green flex-shrink-0" />
+                            <span>{sub}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-500 text-center py-4">No sub-services listed.</p>
+                    )}
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => setViewServicesVendor(null)}>Close</Button>
                   </div>
                 </div>
               </Card>
@@ -1856,45 +2040,85 @@ function BookingsTab() {
 
 // ─── Payments Tab ───────────────────────────────────────────────────────────
 function PaymentsTab() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { api.get('/api/payments/pending').then(r => setPayments(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
-  return payments.length === 0 && !loading ? <EmptyState title="No pending payments" description="All payments have been processed." /> : (
-    <DataTable columns={[
-      { key: 'sub_service', label: 'Service', render: (item: any) => item.sub_service || item.service_type },
-      { key: 'payment_reference', label: 'Reference' },
-      { key: 'scheduled_date', label: 'Date' },
-      {
-        key: 'actions', label: 'Actions', render: (item: any) => (
-          <div className="flex gap-2">
-            <Button variant="success" size="sm" onClick={() => api.patch(`/api/payments/${item.id}/confirm`).then(() => setPayments(ps => ps.filter(p => p.id !== item.id)))}>Confirm</Button>
-            <Button variant="danger" size="sm" onClick={() => api.patch(`/api/payments/${item.id}/confirm`, { confirmed: false })}>Reject</Button>
-          </div>
-        )
-      },
-    ]} data={payments} loading={loading} />
+  return (
+    <>
+      {payments.length === 0 && !loading ? (
+        <EmptyState title="No pending payments" description="All payments have been processed." />
+      ) : (
+        <DataTable columns={[
+          { key: 'sub_service', label: 'Service', render: (item: any) => item.sub_service || item.service_type },
+          { key: 'payment_reference', label: 'Reference' },
+          { key: 'scheduled_date', label: 'Date' },
+          {
+            key: 'actions', label: 'Actions', render: (item: any) => (
+              <div className="flex gap-2">
+                <Button variant="success" size="sm" onClick={() => {
+                  confirm({
+                    title: 'Confirm Payment',
+                    message: 'Are you sure you want to confirm this payment?',
+                    confirmText: 'Confirm',
+                    type: 'success',
+                    onConfirm: () => api.patch(`/api/payments/${item.id}/confirm`).then(() => setPayments(ps => ps.filter(p => p.id !== item.id)))
+                  });
+                }}>Confirm</Button>
+                <Button variant="danger" size="sm" onClick={() => {
+                  confirm({
+                    title: 'Reject Payment',
+                    message: 'Are you sure you want to reject this payment?',
+                    confirmText: 'Reject',
+                    type: 'danger',
+                    onConfirm: () => api.patch(`/api/payments/${item.id}/confirm`, { confirmed: false }).then(() => setPayments(ps => ps.filter(p => p.id !== item.id)))
+                  });
+                }}>Reject</Button>
+              </div>
+            )
+          },
+        ]} data={payments} loading={loading} />
+      )}
+      <ConfirmComponent />
+    </>
   );
 }
 
 // ─── Refunds Tab ────────────────────────────────────────────────────────────
 function RefundsTab() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [refunds, setRefunds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { api.get('/api/refunds').then(r => setRefunds(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
   return (
-    <DataTable columns={[
-      { key: 'reason', label: 'Reason', sortable: true },
-      { key: 'deduction_amount', label: 'Deduction (₱)' },
-      { key: 'status', label: 'Status', render: (item: any) => <span className={item.status === 'approved' ? 'badge-completed' : item.status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>{item.status}</span> },
-      {
-        key: 'actions', label: 'Actions', render: (item: any) => item.status === 'pending' ? (
-          <div className="flex gap-2">
-            <Button variant="success" size="sm" onClick={() => api.patch(`/api/refunds/${item.id}/approve`)}>Approve</Button>
-            <Button variant="danger" size="sm" onClick={() => api.patch(`/api/refunds/${item.id}/reject`)}>Reject</Button>
-          </div>
-        ) : null
-      },
-    ]} data={refunds} loading={loading} searchPlaceholder="Search refunds..." emptyTitle="No refunds" />
+    <>
+      <DataTable columns={[
+        { key: 'reason', label: 'Reason', sortable: true },
+        { key: 'deduction_amount', label: 'Deduction (₱)' },
+        { key: 'status', label: 'Status', render: (item: any) => <span className={item.status === 'approved' ? 'badge-completed' : item.status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>{item.status}</span> },
+        {
+          key: 'actions', label: 'Actions', render: (item: any) => item.status === 'pending' ? (
+            <div className="flex gap-2">
+              <Button variant="success" size="sm" onClick={() => confirm({
+                title: 'Approve Refund',
+                message: 'Are you sure you want to approve this refund?',
+                confirmText: 'Approve',
+                type: 'success',
+                onConfirm: () => api.patch(`/api/refunds/${item.id}/approve`).then(loadData)
+              })}>Approve</Button>
+              <Button variant="danger" size="sm" onClick={() => confirm({
+                title: 'Reject Refund',
+                message: 'Are you sure you want to reject this refund?',
+                confirmText: 'Reject',
+                type: 'danger',
+                onConfirm: () => api.patch(`/api/refunds/${item.id}/reject`).then(loadData)
+              })}>Reject</Button>
+            </div>
+          ) : null
+        },
+      ]} data={refunds} loading={loading} searchPlaceholder="Search refunds..." emptyTitle="No refunds" />
+      <ConfirmComponent />
+    </>
   );
 }
 
@@ -2577,6 +2801,7 @@ function AdminServiceCard({ service, onServiceClick, onEditClick }: { service: a
 
 function ServicesManagementPage() {
   const navigate = useNavigate();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [services, setServices] = useState<any[]>(servicesData);
   const [loading, setLoading] = useState(true);
 
@@ -2855,42 +3080,78 @@ function ServicesManagementPage() {
   };
 
   // Request actions
-  const handleApproveMain = async (id: string) => {
-    try {
-      await api.post(`/api/services/requests/main-service/${id}/approve`);
-      fetchPendingRequests();
-      loadServices();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleApproveMain = (id: string, name?: string) => {
+    confirm({
+      title: 'Approve Service Request',
+      message: `Are you sure you want to approve the service request for ${name || 'this service'}?`,
+      confirmText: 'Approve',
+      type: 'success',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/services/requests/main-service/${id}/approve`);
+          fetchPendingRequests();
+          loadServices();
+        } catch (e) {
+          console.error(e);
+          alert('Failed to approve request.');
+        }
+      }
+    });
   };
 
-  const handleRejectMain = async (id: string) => {
-    try {
-      await api.post(`/api/services/requests/main-service/${id}/reject`);
-      fetchPendingRequests();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleRejectMain = (id: string, name?: string) => {
+    confirm({
+      title: 'Reject Service Request',
+      message: `Are you sure you want to reject the service request for ${name || 'this service'}?`,
+      confirmText: 'Reject',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/services/requests/main-service/${id}/reject`);
+          fetchPendingRequests();
+        } catch (e) {
+          console.error(e);
+          alert('Failed to reject request.');
+        }
+      }
+    });
   };
 
-  const handleApproveSub = async (id: string) => {
-    try {
-      await api.post(`/api/services/requests/sub-service/${id}/approve`);
-      fetchPendingRequests();
-      loadServices();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleApproveSub = (id: string, name?: string) => {
+    confirm({
+      title: 'Approve Sub-service Request',
+      message: `Are you sure you want to approve the sub-service request for ${name || 'this sub-service'}?`,
+      confirmText: 'Approve',
+      type: 'success',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/services/requests/sub-service/${id}/approve`);
+          fetchPendingRequests();
+          loadServices();
+        } catch (e) {
+          console.error(e);
+          alert('Failed to approve request.');
+        }
+      }
+    });
   };
 
-  const handleRejectSub = async (id: string) => {
-    try {
-      await api.post(`/api/services/requests/sub-service/${id}/reject`);
-      fetchPendingRequests();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleRejectSub = (id: string, name?: string) => {
+    confirm({
+      title: 'Reject Sub-service Request',
+      message: `Are you sure you want to reject the sub-service request for ${name || 'this sub-service'}?`,
+      confirmText: 'Reject',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/services/requests/sub-service/${id}/reject`);
+          fetchPendingRequests();
+        } catch (e) {
+          console.error(e);
+          alert('Failed to reject request.');
+        }
+      }
+    });
   };
 
   const handleApproveWorkType = async (e: React.FormEvent) => {
@@ -2915,12 +3176,20 @@ function ServicesManagementPage() {
   };
 
   const handleRejectWorkType = async (id: string) => {
-    try {
-      await api.post(`/api/services/requests/work-type/${id}/reject`);
-      fetchPendingRequests();
-    } catch (e) {
-      console.error(e);
-    }
+    confirm({
+      title: 'Reject Work Type Request',
+      message: 'Are you sure you want to reject this work type request?',
+      confirmText: 'Reject',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/services/requests/work-type/${id}/reject`);
+          fetchPendingRequests();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
   };
 
   // If viewing subservices of selected service
@@ -3244,6 +3513,8 @@ function ServicesManagementPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmComponent />
     </div>
   );
 }
@@ -4734,6 +5005,7 @@ function PayoutsPage() {
 }
 
 function VouchersPage() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -4773,15 +5045,21 @@ function VouchersPage() {
       });
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this voucher?')) {
-      try {
-        await api.delete(`/api/vouchers/${id}`);
-        setVouchers(prev => prev.filter(v => v.id !== id));
-      } catch (err) {
-        console.error('Failed to delete voucher', err);
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Delete Voucher',
+      message: 'Are you sure you want to permanently delete this voucher?',
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/vouchers/${id}`);
+          setVouchers(prev => prev.filter(v => v.id !== id));
+        } catch (err) {
+          console.error('Failed to delete voucher', err);
+        }
       }
-    }
+    });
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -5003,6 +5281,7 @@ function VouchersPage() {
           </div>
         )}
       </AnimatePresence>
+      <ConfirmComponent />
     </div>
   );
 }
@@ -5082,6 +5361,7 @@ function AssignedVouchersPage() {
 import { RefreshCcw } from 'lucide-react';
 
 function RefundsPage() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [refunds, setRefunds] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -5322,44 +5602,57 @@ function RefundsPage() {
     }
   };
 
-  const handleReject = async (refundId: string) => {
+  const handleReject = (refundId: string) => {
     if (!rejectionDetails.trim()) {
-      setError('Rejection details are required to reject the refund request. Please fill in the rejection reason above.');
-      alert('Rejection details are required to reject the refund request. Please fill in the rejection reason above.');
+      setError('Please provide a reason for rejection.');
       return;
     }
-    if (!window.confirm('Are you sure you want to reject this refund request?')) return;
-    console.log('[CAVEMAN] RefundsPage: Rejecting refund request ID:', refundId, 'Reason:', rejectionDetails.trim());
-    setSubmitting(true);
-    try {
-      await api.patch(`/api/refunds/${refundId}/reject`, { rejection_reason: rejectionDetails.trim() });
-      console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
-      alert('Refund request rejected successfully!');
-      setShowModal(false);
-      loadData();
-    } catch (err: any) {
-      console.error('[CAVEMAN] RefundsPage: Reject failed', err);
-      alert(err.response?.data?.message || 'Failed to reject refund request.');
-    } finally {
-      setSubmitting(false);
-    }
+    confirm({
+      title: 'Reject Refund Request',
+      message: 'Are you sure you want to reject this refund request?',
+      confirmText: 'Reject',
+      type: 'danger',
+      onConfirm: async () => {
+        console.log('[CAVEMAN] RefundsPage: Rejecting refund request ID:', refundId, 'Reason:', rejectionDetails.trim());
+        setSubmitting(true);
+        try {
+          await api.patch(`/api/refunds/${refundId}/reject`, { rejection_reason: rejectionDetails.trim() });
+          console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
+          alert('Refund request rejected successfully!');
+          setShowModal(false);
+          loadData();
+        } catch (err: any) {
+          console.error('[CAVEMAN] RefundsPage: Reject failed', err);
+          alert(err.response?.data?.message || 'Failed to reject refund request.');
+        } finally {
+          setSubmitting(false);
+        }
+      }
+    });
   };
 
-  const handleQuickApprove = async (refund: any) => {
-    if (!window.confirm(`Approve this vendor-cancelled refund of ₱${Number(refund.refund_amount || 0).toFixed(2)} for ${refund.customer_name}? This will mark the refund as processed.`)) return;
-    console.log('[CAVEMAN] RefundsPage: Quick-approving vendor-cancelled refund ID:', refund.id);
-    try {
-      await api.patch(`/api/refunds/${refund.id}/approve`, {
-        cancelled_by: refund.cancelled_by || 'vendor',
-        status_at_cancellation: refund.status_at_cancellation || '',
-      });
-      console.log('[CAVEMAN] RefundsPage: Quick approve successful for vendor-cancelled refund');
-      alert('Vendor-cancelled refund approved and marked as processed!');
-      loadData();
-    } catch (err: any) {
-      console.error('[CAVEMAN] RefundsPage: Quick approve failed', err);
-      alert(err.response?.data?.message || 'Failed to approve refund.');
-    }
+  const handleQuickApprove = (refund: any) => {
+    confirm({
+      title: 'Approve Refund',
+      message: `Approve this vendor-cancelled refund of ₱${Number(refund.refund_amount || 0).toFixed(2)} for ${refund.customer_name}? This will mark the refund as processed.`,
+      confirmText: 'Approve',
+      type: 'success',
+      onConfirm: async () => {
+        console.log('[CAVEMAN] RefundsPage: Quick-approving vendor-cancelled refund ID:', refund.id);
+        try {
+          await api.patch(`/api/refunds/${refund.id}/approve`, {
+            cancelled_by: refund.cancelled_by || 'vendor',
+            status_at_cancellation: refund.status_at_cancellation || '',
+          });
+          console.log('[CAVEMAN] RefundsPage: Quick approve successful for vendor-cancelled refund');
+          alert('Vendor-cancelled refund approved and marked as processed!');
+          loadData();
+        } catch (err: any) {
+          console.error('[CAVEMAN] RefundsPage: Quick approve failed', err);
+          alert(err.response?.data?.message || 'Failed to process vendor-cancelled refund.');
+        }
+      }
+    });
   };
 
   return (
@@ -5749,6 +6042,7 @@ function RefundsPage() {
 }
 
 function PaymentsPage() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -5848,15 +6142,21 @@ function PaymentsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this payment method?')) {
-      try {
-        await api.delete(`/api/payments/methods/${id}`);
-        setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
-      } catch (err) {
-        console.error('Failed to delete payment method', err);
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Delete Payment Method',
+      message: 'Are you sure you want to delete this payment method?',
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/payments/methods/${id}`);
+          setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
+        } catch (err) {
+          console.error('Failed to delete payment method', err);
+        }
       }
-    }
+    });
   };
 
   return (

@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ph.allfix.service.FirestoreService;
 import ph.allfix.service.NotificationService;
+import ph.allfix.service.EmailVerificationService;
 import java.util.*;
 
 @RestController
@@ -12,10 +13,12 @@ public class VendorController {
 
     private final FirestoreService firestoreService;
     private final NotificationService notificationService;
+    private final EmailVerificationService emailVerificationService;
 
-    public VendorController(FirestoreService firestoreService, NotificationService notificationService) {
+    public VendorController(FirestoreService firestoreService, NotificationService notificationService, EmailVerificationService emailVerificationService) {
         this.firestoreService = firestoreService;
         this.notificationService = notificationService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping
@@ -47,13 +50,28 @@ public class VendorController {
     @PatchMapping("/{id}/approve")
     public ResponseEntity<?> approve(@PathVariable String id) throws Exception {
         firestoreService.updateField("vendors", id, "is_approved", true);
+        firestoreService.updateField("vendors", id, "acc_approve", "approved");
         notificationService.notify(id, "vendor", "Application Approved", "Your vendor application has been approved! You can now receive bookings.");
+        
+        Map<String, Object> vendor = firestoreService.getById("vendors", id);
+        if (vendor != null) {
+            String email = (String) vendor.get("email");
+            if (email != null && !email.isBlank()) {
+                try {
+                    emailVerificationService.sendVendorApprovedEmail(email);
+                } catch (Exception e) {
+                    System.err.println("Failed to send vendor approved email: " + e.getMessage());
+                }
+            }
+        }
+
         return ResponseEntity.ok(Map.of("message", "Approved"));
     }
 
     @PatchMapping("/{id}/reject")
     public ResponseEntity<?> reject(@PathVariable String id) throws Exception {
         firestoreService.updateField("vendors", id, "is_approved", false);
+        firestoreService.updateField("vendors", id, "acc_approve", "rejected");
         return ResponseEntity.ok(Map.of("message", "Rejected"));
     }
 
