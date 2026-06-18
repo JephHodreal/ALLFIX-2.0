@@ -14,7 +14,7 @@ import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { VENDOR_SERVICES } from '../constants/services';
-import { servicesData } from '../constants/servicesData';
+import { servicesData, WORK_TYPES_MAPPING } from '../constants/servicesData';
 import api from '../services/apiService';
 import AddServiceWizard from './AddServiceWizard';
 import AreaServiceManager from './AreaServiceManager';
@@ -443,12 +443,10 @@ function VendorViewModal({ vendor, onClose, onApprove, onReject }: { vendor: any
 }
 
 // ─── Vendor Edit Modal ──────────────────────────────────────────────────────
-function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (data: any) => Promise<void>; onClose: () => void }) {
-  const contactParts = (vendor.contact_person || '').split(' ');
+function VendorEditModal({ vendor, onSave, onClose, confirm }: { vendor: any; onSave: (data: any) => Promise<void>; onClose: () => void; confirm: any }) {
   const [form, setForm] = useState({
     company_name: vendor.company_name || '',
-    first_name: vendor.first_name || contactParts[0] || '',
-    last_name: vendor.last_name || contactParts.slice(1).join(' ') || '',
+    contact_person: vendor.contact_person || `${vendor.first_name || ''} ${vendor.last_name || ''}`.trim(),
     account_name: vendor.account_name || '',
     account_number: vendor.account_number || '',
   });
@@ -462,10 +460,23 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showAddService, setShowAddService] = useState(false);
 
-  // Dynamically fetch available services from DB
-  const [dbServiceOptions, setDbServiceOptions] = useState<Array<{ name: string; sub: Array<{ name: string; description: string; workTypes: string[]; prices: Record<string, string> }> }>>([]);
+  // Dynamically fetch available services from DB with fallback
+  const [availableServices, setAvailableServices] = useState<Array<{ name: string; sub: Array<{ name: string; description: string; workTypes: string[]; prices: Record<string, string> }> }>>([]);
+  
   useEffect(() => {
+    const fallback = VENDOR_SERVICES.map(svc => ({
+      name: svc.name,
+      description: svc.description,
+      sub: svc.sub.map(s => ({
+        name: s.name,
+        description: s.description,
+        workTypes: WORK_TYPES_MAPPING[s.name] || [],
+        prices: {}
+      }))
+    }));
+
     api.get('/api/services')
       .then(res => {
         const dbServices = (res.data || []).map((s: any) => ({
@@ -477,12 +488,22 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
             prices: typeof sub === 'string' ? {} : (sub.prices || {})
           })),
         }));
-        setDbServiceOptions(dbServices);
+        
+        const merged = fallback.map(fb => {
+          const found = dbServices.find((f: any) => f.name.toLowerCase() === fb.name.toLowerCase());
+          return found || fb;
+        });
+        
+        dbServices.forEach((f: any) => {
+          if (!merged.find(m => m.name.toLowerCase() === f.name.toLowerCase())) {
+            merged.push(f);
+          }
+        });
+        
+        setAvailableServices(merged);
       })
-      .catch(() => setDbServiceOptions([]));
+      .catch(() => setAvailableServices(fallback));
   }, []);
-
-  const availableServices = dbServiceOptions;
 
   const toggleService = (serviceName: string) => {
     const exists = services.find(s => s.service === serviceName);
@@ -535,11 +556,9 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
     }));
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = async () => {
     setError('');
-    if (!form.company_name.trim()) { setError('Company name is required'); return; }
-    if (!form.first_name.trim()) { setError('First name is required'); return; }
-    if (!form.last_name.trim()) { setError('Last name is required'); return; }
+    if (!form.contact_person.trim()) { setError('Contact Person Full Name is required'); return; }
     if (services.length === 0) { setError('At least one service is required'); return; }
     for (const s of services) {
       const def = availableServices.find(vs => vs.name === s.service);
@@ -547,19 +566,19 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
         setError(`Select at least one sub-service for ${s.service}`);
         return;
       }
-      if (def && def.sub) {
-        for (const subName of s.sub_services) {
-          const dbSub = def.sub.find((ds: any) => ds.name === subName);
-          if (dbSub && dbSub.workTypes && dbSub.workTypes.length > 0) {
-            const hasWt = (s.work_types || []).some((wt: any) => wt.subService === subName);
-            if (!hasWt) {
-              setError(`Please select at least one work type for sub-service ${subName} under ${s.service}.`);
-              return;
-            }
-          }
-        }
-      }
     }
+    confirm({
+      title: 'Confirm Changes',
+      message: 'Are you sure you want to save these profile changes? This will immediately update the vendor\'s public profile and service offerings.',
+      confirmText: 'Yes, Save',
+      type: 'success',
+      onConfirm: () => {
+        confirmSave();
+      }
+    });
+  };
+
+  const confirmSave = async () => {
     setSaving(true);
     try {
       const mergedServices = services.map(sel => {
@@ -579,11 +598,15 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
         };
       });
 
+      const contactParts = form.contact_person.trim().split(' ');
+      const firstName = contactParts[0] || form.company_name;
+      const lastName = contactParts.slice(1).join(' ') || '';
+
       await onSave({
         company_name: form.company_name.trim(),
-        first_name: form.first_name.trim(),
-        last_name: form.last_name.trim(),
-        contact_person: `${form.first_name.trim()} ${form.last_name.trim()}`,
+        first_name: firstName,
+        last_name: lastName,
+        contact_person: form.contact_person.trim(),
         services: mergedServices,
         account_name: form.account_name.trim(),
         account_number: form.account_number.trim(),
@@ -597,120 +620,168 @@ function VendorEditModal({ vendor, onSave, onClose }: { vendor: any; onSave: (da
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
         <Card>
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Vendor</h3>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-brand-navy/5 dark:bg-brand-green/10 rounded-lg">
+                  <Edit className="w-5 h-5 text-brand-navy dark:text-brand-green" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Edit Vendor Profile</h3>
+              </div>
               <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X className="w-5 h-5" /></button>
             </div>
-            {error && <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">{error}</div>}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
-                <input value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
-                  <input value={form.first_name} onChange={e => { const v = e.target.value; setForm({ ...form, first_name: v.length > 0 ? v.charAt(0).toUpperCase() + v.slice(1) : v }); }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20" />
+            {error && <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-2"><AlertCircle className="w-4 h-4 shrink-0" /> {error}</div>}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column: Basic Information */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Edit className="w-4 h-4 text-slate-400" />
+                  <h4 className="font-semibold text-slate-800 dark:text-slate-200">Basic Information</h4>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
-                  <input value={form.last_name} onChange={e => { const v = e.target.value; setForm({ ...form, last_name: v.length > 0 ? v.charAt(0).toUpperCase() + v.slice(1) : v }); }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20" />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
+                  <input value={form.company_name} disabled title="Company name is tied to legal documents."
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/50 text-slate-500 cursor-not-allowed text-sm outline-none" />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
-                  <input value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })}
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact Person Full Name</label>
+                  <input value={form.contact_person} onChange={e => { const v = e.target.value; setForm({ ...form, contact_person: v.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }); }}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
-                    placeholder="Enter Account Name" />
+                    placeholder="e.g. Juan Dela Cruz" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
-                  <input value={form.account_number} onChange={e => setForm({ ...form, account_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
-                    placeholder="Enter Account Number" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
+                    <input value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
+                      placeholder="Enter Account Name" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
+                    <input value={form.account_number} onChange={e => setForm({ ...form, account_number: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-brand-navy/20"
+                      placeholder="Enter Account Number" />
+                  </div>
                 </div>
               </div>
-              {/* Services Selection */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Services</label>
-                <div className="max-h-96 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
-                  {availableServices.map(svc => {
-                    const isSelected = services.find(s => s.service === svc.name);
-                    return (
-                      <div key={svc.name} className="space-y-1">
-                        <button type="button" onClick={() => toggleService(svc.name)}
-                          className={`w-full p-2.5 rounded-lg border-2 transition-all text-left text-sm ${isSelected ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-900 dark:text-white">{svc.name}</span>
-                            {isSelected && <Check className="w-4 h-4 text-brand-green" />}
+
+              {/* Right Column: Services Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Wrench className="w-4 h-4 text-slate-400" />
+                  <h4 className="font-semibold text-slate-800 dark:text-slate-200">Manage Services</h4>
+                </div>
+                
+                {/* Current Services List */}
+                <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Current Services ({services.length})</span>
+                  </div>
+                  <div className="p-2 space-y-2 max-h-80 overflow-y-auto">
+                    {services.length === 0 && <p className="text-xs text-slate-500 text-center py-4">No services selected.</p>}
+                    {availableServices.filter(svc => services.find(s => s.service === svc.name)).map(svc => {
+                      const isSelected = services.find(s => s.service === svc.name)!;
+                      const isExpanded = expandedService === svc.name;
+                      return (
+                        <div key={svc.name} className="border-2 border-brand-green/30 dark:border-brand-green/20 rounded-lg overflow-hidden bg-brand-green/5 dark:bg-brand-green/5">
+                          <div className="flex items-center pr-2">
+                            <button type="button" onClick={() => { if(isExpanded) setExpandedService(null); else setExpandedService(svc.name); }}
+                              className="flex-1 flex items-center justify-between p-3 text-left transition-colors">
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-sm text-brand-navy dark:text-brand-green">{svc.name}</span>
+                              </div>
+                              <span className="text-xs text-brand-navy/70 dark:text-brand-green/70 font-medium bg-white/50 dark:bg-slate-800 px-2 py-1 rounded">
+                                {isSelected.sub_services.length} sub-services • {isExpanded ? 'Collapse' : 'Expand'}
+                              </span>
+                            </button>
+                            <button type="button" onClick={() => {
+                              confirm({
+                                title: 'Remove Service?',
+                                message: `Are you sure you want to remove ${svc.name} from this vendor? They will lose access to provide this service.`,
+                                confirmText: 'Remove',
+                                type: 'danger',
+                                onConfirm: () => {
+                                  setServices(services.filter(s => s.service !== svc.name));
+                                  setExpandedService(null);
+                                }
+                              });
+                            }} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors ml-1" title="Remove Service">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                        </button>
-                        {isSelected && svc.sub && svc.sub.length > 0 && (
-                          <div className="ml-4 mt-1 p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Sub-services & Work Types:</p>
-                            {svc.sub.map((sub: any) => {
-                              const subName = sub.name;
-                              const isSubSelected = isSelected.sub_services.includes(subName);
-                              const subServiceWorkTypes = sub.workTypes || [];
+                          
+                          <AnimatePresence>
+                            {isExpanded && svc.sub && svc.sub.length > 0 && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 p-3 pl-6 space-y-2">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Select Sub-services:</p>
+                                {svc.sub.map((sub: any) => {
+                                  const subName = sub.name;
+                                  const isSubSelected = isSelected.sub_services.includes(subName);
+                                  const subServiceWorkTypes = sub.workTypes || [];
 
-                              return (
-                                <div key={subName} className="space-y-1.5 border-l-2 border-slate-100 dark:border-slate-800 pl-3">
-                                  <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={isSubSelected} onChange={() => toggleSubService(svc.name, subName)}
-                                      className="w-3.5 h-3.5 rounded border-slate-300 text-brand-navy focus:ring-brand-navy" />
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
-                                  </label>
-
-                                  {isSubSelected && subServiceWorkTypes.length > 0 && (
-                                    <div className="ml-5 mt-1 space-y-1">
-                                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Select Work Types:</p>
-                                      {subServiceWorkTypes.map((wt: string) => {
-                                        const isWtSelected = isSelected.work_types?.some((vwt: any) => vwt.name === wt && vwt.subService === subName);
-
-                                        return (
-                                          <label key={wt} className="flex items-center gap-2 cursor-pointer py-0.5">
-                                            <input type="checkbox" checked={!!isWtSelected} onChange={() => toggleWorkType(svc.name, subName, wt, sub.prices?.[wt] || '0.00')}
-                                              className="w-3 h-3 rounded border-slate-300 text-brand-green focus:ring-brand-green" />
-                                            <span className="text-[11px] text-slate-655 dark:text-slate-345">{wt}</span>
-                                          </label>
-                                        );
-                                      })}
+                                  return (
+                                    <div key={subName} className="py-1 group border-b border-slate-200/50 dark:border-slate-700 last:border-0">
+                                      <label className="flex items-start gap-3 cursor-pointer">
+                                        <input type="checkbox" checked={isSubSelected} onChange={() => toggleSubService(svc.name, subName)}
+                                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-green focus:ring-brand-green bg-transparent" />
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{subName}</span>
+                                      </label>
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                                  );
+                                })}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                {services.length > 0 && (
-                  <div className="mt-2 p-2 rounded-lg bg-brand-green/10 border border-brand-green/20">
-                    <p className="text-xs font-medium text-brand-green">Selected: {services.map(s => `${s.service} (${s.sub_services.length})`).join(', ')}</p>
+
+                {/* Add Service Button & Section */}
+                {!showAddService && (
+                  <button type="button" onClick={() => setShowAddService(true)} className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-brand-green font-semibold flex items-center justify-center gap-2 hover:bg-brand-green/5 transition-colors">
+                    <Plus className="w-4 h-4" /> Add New Service
+                  </button>
+                )}
+                
+                {showAddService && (
+                  <div className="border-2 border-dashed border-brand-green/30 rounded-xl p-3 bg-brand-green/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-brand-navy dark:text-brand-green">Select Services to Add</span>
+                      <button type="button" onClick={() => setShowAddService(false)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Close</button>
+                    </div>
+                    
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                      {availableServices.filter(svc => !services.find(s => s.service === svc.name)).length === 0 && (
+                        <p className="text-xs text-slate-500 text-center py-2">No more services available to add.</p>
+                      )}
+                      {availableServices.filter(svc => !services.find(s => s.service === svc.name)).map(svc => (
+                        <button key={svc.name} type="button" onClick={() => toggleService(svc.name)} className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-between hover:border-brand-green hover:bg-brand-green/5 transition-all text-left">
+                          <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{svc.name}</span>
+                          <Plus className="w-4 h-4 text-brand-green" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex gap-3 pt-6">
+            
+            <div className="flex gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-700">
               <Button variant="ghost" className="flex-1" onClick={onClose}>Cancel</Button>
-              <Button variant="success" className="flex-1" onClick={handleSave} loading={saving}>Save Changes</Button>
+              <Button variant="success" className="flex-1" onClick={handleSaveClick} loading={saving}>Save Changes</Button>
             </div>
           </div>
         </Card>
+
+
       </motion.div>
     </div>
   );
 }
-
 // ─── Vendors Tab ────────────────────────────────────────────────────────────
 function VendorsTab() {
   const { confirm, ConfirmComponent } = useConfirm();
@@ -729,7 +800,8 @@ function VendorsTab() {
     password: '',
     confirmPassword: '',
     phone: '',
-    companyName: ''
+    companyName: '',
+    contactPersonFullName: ''
   });
   const [createError, setCreateError] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
@@ -860,6 +932,9 @@ function VendorsTab() {
     if (['username', 'email', 'password', 'confirmPassword'].includes(key)) {
       processedValue = value.replace(/\s/g, '');
     }
+    if (key === 'contactPersonFullName') {
+      processedValue = value.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
     setCreateForm(prev => ({ ...prev, [key]: processedValue }));
     if (key === 'username') {
       setUsernameError('');
@@ -870,7 +945,7 @@ function VendorsTab() {
   const handleCreateVendorSubmit = async () => {
     setCreateError('');
 
-    if (!createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.companyName) {
+    if (!createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.companyName || !createForm.contactPersonFullName) {
       setCreateError('All fields are required.');
       return;
     }
@@ -894,24 +969,29 @@ function VendorsTab() {
 
     setCreateSaving(true);
     try {
+      const contactParts = createForm.contactPersonFullName.trim().split(' ');
+      const firstName = contactParts[0] || createForm.companyName;
+      const lastName = contactParts.slice(1).join(' ') || '';
+
       const payload = {
         ...createForm,
-        firstName: createForm.companyName, // mapping companyName to firstName for backend
-        lastName: '',
+        firstName: firstName,
+        lastName: lastName,
+        contact_person: createForm.contactPersonFullName.trim(),
         services: [] // No services selected during admin creation
       };
       const res = await api.post('/api/admin/vendors/create', payload);
       const newVendor = {
         id: res.data.id,
         uid: res.data.id,
-        first_name: createForm.companyName,
-        last_name: '',
+        first_name: firstName,
+        last_name: lastName,
         username: createForm.username,
         email: createForm.email,
         phone: createForm.phone,
         company_name: createForm.companyName,
         city: '',
-        contact_person: createForm.companyName,
+        contact_person: createForm.contactPersonFullName.trim(),
         acc_approve: 'approved',
         is_approved: true,
         temp_delete: 0,
@@ -926,7 +1006,8 @@ function VendorsTab() {
         password: '',
         confirmPassword: '',
         phone: '',
-        companyName: ''
+        companyName: '',
+        contactPersonFullName: ''
       });
 
     } catch (err: any) {
@@ -1020,7 +1101,7 @@ function VendorsTab() {
           }
         },
       ]} data={vendors} loading={loading} searchPlaceholder="Search vendors..." />
-      {editItem && <VendorEditModal vendor={editItem} onSave={handleEditSave} onClose={() => setEditItem(null)} />}
+      {editItem && <VendorEditModal vendor={editItem} onSave={handleEditSave} onClose={() => setEditItem(null)} confirm={confirm} />}
       {viewItem && <VendorViewModal vendor={viewItem} onClose={() => setViewItem(null)} onApprove={(id) => { handleApprove(id, viewItem?.company_name); setViewItem(null); }} onReject={(id) => { handleReject(id, viewItem?.company_name); setViewItem(null); }} />}
       
       <ConfirmComponent />
@@ -1058,6 +1139,20 @@ function VendorsTab() {
                           maxLength={45}
                           className="input-base pl-10 text-sm"
                           placeholder="e.g. FixIt Quick Plumbing"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact Person Full Name</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={createForm.contactPersonFullName}
+                          onChange={(e) => updateCreateForm('contactPersonFullName', e.target.value.slice(0, 60))}
+                          maxLength={60}
+                          className="input-base pl-10 text-sm"
+                          placeholder="e.g. Juan Dela Cruz"
                         />
                       </div>
                     </div>

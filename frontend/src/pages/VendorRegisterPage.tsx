@@ -12,6 +12,7 @@ import api from '../services/apiService';
 
 interface FormData {
   companyName: string; username: string; email: string; password: string; confirmPassword: string;
+  contactPersonFullName: string;
   phone: string; role: 'vendor';
   // Business Details
   city: string; cityCode: string;
@@ -43,6 +44,7 @@ interface SelectedService {
 
 const initialFormData: FormData = {
   companyName: '', username: '', email: '', password: '', confirmPassword: '',
+  contactPersonFullName: '',
   phone: '', role: 'vendor' as const,
   city: '', cityCode: '',
   unitHouseNo: '', street: '', postalCode: '',
@@ -225,9 +227,9 @@ export default function VendorRegisterPage() {
     if (typeof value === 'string' && ['username', 'email', 'password', 'confirmPassword', 'phone'].includes(key)) {
       processedValue = value.replace(/\s/g, '');
     }
-    // Auto-capitalize first letter for firstName and lastName
-    if (typeof value === 'string' && ['firstName', 'lastName'].includes(key) && value.length > 0) {
-      processedValue = value.charAt(0).toUpperCase() + value.slice(1);
+    // Auto-capitalize first letter for firstName and lastName and contactPersonFullName
+    if (typeof value === 'string' && ['firstName', 'lastName', 'contactPersonFullName'].includes(key) && value.length > 0) {
+      processedValue = value.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
     setForm((prev) => ({ ...prev, [key]: processedValue }));
     if (key === 'username') {
@@ -379,7 +381,7 @@ export default function VendorRegisterPage() {
   const canNext = () => {
     let ok = false;
     if (step === 0) {
-      ok = !!(form.companyName && form.username && usernameValid && form.email && 
+      ok = !!(form.companyName && form.contactPersonFullName && form.username && usernameValid && form.email && 
              form.password && form.password === form.confirmPassword && form.password.length >= 8 &&
              form.phone && form.phone.length === 11);
     } else if (step === 1) {
@@ -448,14 +450,19 @@ export default function VendorRegisterPage() {
       
       const firstServiceName = servicesPayload.length > 0 ? servicesPayload[0].service : '';
 
+      const contactParts = form.contactPersonFullName.trim().split(' ');
+      const firstName = contactParts[0] || form.companyName;
+      const lastName = contactParts.slice(1).join(' ') || '';
+
       // Save profile directly to database
       const profile: any = {
         uid: user?.uid,
         email: form.email,
         username: form.username,
         role: 'vendor',
-        first_name: form.companyName,
-        last_name: '',
+        first_name: firstName,
+        last_name: lastName,
+        contact_person: form.contactPersonFullName.trim(),
         phone: form.phone,
         unit_house_no: '',
         street: form.street,
@@ -573,6 +580,12 @@ export default function VendorRegisterPage() {
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Business / Trade Name</label>
                     <div className="relative"><Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input value={form.companyName} onChange={(e) => update('companyName', e.target.value.slice(0, 45))} maxLength={45} className="input-base !py-2 pl-10" placeholder="e.g. FixIt Quick Plumbing" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Contact Person Full Name</label>
+                    <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input value={form.contactPersonFullName} onChange={(e) => update('contactPersonFullName', e.target.value.slice(0, 60))} maxLength={60} className="input-base !py-2 pl-10" placeholder="e.g. Juan Dela Cruz" required />
                     </div>
                   </div>
                   <div>
@@ -713,24 +726,6 @@ export default function VendorRegisterPage() {
                                                     </span>
                                                   </div>
                                                 </label>
-                                                
-                                                {subSvcSelected && sub.workTypes && sub.workTypes.length > 0 && (
-                                                  <div 
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="mt-1 ml-5 pl-1.5 pr-1.5 py-1 bg-slate-100/80 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700"
-                                                  >
-                                                    <div className="flex flex-wrap gap-1">
-                                                      {sub.workTypes.map((wt: string) => (
-                                                        <span 
-                                                          key={wt} 
-                                                          className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 transition-colors"
-                                                        >
-                                                          {wt}
-                                                        </span>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )}
                                               </div>
                                             );
                                           })}
