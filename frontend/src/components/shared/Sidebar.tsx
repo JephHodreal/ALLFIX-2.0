@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -136,20 +137,37 @@ function SidebarTooltip({
   fullWidth?: boolean;
   disabled?: boolean;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    if (ref.current) setRect(ref.current.getBoundingClientRect());
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => setIsHovered(false);
+
   return (
-    <div className={`relative ${disabled ? '' : 'group/tooltip'} flex items-center ${fullWidth ? 'w-full' : ''}`}>
+    <div
+      ref={ref}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`relative flex items-center ${fullWidth ? 'w-full' : ''}`}
+    >
       {children}
-      {!disabled && (
+      {!disabled && isHovered && rect && createPortal(
         <div
           className="
-            absolute pointer-events-none opacity-0 group-hover/tooltip:opacity-100
-            transition-all duration-150 ease-out scale-95 group-hover/tooltip:scale-100
+            fixed pointer-events-none opacity-100
+            animate-fade-in-fast scale-100
             bg-[#1c2434] dark:bg-slate-800 text-white font-medium tracking-wide shadow-xl rounded-lg px-3 py-1.5 whitespace-nowrap text-[12px] z-[9999]
-            left-11 top-1/2 -translate-y-1/2
           "
+          style={{ top: rect.top + rect.height / 2, left: 80, transform: 'translateY(-50%)' }}
         >
           {text}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -179,9 +197,9 @@ export function LogoutButton({ showText = true }: { showText?: boolean }) {
   const buttonContent = (
     <button
       onClick={handleLogout}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-slate-600 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-400 transition-all duration-200 active:scale-[0.98] focus:outline-none"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-[0.98] focus:outline-none"
     >
-      <LogOut className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0 transition-colors" />
+      <LogOut className="w-5 h-5 text-slate-400 flex-shrink-0 transition-colors" />
       {showText && (
         <span className="text-xs font-bold tracking-tight whitespace-nowrap">Logout</span>
       )}
@@ -230,8 +248,8 @@ function AdminSidebarSectionGroup({
               >
                 <div
                   className={`w-8 border-t-2 rounded-full transition-colors duration-150 ${open
-                      ? 'border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-600'
-                      : 'border-indigo-300 dark:border-indigo-700 hover:border-indigo-400 dark:hover:border-indigo-500'
+                      ? 'border-white/10 hover:border-white/30'
+                      : 'border-brand-green/50 hover:border-brand-green'
                     }`}
                 />
               </button>
@@ -241,9 +259,9 @@ function AdminSidebarSectionGroup({
           // Expanded sidebar → section title button with chevron
           <button
             onClick={() => setOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-1.5 mb-1 rounded-lg group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors duration-150 focus:outline-none"
+            className="w-full flex items-center justify-between px-3 py-1.5 mb-1 rounded-lg group hover:bg-white/5 transition-colors duration-150 focus:outline-none"
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green group-hover:text-white transition-colors whitespace-nowrap">
               {section.title}
             </span>
             <motion.div
@@ -251,7 +269,7 @@ function AdminSidebarSectionGroup({
               transition={{ duration: 0.2, ease: 'easeInOut' }}
               className="flex-shrink-0"
             >
-              <ChevronDown className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-colors" />
             </motion.div>
           </button>
         )
@@ -277,8 +295,8 @@ function AdminSidebarSectionGroup({
                     className={({ isActive }) => `
                       group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
                       ${isActive
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm shadow-slate-900/10'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-white/10 text-white shadow-sm shadow-black/20'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
                       }
                     `}
                   >
@@ -286,13 +304,13 @@ function AdminSidebarSectionGroup({
                       <>
                         {isActive && (
                           <div
-                            className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
+                            className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-brand-green"
                           />
                         )}
                         <span
                           className={`flex-shrink-0 transition-colors ${isActive
-                              ? 'text-white dark:text-slate-900'
-                              : 'text-slate-400 dark:text-slate-500 group-hover/item:text-slate-600 dark:group-hover/item:text-slate-300'
+                              ? 'text-brand-green'
+                              : 'text-slate-500 group-hover/item:text-slate-300'
                             }`}
                         >
                           {item.icon}
@@ -347,12 +365,12 @@ function SidebarSectionGroup({
         collapsed ? (
           <div className="flex justify-center my-3 px-3 overflow-visible">
             <SidebarTooltip text={`${section.title} Section`} fullWidth={false}>
-              <div className="w-8 border-t-2 border-slate-200 dark:border-slate-800/80 rounded-full cursor-help transition-colors hover:border-slate-400 dark:hover:border-slate-600" />
+              <div className="w-8 border-t-2 border-white/10 rounded-full cursor-help transition-colors hover:border-white/30" />
             </SidebarTooltip>
           </div>
         ) : (
           <div className="px-3 py-1 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-green whitespace-nowrap">
               {section.title}
             </span>
           </div>
@@ -372,8 +390,8 @@ function SidebarSectionGroup({
                 return `
                 group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
                 ${forcedActive
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm shadow-slate-900/10'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white/10 text-white shadow-sm shadow-black/20'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }
               `}}
             >
@@ -383,13 +401,13 @@ function SidebarSectionGroup({
                 <>
                   {forcedActive && (
                     <div
-                      className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-indigo-500 dark:bg-indigo-400"
+                      className="absolute left-0 top-3 bottom-3 w-1 rounded-r-md bg-brand-green"
                     />
                   )}
                   <span
                     className={`flex-shrink-0 transition-colors ${forcedActive
-                        ? 'text-white dark:text-slate-900'
-                        : 'text-slate-400 dark:text-slate-500 group-hover/item:text-slate-600 dark:group-hover/item:text-slate-300'
+                        ? 'text-brand-green'
+                        : 'text-slate-500 group-hover/item:text-slate-300'
                       }`}
                   >
                     {item.icon}
@@ -441,7 +459,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
           }`}
       />
       {collapsed && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 opacity-0 group-hover/logo-btn:opacity-100 bg-slate-100 dark:bg-slate-800 transition-all duration-200 scale-90 group-hover/logo-btn:scale-100 z-10">
+        <div className="absolute inset-0 flex items-center justify-center rounded-full text-white opacity-0 group-hover/logo-btn:opacity-100 bg-white/10 transition-all duration-200 scale-90 group-hover/logo-btn:scale-100 z-10">
           <PanelLeftOpen className="w-[22px] h-[22px]" />
         </div>
       )}
@@ -454,12 +472,12 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
             transition={{ duration: 0.15 }}
             className="flex flex-col overflow-hidden text-left"
           >
-            <span className="text-[1.15rem] font-bold tracking-normal leading-none mb-0.5 text-slate-900 dark:text-white transition-colors duration-300">
-              All<span className="text-[#017550]">F</span>
-              <span className="text-[#fcbc26]">i</span>
-              <span className="text-[#d8242b]">x</span>.ph
+            <span className="text-[1.15rem] font-bold tracking-normal leading-none mb-0.5 text-white transition-colors duration-300">
+              All<span className="text-brand-green">F</span>
+              <span className="text-brand-yellow">i</span>
+              <span className="text-brand-red">x</span>.ph
             </span>
-            <span className="text-[0.58rem] font-bold tracking-wider leading-none text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">
+            <span className="text-[0.58rem] font-bold tracking-wider leading-none text-slate-400 uppercase whitespace-nowrap">
               YOUR PERSONAL CONCIERGE
             </span>
           </motion.div>
@@ -475,11 +493,11 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         initial={false}
         animate={{ width: collapsed ? 72 : 280 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`fixed left-0 top-0 h-screen bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
+        className={`fixed left-0 top-0 h-screen bg-brand-navy border-r border-white/10 z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
           }`}
       >
         {/* Header */}
-        <div className="h-20 flex items-center justify-between px-3.5 border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 overflow-visible relative">
+        <div className="h-20 flex items-center justify-between px-3.5 border-b border-white/10 flex-shrink-0 overflow-visible relative">
           <div className="group/logo-btn flex items-center overflow-visible w-full">
             {collapsed ? (
               <SidebarTooltip text="Open Sidebar" fullWidth={false}>
@@ -494,7 +512,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
               <SidebarTooltip text="Close Sidebar" fullWidth={false}>
                 <button
                   onClick={onToggle}
-                  className="w-9 h-9 rounded-full text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 focus:outline-none"
+                  className="w-9 h-9 rounded-full text-slate-400 flex items-center justify-center hover:bg-white/10 hover:text-white transition-all active:scale-95 focus:outline-none"
                 >
                   <PanelLeftClose className="w-[22px] h-[22px]" />
                 </button>
@@ -503,10 +521,8 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
           )}
         </div>
 
-        {/* Nav */}
         <nav
-          className={`flex-1 py-4 px-3 custom-scrollbar overflow-visible ${collapsed ? 'overflow-y-visible' : 'overflow-y-auto overflow-x-hidden'
-            }`}
+          className="flex-1 py-4 px-3 custom-scrollbar overflow-y-auto overflow-x-hidden"
         >
           {sections.map((section, i) =>
             role === 'admin' ? (
@@ -518,13 +534,13 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-slate-200/80 dark:border-slate-800/80 p-3 flex-shrink-0 bg-white dark:bg-slate-900 overflow-visible">
+        <div className="border-t border-white/10 p-3 flex-shrink-0 bg-brand-navy overflow-visible">
           <LogoutButton showText={!collapsed} />
         </div>
       </motion.aside>
 
       {/* ── Mobile Bottom Tab Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-brand-navy/95 backdrop-blur-md border-t border-white/10 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
         {mobileTabs.map((tab) => (
           <NavLink
             key={tab.path}
@@ -532,13 +548,13 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
             end={tab.end}
             className={({ isActive }) => `
               flex flex-col items-center justify-center flex-1 h-full py-1 gap-1 relative group select-none transition-all duration-150 active:scale-95
-              ${isActive ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400 dark:text-slate-500'}
+              ${isActive ? 'text-white font-bold' : 'text-slate-400'}
             `}
           >
             {({ isActive }) => (
               <>
                 <span
-                  className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'
+                  className={`transition-transform duration-200 ${isActive ? 'text-brand-green scale-110' : 'group-hover:scale-105'
                     }`}
                 >
                   {tab.icon}
@@ -549,7 +565,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="activeMobileTabIndicator"
-                    className="absolute top-0 left-4 right-4 h-[3px] rounded-b-md bg-indigo-500 dark:bg-indigo-400"
+                    className="absolute top-0 left-4 right-4 h-[3px] rounded-b-md bg-brand-green"
                   />
                 )}
               </>
