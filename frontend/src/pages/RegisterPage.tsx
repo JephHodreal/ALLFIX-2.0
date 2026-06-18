@@ -441,18 +441,18 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
                       <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input value={form.firstName} onChange={(e) => update('firstName', e.target.value)} className="input-base pl-10" placeholder="Juan" required /></div>
+                        <input value={form.firstName} onChange={(e) => update('firstName', e.target.value)} className="input-base !py-2 pl-10" placeholder="Juan" required /></div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
-                      <input value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className="input-base" placeholder="Dela Cruz" required />
+                      <input value={form.lastName} onChange={(e) => update('lastName', e.target.value)} className="input-base !py-2" placeholder="Dela Cruz" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
                       <div className="relative flex gap-2">
-                        <input value={form.username} onChange={(e) => update('username', e.target.value)} onBlur={() => form.username && checkUsername(form.username)} className="input-base flex-1" placeholder="Username" required />
+                        <input value={form.username} onChange={(e) => update('username', e.target.value)} onBlur={() => form.username && checkUsername(form.username)} className="input-base !py-2 flex-1" placeholder="Username" required />
                         {usernameCheckLoading && <div className="text-xs text-slate-400 flex items-center">Checking...</div>}
                       </div>
                       {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
@@ -460,19 +460,19 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact Number</label>
                       <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base pl-10" placeholder="09XX XXX XXXX" required /></div>
+                        <input value={form.phone} onChange={(e) => update('phone', e.target.value)} className="input-base !py-2 pl-10" placeholder="09XX XXX XXXX" required /></div>
                       {form.phone && !isPhoneValid(form.phone) && <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>}
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
                     <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className="input-base pl-10" placeholder="you@example.com" required /></div>
+                      <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className="input-base !py-2 pl-10" placeholder="you@example.com" required /></div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} className="input-base pl-10 pr-10" placeholder="Min 8 characters" required />
+                      <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} className="input-base !py-2 pl-10 pr-10" placeholder="Min 8 characters" required />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         <FormTooltip text={showPassword ? "Hide" : "Show"} position="top">
                           <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 flex items-center justify-center p-1">
@@ -491,7 +491,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
                     <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="password" value={form.confirmPassword} onChange={(e) => update('confirmPassword', e.target.value)} className="input-base pl-10" placeholder="Re-enter password" required /></div>
+                      <input type="password" value={form.confirmPassword} onChange={(e) => update('confirmPassword', e.target.value)} className="input-base !py-2 pl-10" placeholder="Re-enter password" required /></div>
                     {form.confirmPassword && form.password !== form.confirmPassword && <p className="text-xs text-brand-red mt-1">Passwords don't match</p>}
                   </div>
                 </div>
@@ -526,33 +526,68 @@ export default function RegisterPage() {
               )}
 
               {step === 2 && (
-                <div className="space-y-6">
-                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
-                    <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Lock className="w-8 h-8" />
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                    <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Lock className="w-6 h-6" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Verify Your Account</h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">Verify Your Account</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs mb-4">
                       Please enter the 6-digit verification code sent to your email or phone number.
-                      <button type="button" onClick={async () => { try { await sendOtp(); alert('Code resent!'); } catch(e:any) { alert(e.message); } }} className="block mx-auto mt-2 text-brand-green font-semibold hover:underline text-xs">Resend Code</button>
+                      <button type="button" onClick={async () => { try { await sendOtp(); alert('Code resent!'); } catch(e:any) { alert(e.message); } }} className="block mx-auto mt-1.5 text-brand-green font-semibold hover:underline">Resend Code</button>
                     </p>
-                    <div className="max-w-xs mx-auto">
+                    <div className="max-w-[200px] mx-auto">
                       <input
                         type="text"
                         maxLength={6}
                         value={form.verificationCode}
                         onChange={(e) => update('verificationCode', e.target.value)}
-                        className="input-base text-center text-2xl tracking-[0.5em] font-semibold"
+                        className="input-base !py-2 text-center text-xl tracking-[0.5em] font-semibold"
                         placeholder="000000"
                         required
                       />
                     </div>
                   </div>
 
-                  <label className="flex items-start gap-3 cursor-pointer mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                    <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-1 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy shrink-0" />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                      I agree to the <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Terms & Conditions</a>, <a href="#" className="text-brand-navy dark:text-brand-green font-medium hover:underline">Privacy Policy</a>, and verify that I am booking as a real client.
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900/50 overflow-hidden shadow-inner">
+                    <div className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                       <span className="font-semibold text-slate-700 dark:text-slate-200 text-sm">Terms and Conditions</span>
+                       <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Scroll to read</span>
+                    </div>
+                    <div className="p-4 h-[180px] overflow-y-auto text-left text-xs text-slate-600 dark:text-slate-400 leading-relaxed custom-scrollbar">
+                      <p className="mb-3 text-[10px] uppercase font-bold text-slate-400">Last Updated: June 2026</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">1. Introduction & Account Registration</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">The Platform:</strong> allfix is an on-demand marketplace that connects users ("Clients") with independent service professionals ("Vendors").</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Account Security:</strong> Clients are responsible for maintaining the confidentiality of their client_xxxxxx account credentials. Any bookings made under a Client's account are considered authorized by that Client.</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">2. Scope of Services</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Independent Contractors:</strong> Vendors providing services across categories like CoolFix, GreenFix, HomeFix, TechFix, MoveFix, HealthFix, SaniFix, and SpaceFix are independent contractors, not employees of allfix.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Service Agreements:</strong> The actual contract for the performance of the service is directly between the Client and the Vendor. allfix solely provides the technology to facilitate the booking and process the payment.</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">3. Bookings, Payments, and Fees</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Accurate Descriptions:</strong> Clients must provide accurate descriptions of the problem or task when booking to ensure Vendors can give a proper assessment.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Payment Processing:</strong> All payments must be processed securely through the allfix app. Clients agree not to offer or accept direct cash payments to Vendors to bypass the platform.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Pricing & Adjustments:</strong> Initial quotes are estimates based on the Client's description. If the Vendor arrives and determines the scope of work is significantly different, the price may be adjusted within the app before work begins, subject to the Client's approval.</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">4. Cancellations and Rescheduling</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Client Cancellations:</strong> Clients may cancel a booking without penalty up to [Insert Time, e.g., 4 hours] before the scheduled service time.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Late Cancellations/No-Shows:</strong> Cancellations made within [Insert Time, e.g., 4 hours] of the scheduled time, or if the Client is not present at the location, may incur a late cancellation fee of [Insert Amount, e.g., ₱150] to compensate the Vendor for their time and travel.</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">5. Client Responsibilities and Safety</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Safe Environment:</strong> Clients agree to provide a safe, hazard-free working environment for the Vendor. Pets must be secured, and minors must be supervised by an adult while the service is being performed.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Right to Refuse:</strong> Vendors reserve the right to refuse or terminate service if they feel unsafe, if the working conditions are unsanitary, or if the Client exhibits abusive behavior.</p>
+
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-4 mb-1">6. Support, Disputes, and Liability</h4>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Dispute Resolution:</strong> If a Client is unsatisfied with a completed service, they must report the issue to allfix’s 24/7 support within [Insert Time, e.g., 24 hours] of the job completion.</p>
+                      <p className="mb-2"><strong className="text-slate-700 dark:text-slate-300">Limitation of Liability:</strong> While allfix vets its Vendors, the platform is not legally liable for any damages to property, incomplete work, or personal injury resulting from the service. Any claims for damages must be directed to the Vendor.</p>
+                    </div>
+                  </div>
+
+                  <label className="flex items-start gap-3 cursor-pointer pt-2">
+                    <input type="checkbox" checked={form.termsAccepted} onChange={(e) => update('termsAccepted', e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy shrink-0" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      I have read, understood, and agree to the Terms and Conditions above, and verify that I am booking as a real client.
                     </span>
                   </label>
                 </div>
@@ -567,9 +602,7 @@ export default function RegisterPage() {
                 <div><Button variant="ghost" onClick={() => setStep(s => s - 1)} icon={<ChevronLeft className="w-4 h-4" />}>Back</Button></div>
               </FormTooltip>
             ) : (
-              <div className="text-sm text-slate-500 dark:text-slate-400">
-                Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline transition-colors">Sign in</Link>
-              </div>
+              <div />
             )}
             {step < 2 ? (
               <FormTooltip text={canNext() ? "" : "Fill required fields"} position="top">
@@ -581,6 +614,12 @@ export default function RegisterPage() {
               </FormTooltip>
             )}
           </div>
+
+          {step === 0 && (
+            <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
+              Already have an account? <Link to={ROUTES.login} className="text-brand-navy dark:text-brand-green font-semibold hover:underline transition-colors">Sign in</Link>
+            </p>
+          )}
 
         </div>
       </div>

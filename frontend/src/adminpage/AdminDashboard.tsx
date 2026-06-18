@@ -724,19 +724,13 @@ function VendorsTab() {
   // Creation form states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
-    firstName: '',
-    lastName: '',
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
     phone: '',
-    companyName: '',
-    city: '',
-    accountName: '',
-    accountNumber: ''
+    companyName: ''
   });
-  const [selectedServices, setSelectedServices] = useState<any[]>([]);
   const [createError, setCreateError] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -745,41 +739,6 @@ function VendorsTab() {
   const [usernameError, setUsernameError] = useState('');
   const [usernameValid, setUsernameValid] = useState(false);
 
-  const [cities, setCities] = useState<Array<{ code: string; name: string }>>([]);
-  const [citiesLoading, setCitiesLoading] = useState(true);
-
-  // Fetch NCR cities on component mount
-  useEffect(() => {
-    setCitiesLoading(true);
-    fetch('https://psgc.gitlab.io/api/regions/130000000/cities-municipalities/')
-      .then((r) => r.json())
-      .then((data) => {
-        setCities(data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
-        setCitiesLoading(false);
-      })
-      .catch(() => setCitiesLoading(false));
-  }, []);
-
-  // Dynamically fetch available services from DB for Create Vendor
-  const [dbCreateServiceOptions, setDbCreateServiceOptions] = useState<Array<{ name: string; sub: Array<{ name: string; description: string; workTypes: string[]; prices: Record<string, string> }> }>>([]);
-  useEffect(() => {
-    api.get('/api/services')
-      .then(res => {
-        const dbServices = (res.data || []).map((s: any) => ({
-          name: s.name,
-          sub: (s.subServices || []).map((sub: any) => ({
-            name: typeof sub === 'string' ? sub : sub.name,
-            description: typeof sub === 'string' ? '' : (sub.description || ''),
-            workTypes: typeof sub === 'string' ? [] : (sub.workTypes || []),
-            prices: typeof sub === 'string' ? {} : (sub.prices || {})
-          })),
-        }));
-        setDbCreateServiceOptions(dbServices);
-      })
-      .catch(() => setDbCreateServiceOptions([]));
-  }, []);
-
-  const dynamicServices = dbCreateServiceOptions;
 
   useEffect(() => {
     api.get('/api/vendors').then(r => {
@@ -901,9 +860,6 @@ function VendorsTab() {
     if (['username', 'email', 'password', 'confirmPassword'].includes(key)) {
       processedValue = value.replace(/\s/g, '');
     }
-    if (['firstName', 'lastName'].includes(key) && value.length > 0) {
-      processedValue = value.charAt(0).toUpperCase() + value.slice(1);
-    }
     setCreateForm(prev => ({ ...prev, [key]: processedValue }));
     if (key === 'username') {
       setUsernameError('');
@@ -911,73 +867,11 @@ function VendorsTab() {
     }
   };
 
-  const toggleService = (serviceName: string) => {
-    const exists = selectedServices.find(s => s.service === serviceName);
-    if (exists) {
-      setSelectedServices(selectedServices.filter(s => s.service !== serviceName));
-    } else {
-      setSelectedServices([...selectedServices, { service: serviceName, sub_services: [], work_types: [] }]);
-    }
-  };
-
-  const toggleSubService = (serviceName: string, subName: string) => {
-    setSelectedServices(selectedServices.map(s => {
-      if (s.service === serviceName) {
-        const has = s.sub_services.includes(subName);
-        const newSubServices = has 
-          ? s.sub_services.filter((x: string) => x !== subName) 
-          : [...s.sub_services, subName];
-        
-        const currentWts = s.work_types || [];
-        const newWts = has
-          ? currentWts.filter((wt: any) => wt.subService !== subName)
-          : currentWts;
-
-        return { 
-          ...s, 
-          sub_services: newSubServices,
-          work_types: newWts
-        };
-      }
-      return s;
-    }));
-  };
-
-  const toggleWorkType = (serviceName: string, subName: string, workTypeName: string, defaultPrice: string) => {
-    setSelectedServices(selectedServices.map(s => {
-      if (s.service === serviceName) {
-        const currentWts = s.work_types || [];
-        const exists = currentWts.some((wt: any) => wt.name === workTypeName && wt.subService === subName);
-        const updatedWts = exists
-          ? currentWts.filter((wt: any) => !(wt.name === workTypeName && wt.subService === subName))
-          : [...currentWts, { name: workTypeName, subService: subName, price: defaultPrice || '0.00', status: 'approved' }];
-        return {
-          ...s,
-          work_types: updatedWts
-        };
-      }
-      return s;
-    }));
-  };
-
   const handleCreateVendorSubmit = async () => {
     setCreateError('');
 
-    const hasValidServices = selectedServices.length > 0 && selectedServices.every(s => {
-      const serviceDef = dynamicServices.find(svc => svc.name === s.service);
-      if (!serviceDef) return false;
-      if (serviceDef.sub.length === 0) return true;
-      if (s.sub_services.length === 0) return false;
-      
-      return s.sub_services.every((subName: string) => {
-        const subDef = serviceDef.sub.find((sub: any) => sub.name === subName);
-        if (!subDef || !subDef.workTypes || subDef.workTypes.length === 0) return true;
-        return (s.work_types || []).some((wt: any) => wt.subService === subName);
-      });
-    });
-
-    if (!createForm.firstName || !createForm.lastName || !createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.companyName || !createForm.city || !hasValidServices) {
-      setCreateError('All fields and services are required.');
+    if (!createForm.username || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !createForm.companyName) {
+      setCreateError('All fields are required.');
       return;
     }
     if (!/^\d{11}$/.test(createForm.phone)) {
@@ -992,7 +886,8 @@ function VendorsTab() {
       setCreateError("Passwords do not match.");
       return;
     }
-    if (strength < 4) {
+    const pwStrength = passwordStrength(createForm.password);
+    if (pwStrength < 4) {
       setCreateError("Password must be strong (min 8 chars, uppercase, number, special char).");
       return;
     }
@@ -1001,61 +896,45 @@ function VendorsTab() {
     try {
       const payload = {
         ...createForm,
-        services: selectedServices
+        firstName: createForm.companyName, // mapping companyName to firstName for backend
+        lastName: '',
+        services: [] // No services selected during admin creation
       };
       const res = await api.post('/api/admin/vendors/create', payload);
       const newVendor = {
         id: res.data.id,
         uid: res.data.id,
-        first_name: createForm.firstName,
-        last_name: createForm.lastName,
+        first_name: createForm.companyName,
+        last_name: '',
         username: createForm.username,
         email: createForm.email,
         phone: createForm.phone,
         company_name: createForm.companyName,
-        city: createForm.city,
-        contact_person: `${createForm.firstName} ${createForm.lastName}`,
+        city: '',
+        contact_person: createForm.companyName,
         acc_approve: 'approved',
         is_approved: true,
         temp_delete: 0,
         last_login: null,
-        services: selectedServices
+        services: []
       };
       setVendors(prev => [newVendor, ...prev]);
       setShowCreateModal(false);
       setCreateForm({
-        firstName: '',
-        lastName: '',
         username: '',
         email: '',
         password: '',
         confirmPassword: '',
         phone: '',
-        companyName: '',
-        city: '',
-        accountName: '',
-        accountNumber: ''
+        companyName: ''
       });
-      setSelectedServices([]);
+
     } catch (err: any) {
       setCreateError(err.response?.data?.message || err.message || 'Failed to create vendor account.');
     } finally {
       setCreateSaving(false);
     }
   };
-
-  const hasValidServices = selectedServices.length > 0 && selectedServices.every(s => {
-    const serviceDef = dynamicServices.find(svc => svc.name === s.service);
-    if (!serviceDef) return false;
-    if (serviceDef.sub.length === 0) return true;
-    if (s.sub_services.length === 0) return false;
-    
-    return s.sub_services.every((subName: string) => {
-      const subDef = serviceDef.sub.find((sub: any) => sub.name === subName);
-      if (!subDef || !subDef.workTypes || subDef.workTypes.length === 0) return true;
-      return (s.work_types || []).some((wt: any) => wt.subService === subName);
-    });
-  });
 
   return (
     <>
@@ -1169,42 +1048,30 @@ function VendorsTab() {
                   )}
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First Name</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input
-                            value={createForm.firstName}
-                            onChange={(e) => updateCreateForm('firstName', e.target.value)}
-                            className="input-base pl-10 text-sm"
-                            placeholder="Juan"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input
-                            value={createForm.lastName}
-                            onChange={(e) => updateCreateForm('lastName', e.target.value)}
-                            className="input-base pl-10 text-sm"
-                            placeholder="Dela Cruz"
-                          />
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Business / Trade Name</label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={createForm.companyName}
+                          onChange={(e) => updateCreateForm('companyName', e.target.value.slice(0, 45))}
+                          maxLength={45}
+                          className="input-base pl-10 text-sm"
+                          placeholder="e.g. FixIt Quick Plumbing"
+                        />
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
-                      <div className="relative">
+                      <div className="relative flex gap-2">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           value={createForm.username}
-                          onChange={(e) => updateCreateForm('username', e.target.value)}
+                          onChange={(e) => updateCreateForm('username', e.target.value.slice(0, 30).replace(/\s/g, ''))}
+                          maxLength={30}
                           onBlur={() => createForm.username && checkUsername(createForm.username)}
-                          className="input-base pl-10 text-sm"
+                          className="input-base pl-10 text-sm flex-1"
                           placeholder="username"
                         />
                         {usernameCheckLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Checking...</div>}
@@ -1213,17 +1080,35 @@ function VendorsTab() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Primary Contact Email</label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           type="email"
                           value={createForm.email}
-                          onChange={(e) => updateCreateForm('email', e.target.value)}
+                          onChange={(e) => updateCreateForm('email', e.target.value.slice(0, 35).replace(/\s/g, ''))}
+                          maxLength={35}
                           className="input-base pl-10 text-sm"
                           placeholder="you@example.com"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="tel"
+                          value={createForm.phone}
+                          onChange={(e) => updateCreateForm('phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                          className="input-base pl-10 text-sm"
+                          placeholder="09XX XXX XXXX"
+                        />
+                      </div>
+                      {createForm.phone && createForm.phone.length !== 11 && (
+                        <p className="text-xs text-brand-red mt-1">Phone must be exactly 11 digits</p>
+                      )}
                     </div>
 
                     <div>
@@ -1233,7 +1118,7 @@ function VendorsTab() {
                         <input
                           type={showPassword ? 'text' : 'password'}
                           value={createForm.password}
-                          onChange={(e) => updateCreateForm('password', e.target.value)}
+                          onChange={(e) => updateCreateForm('password', e.target.value.replace(/\s/g, ''))}
                           className="input-base pl-10 pr-10 text-sm"
                           placeholder="Min 8 characters"
                         />
@@ -1260,7 +1145,7 @@ function VendorsTab() {
                         <input
                           type="password"
                           value={createForm.confirmPassword}
-                          onChange={(e) => updateCreateForm('confirmPassword', e.target.value)}
+                          onChange={(e) => updateCreateForm('confirmPassword', e.target.value.replace(/\s/g, ''))}
                           className="input-base pl-10 text-sm"
                           placeholder="Re-enter password"
                         />
@@ -1270,191 +1155,19 @@ function VendorsTab() {
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="tel"
-                          value={createForm.phone}
-                          onChange={(e) => updateCreateForm('phone', e.target.value)}
-                          className="input-base pl-10 text-sm"
-                          placeholder="09XX XXX XXXX"
-                        />
-                      </div>
-                      {createForm.phone && !/^\d{11}$/.test(createForm.phone) && (
-                        <p className="text-xs text-brand-red mt-1">Phone number must be exactly 11 digits</p>
-                      )}
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6">
+                      <Button variant="ghost" className="flex-grow sm:flex-1" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                      <Button
+                        variant="success"
+                        className="flex-grow sm:flex-1"
+                        onClick={handleCreateVendorSubmit}
+                        loading={createSaving}
+                        disabled={!createForm.companyName || !createForm.username || !usernameValid || !createForm.email || !createForm.password || !createForm.confirmPassword || createForm.phone.length !== 11 || createForm.password !== createForm.confirmPassword || strength < 4}
+                        icon={<Plus className="w-4 h-4" />}
+                      >
+                        Create Vendor
+                      </Button>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
-                      <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          value={createForm.companyName}
-                          onChange={(e) => updateCreateForm('companyName', e.target.value)}
-                          className="input-base pl-10 text-sm"
-                          placeholder="Company LLC"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cities / Municipalities</label>
-                      <div className="max-h-48 overflow-y-auto pr-1 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
-                        {citiesLoading ? (
-                          <p className="text-sm p-2 text-slate-500">Loading cities...</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                            {cities.map(c => {
-                              const selectedCities = createForm.city ? createForm.city.split(', ') : [];
-                              const isSelected = selectedCities.includes(c.name);
-                              return (
-                                <label key={c.code} className="flex items-center gap-2 p-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) => {
-                                      let updated = [...selectedCities];
-                                      if (e.target.checked) {
-                                        updated.push(c.name);
-                                      } else {
-                                        updated = updated.filter(city => city !== c.name);
-                                      }
-                                      updateCreateForm('city', updated.join(', '));
-                                    }}
-                                    className="w-4 h-4 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
-                                  />
-                                  <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      {createForm.city && (
-                        <p className="text-xs text-brand-green mt-1 font-medium">Selected: {createForm.city.split(', ').length} cities</p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Name</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input
-                            value={createForm.accountName}
-                            onChange={(e) => updateCreateForm('accountName', e.target.value)}
-                            className="input-base pl-10 text-sm"
-                            placeholder="Enter Bank or GCash Account Name..."
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
-                        <div className="relative">
-                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input
-                            value={createForm.accountNumber}
-                            onChange={(e) => updateCreateForm('accountNumber', e.target.value)}
-                            className="input-base pl-10 text-sm"
-                            placeholder="Enter Bank or GCash Account Number..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Services You Offer</label>
-                      <div className="max-h-96 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
-                        {dynamicServices.map(service => {
-                          const isSelected = selectedServices.find(s => s.service === service.name);
-                          return (
-                            <div key={service.name} className="space-y-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleService(service.name)}
-                                className={`w-full p-2.5 rounded-lg border-2 transition-all text-left text-sm ${isSelected
-                                  ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10'
-                                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                                  }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-semibold text-slate-900 dark:text-white">{service.name}</span>
-                                  {isSelected && <Check className="w-4 h-4 text-brand-green" />}
-                                </div>
-                              </button>
-
-                              {isSelected && service.sub.length > 0 && (
-                                <div className="ml-4 mt-1 p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
-                                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Sub-services & Work Types:</p>
-                                  {service.sub.map((sub: any) => {
-                                    const subName = sub.name;
-                                    const isSubSelected = isSelected.sub_services.includes(subName);
-                                    const subServiceWorkTypes = sub.workTypes || [];
-
-                                    return (
-                                      <div key={subName} className="space-y-1.5 border-l-2 border-slate-100 dark:border-slate-800 pl-3">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                          <input
-                                            type="checkbox"
-                                            checked={isSubSelected}
-                                            onChange={() => toggleSubService(service.name, subName)}
-                                            className="w-3.5 h-3.5 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
-                                          />
-                                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
-                                        </label>
-
-                                        {isSubSelected && subServiceWorkTypes.length > 0 && (
-                                          <div className="ml-5 mt-1 space-y-1">
-                                            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Select Work Types:</p>
-                                            {subServiceWorkTypes.map((wt: string) => {
-                                              const isWtSelected = isSelected.work_types?.some((vwt: any) => vwt.name === wt && vwt.subService === subName);
-
-                                              return (
-                                                <label key={wt} className="flex items-center gap-2 cursor-pointer py-0.5">
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={!!isWtSelected}
-                                                    onChange={() => toggleWorkType(service.name, subName, wt, sub.prices?.[wt] || '0.00')}
-                                                    className="w-3 h-3 rounded border-slate-300 text-brand-green focus:ring-brand-green"
-                                                  />
-                                                  <span className="text-[11px] text-slate-655 dark:text-slate-345">{wt}</span>
-                                                </label>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {selectedServices.length > 0 && (
-                        <div className="mt-2 p-2 rounded-lg bg-brand-green/10 border border-brand-green/20">
-                          <p className="text-xs font-medium text-brand-green">Selected: {selectedServices.map(s => `${s.service} (${s.sub_services.length})`).join(', ')}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <Button variant="ghost" className="flex-grow sm:flex-1" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-                    <Button
-                      variant="success"
-                      className="flex-grow sm:flex-1"
-                      onClick={handleCreateVendorSubmit}
-                      loading={createSaving}
-                      disabled={!createForm.firstName || !createForm.lastName || !createForm.username || !usernameValid || !createForm.email || !createForm.password || !createForm.confirmPassword || !createForm.phone || !/^\d{11}$/.test(createForm.phone) || !createForm.companyName || !createForm.city || !hasValidServices || createForm.password !== createForm.confirmPassword || strength < 4}
-                      icon={<Plus className="w-4 h-4" />}
-                    >
-                      Create Vendor
-                    </Button>
                   </div>
                 </div>
               </Card>
@@ -2089,7 +1802,8 @@ function RefundsTab() {
   const { confirm, ConfirmComponent } = useConfirm();
   const [refunds, setRefunds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { api.get('/api/refunds').then(r => setRefunds(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
+  const loadData = () => { api.get('/api/refunds').then(r => setRefunds(r.data)).catch(() => { }).finally(() => setLoading(false)); };
+  useEffect(() => { loadData(); }, []);
   return (
     <>
       <DataTable columns={[
