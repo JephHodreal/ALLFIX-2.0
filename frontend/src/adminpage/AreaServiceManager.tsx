@@ -4,6 +4,7 @@ import { MapPin, ChevronDown, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { Card } from '../components/shared/Card';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
+import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,6 @@ function ServiceToggleCard({
           : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-100/60 dark:border-slate-800/40 opacity-50 hover:opacity-65'
         }
       `}
-      style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* Delete button (only visible on hover) */}
       <div 
@@ -338,39 +338,31 @@ export default function AreaServiceManager() {
   const activeCount = Object.values(availability).filter(Boolean).length;
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="space-y-6">
 
       {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#10355f] dark:bg-[#1e3a5f] flex items-center justify-center shadow-sm">
-              <MapPin className="w-5 h-5 text-white" />
+      <AdminPageHeader
+        title="Area Service Availability"
+        subtitle="Toggle which AllFix services are available in each Metro Manila area."
+        icon={<MapPin />}
+        action={
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                {activeCount}/{allServicesList.length} active
+              </span>
             </div>
-            Area Service Availability
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Toggle which AllFix services are available in each Metro Manila area.
-          </p>
-        </div>
-
-        {/* Stats pill */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-              {activeCount}/{allServicesList.length} active
-            </span>
+            <button
+              onClick={() => fetchAvailability(selectedArea)}
+              className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-white transition-all shadow-sm"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
-          <button
-            onClick={() => fetchAvailability(selectedArea)}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-white transition-all shadow-sm"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Area Selector Card ── */}
       <Card>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock } from 'lucide-react';
+import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -1322,7 +1322,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         onChange={(e) => { setNewSlot({ ...newSlot, service: e.target.value, sub_service: '' }); }}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
                       >
-                        <option value="">Select main service...</option>
+                        <option value="" disabled>{vendorServices.length === 0 ? "⚠️ Add a service first in Service Management" : "Select main service..."}</option>
                         {vendorServices.map((s: any) => <option key={s.service} value={s.service}>{s.service}</option>)}
                       </select>
                     </div>
@@ -1441,6 +1441,21 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   const [createError, setCreateError] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [specDropdownOpen, setSpecDropdownOpen] = useState(false);
+
+  const toggleSpecialization = (mainService: string, subService: string) => {
+    setSelectedServices(prev => {
+      const existing = prev.find(s => s.service === mainService);
+      if (existing) {
+        const newSubs = existing.sub_services.includes(subService)
+          ? existing.sub_services.filter(s => s !== subService)
+          : [...existing.sub_services, subService];
+        if (newSubs.length === 0) return prev.filter(s => s.service !== mainService);
+        return prev.map(s => s.service === mainService ? { ...s, sub_services: newSubs } : s);
+      }
+      return [...prev, { service: mainService, sub_services: [subService] }];
+    });
+  };
 
   const toggleService = (serviceName: string) => {
     setSelectedServices(prev => {
@@ -1818,19 +1833,86 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Specialization / Subservices</label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          value={createForm.username}
-                          onChange={(e) => updateCreateForm('username', e.target.value)}
-                          onBlur={() => createForm.username && checkUsername(createForm.username)}
-                          className="input-base pl-10 text-sm"
-                          placeholder="username"
-                        />
-                        {usernameCheckLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Checking...</div>}
+                        <button
+                          type="button"
+                          onClick={() => setSpecDropdownOpen(!specDropdownOpen)}
+                          className="w-full flex items-center justify-between input-base !py-2.5 bg-white dark:bg-slate-900/50"
+                        >
+                          <span className={selectedServices.some(s => s.sub_services.length > 0) ? "text-slate-900 dark:text-white font-medium" : "text-slate-400"}>
+                            {selectedServices.some(s => s.sub_services.length > 0) 
+                              ? `${selectedServices.reduce((acc, s) => acc + s.sub_services.length, 0)} specialization(s) selected` 
+                              : 'Select specializations...'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${specDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {specDropdownOpen && (
+                          <div className="absolute z-10 w-full mt-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-xl max-h-60 overflow-y-auto">
+                            {vendorServices.length === 0 ? (
+                              <div className="p-4 text-center text-sm text-slate-500">No services assigned to your account yet.</div>
+                            ) : (
+                              vendorServices.map((svc: any) => (
+                                <div key={svc.service} className="p-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                                  <div className="px-2 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-md text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    {svc.service}
+                                  </div>
+                                  {(svc.sub_services || []).length === 0 ? (
+                                    <div className="px-2 py-1 text-xs text-slate-400">No subservices available</div>
+                                  ) : (
+                                    (svc.sub_services || []).map((sub: string) => {
+                                      const isSelected = selectedServices.find(s => s.service === svc.service)?.sub_services.includes(sub);
+                                      return (
+                                        <label key={sub} className="flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg group">
+                                          <input
+                                            type="checkbox"
+                                            checked={!!isSelected}
+                                            onChange={() => toggleSpecialization(svc.service, sub)}
+                                            className="w-4 h-4 rounded border-slate-300 text-brand-green focus:ring-brand-green"
+                                          />
+                                          <span className={`text-sm font-medium ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'}`}>
+                                            {sub}
+                                          </span>
+                                        </label>
+                                      )
+                                    })
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
+                      
+                      {selectedServices.some(s => s.sub_services.length > 0) && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedServices.map(s => 
+                            s.sub_services.map(sub => (
+                              <div key={`${s.service}-${sub}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand-green/10 border border-brand-green/20 text-xs font-medium text-brand-green">
+                                {sub}
+                                <button type="button" onClick={() => toggleSpecialization(s.service, sub)} className="p-0.5 hover:bg-brand-green/20 rounded">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="tel"
+                          value={createForm.phone}
+                          onChange={(e) => updateCreateForm('phone', e.target.value)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="09XX XXX XXXX"
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -1845,6 +1927,22 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                           placeholder="you@example.com"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={createForm.username}
+                          onChange={(e) => updateCreateForm('username', e.target.value)}
+                          onBlur={() => createForm.username && checkUsername(createForm.username)}
+                          className="input-base pl-10 text-sm"
+                          placeholder="username"
+                        />
+                        {usernameCheckLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Checking...</div>}
+                      </div>
+                      {usernameError && <p className="text-xs text-brand-red mt-1">{usernameError}</p>}
                     </div>
 
                     <div>
@@ -1888,81 +1986,6 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                       </div>
                       {createForm.confirmPassword && createForm.password !== createForm.confirmPassword && (
                         <p className="text-xs text-brand-red mt-1">Passwords don't match</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="tel"
-                          value={createForm.phone}
-                          onChange={(e) => updateCreateForm('phone', e.target.value)}
-                          className="input-base pl-10 text-sm"
-                          placeholder="09XX XXX XXXX"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Services You Offer</label>
-                      <div className="max-h-60 overflow-y-auto pr-1 space-y-2 border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-800/50">
-                        {vendorServices.map(service => {
-                          const isSelected = selectedServices.find(s => s.service === service.service);
-                          return (
-                            <div key={service.service} className="space-y-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleService(service.service)}
-                                className={`w-full p-2 rounded-lg border transition-all text-left text-xs ${isSelected
-                                  ? 'border-brand-navy dark:border-brand-green bg-brand-navy/5 dark:bg-brand-green/10'
-                                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                                  }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-semibold text-slate-900 dark:text-white">{service.service}</span>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-brand-green" />}
-                                </div>
-                              </button>
-
-                              {(() => {
-                                const dbService = dbServices.find(
-                                  (ds: any) => ds.name.toLowerCase() === service.service.toLowerCase()
-                                );
-                                const dbSubServices = dbService?.subServices || [];
-                                return isSelected && dbSubServices.length > 0 && (
-                                  <div className="ml-3 mt-1 p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sub-services:</p>
-                                    {dbSubServices.map((sub: any) => {
-                                      const subName = sub.name || sub;
-                                      const isSubSelected = isSelected.sub_services.includes(subName);
-
-                                      return (
-                                        <div key={subName} className="space-y-1 border-l-2 border-slate-100 dark:border-slate-800 pl-2">
-                                          <label className="flex items-center gap-1.5 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={isSubSelected}
-                                              onChange={() => toggleSubService(service.service, subName)}
-                                              className="w-3 h-3 rounded border-slate-300 text-brand-navy focus:ring-brand-navy"
-                                            />
-                                            <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{subName}</span>
-                                          </label>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {selectedServices.length > 0 && (
-                        <div className="mt-2 p-1.5 rounded-lg bg-brand-green/10 border border-brand-green/20">
-                          <p className="text-[10px] font-medium text-brand-green">Selected: {selectedServices.map(s => `${s.service} (${s.sub_services.length})`).join(', ')}</p>
-                        </div>
                       )}
                     </div>
                   </div>

@@ -59,10 +59,10 @@ interface StatCardProps {
 }
 
 const colorClasses = {
-  navy: 'from-brand-navy/10 to-brand-navy/5 text-brand-navy dark:from-brand-navy/20 dark:to-brand-navy/10 dark:text-blue-400',
-  green: 'from-brand-green/10 to-brand-green/5 text-brand-green dark:from-brand-green/20 dark:to-brand-green/10 dark:text-green-400',
-  yellow: 'from-brand-yellow/10 to-brand-yellow/5 text-amber-600 dark:from-brand-yellow/20 dark:to-brand-yellow/10 dark:text-amber-400',
-  red: 'from-brand-red/10 to-brand-red/5 text-brand-red dark:from-brand-red/20 dark:to-brand-red/10 dark:text-red-400',
+  navy: 'bg-brand-navy/15 text-brand-navy dark:bg-brand-navy/20 dark:text-blue-400',
+  green: 'bg-brand-green/15 text-green-700 dark:bg-brand-green/20 dark:text-green-400',
+  yellow: 'bg-brand-yellow/15 text-amber-700 dark:bg-brand-yellow/20 dark:text-amber-400',
+  red: 'bg-brand-red/15 text-red-700 dark:bg-brand-red/20 dark:text-red-400',
 };
 
 export function StatCard({ title, value, icon, trend, color = 'navy' }: StatCardProps) {
@@ -86,7 +86,7 @@ export function StatCard({ title, value, icon, trend, color = 'navy' }: StatCard
           )}
         </div>
         <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center`}
+          className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClasses[color]}`}
         >
           {icon}
         </div>

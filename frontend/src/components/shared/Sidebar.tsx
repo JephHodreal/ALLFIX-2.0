@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, CalendarDays, Star, ClipboardList,
   CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
   Home, Wrench, UserCog, Building2, User,
-  History, Receipt, Ticket, Tag, UserCheck, Wallet, MessageSquare,
+  History, ArrowRightLeft, Ticket, Tag, UserCheck, Wallet, MessageSquare,
   Bell, HelpCircle, ChevronDown, MapPin, Image
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
@@ -39,7 +39,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
     {
       title: 'Finance',
       items: [
-        { label: 'Transactions', path: '/admin/transactions', icon: <Receipt className="w-5 h-5" /> },
+        { label: 'Transactions', path: '/admin/transactions', icon: <ArrowRightLeft className="w-5 h-5" /> },
         { label: 'Payouts', path: '/admin/payouts', icon: <CreditCard className="w-5 h-5" /> },
         { label: 'Refunds', path: '/admin/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
         { label: 'Payment Methods', path: '/admin/payments', icon: <Wallet className="w-5 h-5" /> },
@@ -295,7 +295,7 @@ function AdminSidebarSectionGroup({
                     className={({ isActive }) => `
                       group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
                       ${isActive
-                        ? 'bg-white/10 text-white shadow-sm shadow-black/20'
+                        ? 'bg-brand-green/15 text-white shadow-sm shadow-black/20'
                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                       }
                     `}
@@ -390,7 +390,7 @@ function SidebarSectionGroup({
                 return `
                 group/item flex items-center gap-3 px-3 py-2.5 rounded-xl relative transition-all duration-200 active:scale-[0.98] w-full
                 ${forcedActive
-                  ? 'bg-white/10 text-white shadow-sm shadow-black/20'
+                  ? 'bg-brand-green/15 text-white shadow-sm shadow-black/20'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }
               `}}
@@ -493,7 +493,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         initial={false}
         animate={{ width: collapsed ? 72 : 280 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`fixed left-0 top-0 h-screen bg-brand-navy border-r border-white/10 z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
+        className={`fixed left-0 top-0 h-screen bg-brand-navy dark:bg-[#020617] border-r border-white/10 dark:border-[#1E293B] z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
           }`}
       >
         {/* Header */}
@@ -534,13 +534,13 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-white/10 p-3 flex-shrink-0 bg-brand-navy overflow-visible">
+        <div className="border-t border-white/10 p-3 flex-shrink-0 bg-transparent overflow-visible">
           <LogoutButton showText={!collapsed} />
         </div>
       </motion.aside>
 
       {/* ── Mobile Bottom Tab Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-brand-navy/95 backdrop-blur-md border-t border-white/10 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-brand-navy/95 dark:bg-[#020617]/95 backdrop-blur-md border-t border-white/10 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
         {mobileTabs.map((tab) => (
           <NavLink
             key={tab.path}

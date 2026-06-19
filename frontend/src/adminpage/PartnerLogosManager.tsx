@@ -4,6 +4,7 @@ import { Card } from '../components/shared/Card';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import api from '../services/apiService';
+import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 
 export default function PartnerLogosManager() {
   const [logos, setLogos] = useState<any[]>([]);
@@ -114,17 +115,16 @@ export default function PartnerLogosManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Partner Logos</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage the partner logos displayed in the auto-scrolling ticker on the Vendor Landing page.
-          </p>
-        </div>
-        <Button onClick={() => { setShowAddModal(true); setError(''); setPreviewFailed(false); }} icon={<Plus className="w-4 h-4" />}>
-          Add Partner Logo
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Partner Logos"
+        subtitle="Manage the partner logos displayed in the auto-scrolling ticker on the Vendor Landing page."
+        icon={<Image />}
+        action={
+          <Button onClick={() => { setShowAddModal(true); setError(''); setPreviewFailed(false); }} icon={<Plus className="w-4 h-4" />}>
+            Add Partner Logo
+          </Button>
+        }
+      />
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

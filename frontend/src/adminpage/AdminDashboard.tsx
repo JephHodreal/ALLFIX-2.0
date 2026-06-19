@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -20,10 +20,12 @@ import AddServiceWizard from './AddServiceWizard';
 import AreaServiceManager from './AreaServiceManager';
 import { useTheme } from '../context/ThemeContext';
 import PartnerLogosManager from './PartnerLogosManager';
+import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
 function DashboardHome() {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [revenueTrend, setRevenueTrend] = useState<any[]>([]);
   const [jobTrend, setJobTrend] = useState<any[]>([]);
@@ -45,6 +47,11 @@ function DashboardHome() {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Dashboard"
+        subtitle="Welcome to your admin dashboard. Here is a summary of your platform's performance."
+        icon={<LayoutDashboard />}
+      />
       {/* Primary Analytics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Customers" value={stats?.totalCustomers ?? 0} icon={<Users className="w-5 h-5" />} color="navy" />
@@ -54,18 +61,76 @@ function DashboardHome() {
       </div>
 
       {/* Service Request Counters */}
-      <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-        <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5">Service Management Requests</h4>
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-          <StatCard title="Pending Work Types" value={stats?.pendingWorkTypes ?? 0} icon={<Sparkles className="w-5 h-5" />} color="navy" />
+      <div 
+        onClick={() => {
+          if ((stats?.pendingWorkTypes ?? 0) > 0) {
+            navigate('/admin/services');
+          }
+        }}
+        className={`relative overflow-hidden bg-[#021024] rounded-2xl p-4 sm:p-5 shadow-lg border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
+          (stats?.pendingWorkTypes ?? 0) > 0 
+            ? 'cursor-pointer hover:shadow-xl hover:scale-[1.01] hover:border-brand-green/30 group' 
+            : ''
+        }`}
+      >
+        {/* Subtle glow effect */}
+        <div className="absolute top-0 right-0 w-[400px] h-full bg-brand-green/5 blur-[80px] rounded-full pointer-events-none" />
+        
+        <div className="relative z-10">
+          <p className="text-[10px] font-extrabold text-brand-green uppercase tracking-widest mb-1">
+            Attention Required
+          </p>
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
+            Service Management Requests
+          </h3>
+          <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+            There are pending items that require your review and approval before they can go live.
+          </p>
+        </div>
+
+        <div className="relative z-10 flex items-center bg-[#1E293B] border border-[#334155] rounded-2xl p-3 gap-4 min-w-[200px] shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center flex-shrink-0 shadow-inner">
+            <Sparkles className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending Requests</p>
+            <p className={`text-2xl font-black leading-none ${(stats?.pendingWorkTypes ?? 0) > 0 ? 'text-brand-red' : 'text-white'}`}>
+              {stats?.pendingWorkTypes ?? 0}
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card><h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Revenue Trend</h3>
-          <LineChart data={revenueTrend} xKey="week" lines={[{ dataKey: 'revenue', color: isDark ? '#60a5fa' : '#041e41', name: 'Revenue (₱)' }]} /></Card>
-        <Card><h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Bookings Trend</h3>
-          <LineChart data={jobTrend} xKey="week" lines={[{ dataKey: 'bookings', color: '#20b759', name: 'Bookings' }]} /></Card>
+        <Card className="flex flex-col">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Revenue Trend</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total earnings over time</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-brand-navy/10 dark:bg-brand-navy/20 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="w-5 h-5 text-brand-navy dark:text-blue-400" />
+            </div>
+          </div>
+          <div className="flex-1 min-h-[300px] -ml-4">
+            <LineChart data={revenueTrend} xKey="week" lines={[{ dataKey: 'revenue', color: '#0EA5E9', name: 'Revenue (₱)' }]} />
+          </div>
+        </Card>
+
+        <Card className="flex flex-col">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Bookings Trend</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total bookings over time</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center flex-shrink-0">
+              <ClipboardList className="w-5 h-5 text-brand-green" />
+            </div>
+          </div>
+          <div className="flex-1 min-h-[300px] -ml-4">
+            <LineChart data={jobTrend} xKey="week" lines={[{ dataKey: 'bookings', color: '#20b759', name: 'Bookings' }]} />
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -101,7 +166,8 @@ function CustomersTab() {
     setEditItem(null);
   };
   return (
-    <>
+    <div className="space-y-6">
+      <AdminPageHeader title="Customers" subtitle="Manage registered customers on the platform." icon={<Users />} />
       <DataTable columns={[
         { key: 'first_name', label: 'First Name', sortable: true },
         { key: 'last_name', label: 'Last Name', sortable: true },
@@ -137,7 +203,7 @@ function CustomersTab() {
         />
       )}
       <ConfirmComponent />
-    </>
+    </div>
   );
 }
 
@@ -1019,12 +1085,16 @@ function VendorsTab() {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Service Providers</h3>
-        <Button onClick={() => { setShowCreateModal(true); setCreateError(''); }} icon={<Plus className="w-4 h-4" />}>
-          Create Vendor
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Service Providers"
+        subtitle="Manage registered service vendors and their details."
+        icon={<Building2 />}
+        action={
+          <Button onClick={() => { setShowCreateModal(true); setCreateError(''); }} icon={<Plus className="w-4 h-4" />}>
+            Create Vendor
+          </Button>
+        }
+      />
 
       <DataTable columns={[
         { key: 'company_name', label: 'Company', sortable: true },
@@ -1811,38 +1881,45 @@ function BookingsTab() {
   }
 
   return (
-    <DataTable
-      columns={[
-        {
-          key: 'sub_service',
-          label: 'Service',
-          sortable: true,
-          render: (item: any) => item.sub_service || item.service_type
-        },
-        { key: 'scheduled_date', label: 'Date', sortable: true },
-        { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
-        {
-          key: 'actions',
-          label: 'View Details',
-          render: (item: any) => (
-            <Button
-              size="sm"
-              className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
-              onClick={(e: any) => {
-                e.stopPropagation();
-                setSelectedBooking(item);
-              }}
-              icon={<Eye className="w-4 h-4" />}
-            >
-              View Details
-            </Button>
-          )
-        },
-      ]}
-      data={bookings}
-      loading={loading}
-      searchPlaceholder="Search bookings..."
-    />
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Bookings"
+        subtitle="Manage and view all service bookings across the platform."
+        icon={<ClipboardList />}
+      />
+      <DataTable
+        columns={[
+          {
+            key: 'sub_service',
+            label: 'Service',
+            sortable: true,
+            render: (item: any) => item.sub_service || item.service_type
+          },
+          { key: 'scheduled_date', label: 'Date', sortable: true },
+          { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
+          {
+            key: 'actions',
+            label: 'View Details',
+            render: (item: any) => (
+              <Button
+                size="sm"
+                className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
+                onClick={(e: any) => {
+                  e.stopPropagation();
+                  setSelectedBooking(item);
+                }}
+                icon={<Eye className="w-4 h-4" />}
+              >
+                View Details
+              </Button>
+            )
+          },
+        ]}
+        data={bookings}
+        loading={loading}
+        searchPlaceholder="Search bookings..."
+      />
+    </div>
   );
 }
 
@@ -1967,7 +2044,9 @@ function PersonnelTab() {
   };
 
   return (
-    <DataTable columns={[
+    <div className="space-y-6">
+      <AdminPageHeader title="Service Personnel" subtitle="Manage the service personnel assigned by vendors." icon={<UserCog />} />
+      <DataTable columns={[
       { key: 'first_name', label: 'First Name', sortable: true },
       { key: 'last_name', label: 'Last Name', sortable: true },
       { key: 'company', label: 'Company', render: (item: any) => getCompanyName(item.vendor_id) },
@@ -1989,10 +2068,24 @@ function PersonnelTab() {
         }
       },
     ]} data={personnel.filter(p => p.temp_delete !== 1)} loading={loading} searchPlaceholder="Search personnel..." emptyTitle="No personnel" />
+    </div>
   );
 }
 
 // ─── Placeholder Pages ──────────────────────────────────────────────────────
+function MessagesTab() {
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Messages"
+        subtitle="View and manage user communications and support requests."
+        icon={<MessageSquare />}
+      />
+      <PlaceholderPage title="Messages" description="Message functionality coming soon." icon={<MessageSquare className="w-8 h-8" />} />
+    </div>
+  );
+}
+
 function PlaceholderPage({ title, description, icon }: { title: string; description: string; icon: React.ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center py-20">
@@ -2082,6 +2175,11 @@ function CalendarPage() {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Admin Calendar"
+        subtitle="View all scheduled service bookings and availability."
+        icon={<CalendarDays />}
+      />
       {/* Calendar Card */}
       <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl animate-in fade-in duration-200">
         <div className="p-6">
@@ -2420,10 +2518,11 @@ function ReviewsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Customer Reviews & Testimonials</h2>
-        <p className="text-sm text-slate-500">Monitor ratings, customer feedback, and select reviews to feature on the website's Client Stories.</p>
-      </div>
+      <AdminPageHeader
+        title="Customer Reviews & Testimonials"
+        subtitle="Monitor ratings, customer feedback, and select reviews to feature on the website's Client Stories."
+        icon={<Star />}
+      />
 
       <DataTable
         columns={[
@@ -3139,21 +3238,18 @@ function ServicesManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Service Management</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Overview of service categories, active brands, and subservices available on the platform.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {activeTab === 'catalog' ? (
+      <AdminPageHeader
+        title="Service Management"
+        subtitle="Overview of service categories, active brands, and subservices available on the platform."
+        icon={<Wrench />}
+        action={
+          activeTab === 'catalog' ? (
             <Button onClick={() => { setServiceToEdit(null); setShowAddModal(true); }} icon={<Plus className="w-4 h-4" />}>
               Add Service
             </Button>
-          ) : null}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {/* Primary tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800">
@@ -3554,17 +3650,11 @@ function TransactionsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-brand-navy dark:text-brand-green" />
-            <span>Admin Transactions</span>
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track completed services, system fee deductions, and service partner earnings.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Admin Transactions"
+        subtitle="Track completed services, system fee deductions, and service partner earnings."
+        icon={<ArrowRightLeft />}
+      />
 
       {/* Settings Panel & Premium Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -4306,17 +4396,11 @@ function PayoutsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-slate-905 dark:text-white flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-brand-navy dark:text-brand-green" />
-            <span>Payout Management</span>
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track GCash or Bank payout logs and receipts for service providers.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Payout Management"
+        subtitle="Track GCash or Bank payout logs and receipts for service providers."
+        icon={<CreditCard />}
+      />
 
       {/* Stats Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4923,17 +5007,16 @@ function VouchersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Promotional Vouchers</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Create, assign, and manage promotional discount vouchers for active customers.
-          </p>
-        </div>
-        <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
-          Create Voucher
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Promotional Vouchers"
+        subtitle="Create, assign, and manage promotional discount vouchers for active customers."
+        icon={<Ticket />}
+        action={
+          <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
+            Create Voucher
+          </Button>
+        }
+      />
 
       <Card>
         <div className="p-6">
@@ -5117,12 +5200,11 @@ function AssignedVouchersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Assigned Vouchers Tracker</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Monitor and track the usage of vouchers assigned to specific customer accounts.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Assigned Vouchers Tracker"
+        subtitle="Monitor and track the usage of vouchers assigned to specific customer accounts."
+        icon={<Tag />}
+      />
 
       <Card>
         <div className="p-6">
@@ -5466,17 +5548,16 @@ function RefundsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Refund Management</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Create direct booking refunds or process customer-initiated cancellation refund requests.
-          </p>
-        </div>
-        <Button onClick={handleOpenCreate} icon={<Plus className="w-4 h-4" />}>
-          Create Refund
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Refund Management"
+        subtitle="Create direct booking refunds or process customer-initiated cancellation refund requests."
+        icon={<RefreshCcw />}
+        action={
+          <Button onClick={handleOpenCreate} icon={<Plus className="w-4 h-4" />}>
+            Create Refund
+          </Button>
+        }
+      />
 
       <Card>
         <div className="p-6">
@@ -5970,17 +6051,16 @@ function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Payment Methods</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Configure available payment gateways and details for checkout.
-          </p>
-        </div>
-        <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
-          Add Payment Method
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Payment Methods"
+        subtitle="Configure available payment gateways and details for checkout."
+        icon={<Wallet />}
+        action={
+          <Button onClick={() => { setShowCreateModal(true); setError(''); }} icon={<Plus className="w-4 h-4" />}>
+            Add Payment Method
+          </Button>
+        }
+      />
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -6196,7 +6276,7 @@ export default function AdminDashboard() {
             {/* Overview */}
             <Route path="calendar" element={<CalendarPage />} />
             {/* Communications */}
-
+            <Route path="messages" element={<MessagesTab />} />
             <Route path="reviews" element={<ReviewsPage />} />
             {/* People */}
             <Route path="customers" element={<CustomersTab />} />
