@@ -11,6 +11,7 @@ import { EmptyState } from '../components/shared/EmptyState';
 import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
@@ -1428,6 +1429,8 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
 
   // Creation form states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
+  const [showCreateSuccessModal, setShowCreateSuccessModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     firstName: '',
     lastName: '',
@@ -1439,6 +1442,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   });
   const [selectedServices, setSelectedServices] = useState<Array<{ service: string; sub_services: string[] }>>([]);
   const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [specDropdownOpen, setSpecDropdownOpen] = useState(false);
@@ -1570,6 +1574,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   };
 
   const vendorServices = getFilteredVendorServices((profile as any)?.services || [], dbServices);
+
   const handleCreatePersonnelSubmit = async () => {
     setCreateError('');
 
@@ -1582,7 +1587,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
       return;
     }
     if (!usernameValid) {
-      setCreateError('Please use a valid, unique username.');
+      setCreateError('Username is invalid or already taken.');
       return;
     }
     if (createForm.password !== createForm.confirmPassword) {
@@ -1594,6 +1599,10 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
       return;
     }
 
+    setShowCreateConfirm(true);
+  };
+
+  const executeCreatePersonnelSubmit = async () => {
     setCreateSaving(true);
     try {
       const res = await api.post('/api/personnel/create-by-vendor', {
@@ -1613,6 +1622,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         last_login: null
       };
       setPersonnel(prev => [newPersonnel, ...prev]);
+      setShowCreateSuccessModal(true);
       setShowCreateModal(false);
       setCreateForm({
         firstName: '',
@@ -1785,7 +1795,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
       {/* Create Modal */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowCreateModal(false)}>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
               <Card>
@@ -2009,6 +2019,30 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Confirmation Modal for Creating Personnel */}
+      <ConfirmModal
+        isOpen={showCreateConfirm}
+        onClose={() => setShowCreateConfirm(false)}
+        onConfirm={executeCreatePersonnelSubmit}
+        title="Create Personnel Account"
+        message="Are you sure you want to create this personnel account?"
+        confirmText="Create Personnel"
+        cancelText="Cancel"
+        type="info"
+      />
+
+      {/* Success Modal for Creating Personnel */}
+      <ConfirmModal
+        isOpen={showCreateSuccessModal}
+        onClose={() => setShowCreateSuccessModal(false)}
+        onConfirm={() => setShowCreateSuccessModal(false)}
+        title="Personnel Account Successfully Created"
+        message="The personnel account has been successfully created. An email with their login credentials has been sent."
+        confirmText="OK"
+        hideCancel={true}
+        type="success"
+      />
     </div>
   );
 }
@@ -2739,7 +2773,7 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parent Service Category *</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service Category *</label>
                 <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })}
                   className="input-base text-sm" disabled={submitting}>
                   {dbServices.map(s => (
@@ -2749,8 +2783,19 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sub Service Name *</label>
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="input-base text-sm" placeholder="e.g. Deep Cleaning" disabled={submitting} />
+                <input 
+                  list="sub-service-choices"
+                  value={form.name} 
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="input-base text-sm" 
+                  placeholder="e.g. Deep Cleaning" 
+                  disabled={submitting} 
+                />
+                <datalist id="sub-service-choices">
+                  {dbServices.find(s => (s.id || s.name) === form.serviceId)?.subServices?.map((sub: any) => (
+                    <option key={sub.id || sub.name || sub} value={sub.name || sub} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description *</label>

@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info' | 'success';
+  hideCancel?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -22,7 +23,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  type = 'warning'
+  type = 'warning',
+  hideCancel = false
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -79,11 +81,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={onClose}
             className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-sm"
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] p-4 pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: -20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
               className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden pointer-events-auto"
             >
               <div className="p-6">
@@ -102,9 +104,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 </div>
               </div>
               <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                <Button variant="ghost" onClick={onClose} className="!px-4">
-                  {cancelText}
-                </Button>
+                {!hideCancel && (
+                  <Button variant="ghost" onClick={onClose} className="!px-4">
+                    {cancelText}
+                  </Button>
+                )}
                 <Button 
                   variant={getButtonVariant()} 
                   onClick={() => {

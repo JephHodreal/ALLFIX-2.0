@@ -326,4 +326,49 @@ public class EmailVerificationService {
         mailSender.send(message);
         System.out.println("sendAdminCreatedVendorWelcomeEmail: Successfully sent email to " + email);
     }
+
+    public void sendPersonnelWelcomeEmail(String email, String username, String password, String companyName) throws Exception {
+        System.out.println("sendPersonnelWelcomeEmail: Sending to " + email);
+
+        String frontendUrl = env.getProperty("frontend.url");
+        if (frontendUrl == null || frontendUrl.isBlank()) {
+            frontendUrl = "http://localhost:5175";
+        }
+        String loginUrl = frontendUrl + "/login";
+
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        
+        if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl) {
+            configureSender(helper, (org.springframework.mail.javamail.JavaMailSenderImpl) mailSender);
+        } else {
+            configureSender(helper, null);
+        }
+
+        helper.setTo(email);
+        helper.setSubject("Welcome to AllFix - Your Personnel Account is Ready!");
+
+        String contentHtml = 
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Welcome to AllFix!</h2>\n" +
+                "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 24px; margin-top: 0; text-align: center;\">\n" +
+                "                Congratulations, your account is created by the company: <strong>" + companyName + "</strong><br/>\n" +
+                "                You are now a partner of AllFix.\n" +
+                "              </p>\n" +
+                "              <div style=\"background-color: #f1f5f9; border-radius: 8px; padding: 24px; margin: 0 auto 24px auto; max-width: 400px; text-align: left;\">\n" +
+                "                <p style=\"font-size: 15px; color: #334155; margin: 0 0 12px 0;\"><strong>Username:</strong> " + username + "</p>\n" +
+                "                <p style=\"font-size: 15px; color: #334155; margin: 0;\"><strong>Temporary Password:</strong> <span style=\"font-family: monospace; background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px;\">" + password + "</span></p>\n" +
+                "              </div>\n" +
+                "              <p style=\"font-size: 14px; line-height: 1.5; color: #64748b; margin-bottom: 24px; text-align: center; max-width: 400px; margin-left: auto; margin-right: auto;\">\n" +
+                "                Please use the credentials above to log in to the AllFix platform. Once logged in, we highly recommend changing your temporary password immediately for security purposes.\n" +
+                "              </p>\n" +
+                "              <div style=\"text-align: center;\">\n" +
+                "                <a href=\"" + loginUrl + "\" style=\"display: inline-block; background-color: #20b759; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 36px; border-radius: 8px;\">Proceed to Login</a>\n" +
+                "              </div>";
+
+        helper.setText(getBaseEmailTemplate(contentHtml), true);
+        attachLogo(helper);
+
+        mailSender.send(message);
+        System.out.println("sendPersonnelWelcomeEmail: Successfully sent email to " + email);
+    }
 }

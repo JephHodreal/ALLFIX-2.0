@@ -30,11 +30,13 @@ public class PersonnelController {
     private final FirestoreService firestoreService;
     private final Environment env;
     private final JavaMailSender mailSender;
+    private final ph.allfix.service.EmailVerificationService emailVerificationService;
 
-    public PersonnelController(FirestoreService firestoreService, Environment env, JavaMailSender mailSender) {
+    public PersonnelController(FirestoreService firestoreService, Environment env, JavaMailSender mailSender, ph.allfix.service.EmailVerificationService emailVerificationService) {
         this.firestoreService = firestoreService;
         this.env = env;
         this.mailSender = mailSender;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping
@@ -104,6 +106,14 @@ public class PersonnelController {
             }
 
             Map<String, Object> vendorProfile = firestoreService.getById("vendors", vendorId);
+            if (vendorProfile == null) {
+                java.util.List<Map<String, Object>> list = firestoreService.getWhere("vendors", "auth_uid", vendorId);
+                if (!list.isEmpty()) {
+                    vendorProfile = list.get(0);
+                    vendorId = (String) vendorProfile.get("id"); // update vendorId to the actual document ID
+                }
+            }
+
             if (vendorProfile == null) {
                 logger.warn("Forbidden request: Vendor profile not found for ID {}", vendorId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -342,61 +352,26 @@ public class PersonnelController {
                     .body(Map.of("success", false, "message", "Firestore database save failed: " + e.getMessage()));
             }
 
-            // 3. Send standard welcome email via SMTP (fail-soft: do not block creation)
+            // 3. Send standard welcome email via SMTP using EmailVerificationService
             try {
-                String appPassword = env.getProperty("spring.mail.password");
-                if (appPassword == null || appPassword.isBlank() || "your-app-password".equalsIgnoreCase(appPassword.trim())) {
-                    appPassword = env.getProperty("APP_PASSWORD");
+                String companyName = (String) vendorProfile.get("company_name");
+                if (companyName == null || companyName.isBlank()) {
+                    companyName = (String) vendorProfile.get("name");
                 }
-                if (appPassword == null || appPassword.isBlank() || "your-app-password".equalsIgnoreCase(appPassword.trim())) {
-                    appPassword = System.getenv("APP_PASSWORD");
-                }
-                if (appPassword == null || appPassword.isBlank() || "your-app-password".equalsIgnoreCase(appPassword.trim())) {
-                    throw new Exception("SMTP APP_PASSWORD is not configured or still using placeholder in .env file. Please set a valid 16-character Google App Password.");
-                }
-
-                String fromEmail = env.getProperty("spring.mail.username");
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = env.getProperty("EMAIL_USERNAME");
-                }
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = System.getenv("EMAIL_USERNAME");
-                }
-                if (fromEmail == null || fromEmail.isBlank()) {
-                    fromEmail = "allfix.ph@gmail.com"; // Fallback
+                if (companyName == null || companyName.isBlank()) {
+                    String vFirstName = (String) vendorProfile.get("first_name");
+                    String vLastName = (String) vendorProfile.get("last_name");
+                    if (vFirstName != null && vLastName != null) {
+                        companyName = vFirstName + " " + vLastName;
+                    } else {
+                        companyName = "Your Employer";
+                    }
                 }
 
-                // Dynamically update mail sender credentials to ensure latest value is used
-                if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl) {
-                    org.springframework.mail.javamail.JavaMailSenderImpl impl = (org.springframework.mail.javamail.JavaMailSenderImpl) mailSender;
-                    impl.setUsername(fromEmail);
-                    impl.setPassword(appPassword);
-                }
-
-                String htmlBody = String.format(
-                    "<h3>Welcome to AllFix!</h3>" +
-                    "<p>An account has been created for you as personnel.</p>" +
-                    "<p><strong>Username:</strong> %s</p>" +
-                    "<p><strong>Email:</strong> %s</p>" +
-                    "<p><strong>Temporary Password:</strong> %s</p>" +
-                    "<br/>" +
-                    "<p>Best regards,<br/>AllFix Team</p>",
-                    username,
-                    email,
-                    password
-                );
-
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                helper.setFrom(fromEmail);
-                helper.setTo(email);
-                helper.setSubject("Welcome to AllFix - Your Personnel Account is Ready!");
-                helper.setText(htmlBody, true);
-
-                mailSender.send(message);
-                logger.info("Successfully sent welcome email via SMTP/App Password to {}", email);
+                emailVerificationService.sendPersonnelWelcomeEmail(email, username, password, companyName);
+                logger.info("Successfully sent welcome email to {}", email);
             } catch (Exception e) {
-                // Log SMTP/Firebase error properly with stack trace but DO NOT stop personnel creation
+                // Log SMTP error properly with stack trace but DO NOT stop personnel creation
                 logger.error("Welcome email transmission failed for email: " + email, e);
             }
 
