@@ -27,15 +27,25 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   hideCancel = false
 }) => {
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isOpen && e.key === 'Enter') {
+        e.preventDefault();
+        onConfirm();
+        onClose();
+      }
+    };
+
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, onConfirm, onClose]);
 
   const getIcon = () => {
     switch (type) {
@@ -81,7 +91,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={onClose}
             className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-sm"
           />
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[21vh] p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -103,14 +113,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+              <div className="p-6 pt-0 flex justify-end gap-3">
                 {!hideCancel && (
                   <Button variant="ghost" onClick={onClose} className="!px-4">
                     {cancelText}
                   </Button>
                 )}
-                <Button 
-                  variant={getButtonVariant()} 
+                <Button
+                  variant={getButtonVariant()}
                   onClick={() => {
                     onConfirm();
                     onClose();

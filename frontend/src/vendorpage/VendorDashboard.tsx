@@ -808,6 +808,11 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [timeError, setTimeError] = useState<string>('');
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<number[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
+  
+  const [showEditSlotModal, setShowEditSlotModal] = useState(false);
+  const [editSlot, setEditSlot] = useState<any>(null);
 
   const vendorProfile = profile as any;
   const vendorServices = getFilteredVendorServices(vendorProfile?.services || [], dbServices);
@@ -892,23 +897,23 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const handleAddSlot = async () => {
     setTimeError('');
     if (!newSlot.service || newSlot.total_slots < 1) {
-      alert('Fill all fields');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Fill all fields', type: 'danger' });
       return;
     }
 
     if (!isSelectionMode && !selectedDate) {
-      alert('No date selected');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'No date selected', type: 'danger' });
       return;
     }
     if (isSelectionMode && selectedDates.length === 0) {
-      alert('No dates selected');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'No dates selected', type: 'danger' });
       return;
     }
 
     // Check if service has sub-services; if not, sub_service not required
     const selectedService = vendorServices.find((s: any) => s.service === newSlot.service);
     if (selectedService?.sub_services?.length > 0 && !newSlot.sub_service) {
-      alert('Select sub-service');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Select sub-service', type: 'danger' });
       return;
     }
 
@@ -933,7 +938,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       if (isToday) {
         const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), fromHour, fromMin);
         if (fromDate < now) {
-          alert(`Cannot create slot with past time for today (${d.getDate()})`);
+          setAlertConfig({ isOpen: true, title: 'Error', message: `Cannot create slot with past time for today (${d.getDate()})`, type: 'danger' });
           return;
         }
       }
@@ -958,17 +963,51 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       setIsSelectionMode(false);
       setSelectedDates([]);
     } catch (err) {
-      alert('Failed to create slots for some or all dates');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to create slots for some or all dates', type: 'danger' });
     }
   };
 
-  const handleDeleteSlot = async (slotId: string) => {
-    if (!confirm('Are you sure you want to delete this slot? All availability for this time will be removed.')) return;
+  const handleDeleteSlot = (slotId: string) => {
+    setSlotToDelete(slotId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDeleteSlot = async () => {
+    if (!slotToDelete) return;
     try {
-      await api.delete(`/api/slots/${slotId}`);
+      await api.delete(`/api/slots/${slotToDelete}`);
       await fetchSlotsAndBookings();
+      setShowConfirmModal(false);
+      setSlotToDelete(null);
     } catch (err) {
-      alert('Failed to delete slot');
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete slot', type: 'danger' });
+    }
+  };
+
+  const handleSaveEditSlot = async () => {
+    if (!editSlot) return;
+    try {
+      // Find the original slot to calculate difference
+      const originalSlot = slots.find(s => s.id === editSlot.id);
+      if (!originalSlot) return;
+
+      const oldTotal = parseInt(originalSlot.total_slots || 0);
+      const oldAvailable = parseInt(originalSlot.available_slots || 0);
+      const newTotal = parseInt(editSlot.total_slots || 5);
+      
+      const diff = newTotal - oldTotal;
+      const newAvailable = Math.max(0, oldAvailable + diff);
+
+      await api.put(`/api/slots/${editSlot.id}`, {
+        total_slots: newTotal,
+        available_slots: newAvailable
+      });
+      
+      await fetchSlotsAndBookings();
+      setShowEditSlotModal(false);
+      setEditSlot(null);
+    } catch (err) {
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to update slot. Please try again.', type: 'danger' });
     }
   };
 
@@ -982,7 +1021,9 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Calendar Card */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        <div className="xl:col-span-2 space-y-6">
+          {/* Calendar Card */}
       <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
         <div className="p-6">
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -1126,46 +1167,53 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                     }
                   }}
                   className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${disabled
-                      ? 'bg-slate-50/40 dark:bg-slate-900/10 border-slate-100/50 dark:border-slate-800/10 text-slate-300 dark:text-slate-700 cursor-not-allowed'
+                      ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 opacity-60 cursor-not-allowed'
                       : isSelectionMode && selectedDates.includes(day)
                         ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
                         : hasSlots
-                          ? 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 border-emerald-400/20 text-white shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20'
+                          ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
                           : isToday
-                            ? 'bg-white dark:bg-slate-950 border-brand-green border-2 text-slate-900 dark:text-white shadow-sm font-bold'
-                            : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                            ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
+                            : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                 >
                   <div className="flex justify-between items-start">
-                    <span className={`text-sm font-black ${(hasSlots || (isSelectionMode && selectedDates.includes(day))) ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+                    <span className={`text-sm font-black ${
+                      isToday && !disabled
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : disabled
+                          ? 'text-slate-400 dark:text-slate-600'
+                          : (isSelectionMode && selectedDates.includes(day)) 
+                            ? 'text-white' 
+                            : 'text-slate-800 dark:text-white'
+                    }`}>
                       {day}
                     </span>
-                    {hasSlots && dateSlots.length > 0 && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSlot(dateSlots[0].id);
-                        }}
-                        className="text-white/80 hover:text-rose-500 transition-colors p-1"
-                        title="Delete slot"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {isToday && !disabled && !hasSlots && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse mt-1.5 mr-1" />
                     )}
                   </div>
 
                   {hasSlots && (
                     <div className="mt-auto flex flex-col gap-0.5 overflow-hidden">
-                      <div className="text-[11px] font-black text-white/95 px-0.5 mb-0.5">
-                        {totalAvailable} {totalAvailable === 1 ? 'slot' : 'slots'}
+                      <div className={`text-[10px] font-black rounded-md px-1 py-0.5 mb-0.5 inline-block w-fit max-w-full truncate ${
+                        disabled 
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-500' 
+                          : 'bg-brand-green/20 dark:bg-brand-green/30 text-brand-green dark:text-brand-green'
+                      }`}>
+                        {totalAvailable} avail
                       </div>
                       {dateSlots.slice(0, 2).map((s, idx) => (
-                        <div key={idx} className="text-[11px] font-bold bg-white/20 dark:bg-black/20 text-white rounded px-1.5 py-0.5 truncate" title={`${s.time_from} - ${s.time_to}`}>
+                        <div key={idx} className={`text-[9px] font-bold rounded px-1.5 py-0.5 truncate ${
+                          disabled ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-400' : 'bg-brand-green/10 dark:bg-brand-green/20 text-brand-green/90'
+                        }`} title={`${s.time_from} - ${s.time_to}`}>
                           {s.time_from} - {s.time_to}
                         </div>
                       ))}
                       {dateSlots.length > 2 && (
-                        <div className="text-[10px] font-bold text-white/80 px-1">
+                        <div className={`text-[9px] font-bold px-1 ${
+                          disabled ? 'text-slate-400' : 'text-brand-green/80'
+                        }`}>
                           +{dateSlots.length - 2} more
                         </div>
                       )}
@@ -1178,8 +1226,10 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         </div>
       </Card>
 
-      {/* Active slots grouped by service/sub-service */}
-      <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
+        </div>
+        <div className="space-y-6">
+          {/* Active slots grouped by service/sub-service */}
+          <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div>
@@ -1199,7 +1249,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
           ) : slots.length === 0 ? (
             <EmptyState title="No slots" description="Create slots to accept bookings" icon={<CalendarDays className="w-6 h-6 text-slate-400" />} />
           ) : (
-            <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+            <div className="flex flex-col gap-6 max-h-[700px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               {vendorServices.map((svc: any) => {
                 const serviceSlots = slots.filter(s => s.service_type === svc.service);
                 if (serviceSlots.length === 0) return null;
@@ -1217,13 +1267,14 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         return (
                           <div key={sub} className="space-y-2">
                             <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1">{sub}</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-3">
                               {subSlots.map((s, i) => {
                                 const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
                                 const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
                                 const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
                                 const safeTotal = Math.max(0, total);
-                                const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
+                                const booked = safeTotal - safeAvail;
+                                const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
 
                                 return (
                                   <div key={i} className="p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 group">
@@ -1238,33 +1289,48 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                                         )}
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${safeAvail > 0
-                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
-                                            : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
-                                          }`}>
-                                          {safeAvail > 0 ? 'Active' : 'Fully Booked'} • {safeAvail}/{safeTotal}
+                                        <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${
+                                          booked >= safeTotal 
+                                            ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40' 
+                                            : booked > 0
+                                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800/40'
+                                              : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
+                                        }`}>
+                                          {booked >= safeTotal ? 'Fully Booked' : 'Active'} • {booked}/{safeTotal} Booked
                                         </span>
-                                        <button
-                                          onClick={() => handleDeleteSlot(s.id)}
-                                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
-                                          title="Delete slot"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center">
+                                          <button
+                                            onClick={() => {
+                                              setEditSlot({ ...s });
+                                              setShowEditSlotModal(true);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"
+                                            title="Edit capacity"
+                                          >
+                                            <Edit className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteSlot(s.id)}
+                                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                                            title="Delete slot"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
 
-                                    {/* Sleek thin progress bar to represent remaining slots visually */}
+                                    {/* Sleek thin progress bar to represent booked slots visually */}
                                     <div className="mt-3 space-y-1">
                                       <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                         <div
-                                          className={`h-full rounded-full transition-all duration-500 ${percentAvail > 50
-                                              ? 'bg-emerald-500'
-                                              : percentAvail > 20
+                                          className={`h-full rounded-full transition-all duration-500 ${percentBooked >= 100
+                                              ? 'bg-rose-500'
+                                              : percentBooked >= 50
                                                 ? 'bg-amber-500'
-                                                : 'bg-rose-500'
+                                                : 'bg-emerald-500'
                                             }`}
-                                          style={{ width: `${percentAvail}%` }}
+                                          style={{ width: `${percentBooked}%` }}
                                         />
                                       </div>
                                     </div>
@@ -1283,6 +1349,8 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
           )}
         </div>
       </Card>
+        </div>
+      </div>
 
       {/* Add slot modal */}
       <AnimatePresence>
@@ -1408,6 +1476,93 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit Slot Capacity Modal */}
+      <AnimatePresence>
+        {showEditSlotModal && editSlot && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowEditSlotModal(false); setEditSlot(null); }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm"
+            >
+              <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl rounded-3xl overflow-hidden">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green">
+                        <Edit className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Edit Capacity</h3>
+                        <p className="text-xs font-semibold text-slate-500">{editSlot.slot_date} • {editSlot.time_from} - {editSlot.time_to}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowEditSlotModal(false); setEditSlot(null); }}
+                      className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Total Slots Capacity</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={editSlot.total_slots || 5}
+                        onChange={(e) => setEditSlot({ ...editSlot, total_slots: parseInt(e.target.value) || 1 })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-6">
+                    <Button
+                      variant="ghost"
+                      className="flex-1 text-slate-500 font-bold"
+                      onClick={() => { setShowEditSlotModal(false); setEditSlot(null); }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 bg-brand-green hover:bg-[#005e3f] text-white font-bold"
+                      onClick={handleSaveEditSlot}
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setSlotToDelete(null);
+        }}
+        onConfirm={confirmDeleteSlot}
+        title="Delete Slot"
+        message="Are you sure you want to delete this slot? All availability for this time will be removed."
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }
@@ -1418,6 +1573,15 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any>(null);
   const [editSelectedServices, setEditSelectedServices] = useState<Array<{ service: string; sub_services: string[] }>>([]);
+
+  const [alertConfig, setAlertConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info' as 'danger' | 'warning' | 'info' | 'success'
+  });
+  const [personnelToDelete, setPersonnelToDelete] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (editItem) {
@@ -1511,17 +1675,34 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
     } catch (e) { }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
+    setPersonnelToDelete(id);
+    setShowConfirmDelete(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!personnelToDelete) return;
     try {
-      await api.delete(`/api/personnel/${id}`);
-      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, temp_delete: 1 } : p));
-    } catch (e) { }
+      await api.delete(`/api/personnel/${personnelToDelete}`);
+      setPersonnel(ps => ps.map(p => p.id === personnelToDelete ? { ...p, temp_delete: 1 } : p));
+      setAlertConfig({ isOpen: true, title: 'Success', message: 'Personnel deleted successfully.', type: 'success' });
+    } catch (e) {
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete personnel.', type: 'danger' });
+    } finally {
+      setShowConfirmDelete(false);
+      setPersonnelToDelete(null);
+    }
   };
 
   const handleEditSave = async (data: Record<string, any>) => {
-    await api.put(`/api/personnel/${editItem.id}`, data);
-    setPersonnel(ps => ps.map(p => p.id === editItem.id ? { ...p, ...data } : p));
-    setEditItem(null);
+    try {
+      await api.put(`/api/personnel/${editItem.id}`, data);
+      setPersonnel(ps => ps.map(p => p.id === editItem.id ? { ...p, ...data } : p));
+      setEditItem(null);
+      setAlertConfig({ isOpen: true, title: 'Success', message: 'Personnel updated successfully.', type: 'success' });
+    } catch (e) {
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to update personnel.', type: 'danger' });
+    }
   };
 
   const checkUsername = async (username: string) => {
@@ -1636,6 +1817,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
       setSelectedServices([]);
     } catch (err: any) {
       setCreateError(err.response?.data?.message || err.message || 'Failed to create personnel account.');
+      setAlertConfig({ isOpen: true, title: 'Error', message: err.response?.data?.message || err.message || 'Failed to create personnel account.', type: 'danger' });
     } finally {
       setCreateSaving(false);
     }
@@ -2043,6 +2225,31 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         hideCancel={true}
         type="success"
       />
+
+      <ConfirmModal
+        isOpen={showConfirmDelete}
+        onClose={() => {
+          setShowConfirmDelete(false);
+          setPersonnelToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Personnel"
+        message="Are you sure you want to delete this personnel account?"
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        confirmText="OK"
+        hideCancel={true}
+      />
     </div>
   );
 }
@@ -2058,6 +2265,7 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -2123,7 +2331,7 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setError('');
     if (selectedServices.length === 0) {
       setError('Please select at least one service brand.');
@@ -2148,6 +2356,10 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
         }
       }
     }
+    setShowConfirm(true);
+  };
+
+  const confirmSave = async () => {
     setSaving(true);
     try {
       const mergedServices = selectedServices.map(sel => {
@@ -2167,9 +2379,11 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
         };
       });
       await onSave(mergedServices);
+      setShowConfirm(false);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to save services');
+      setShowConfirm(false);
     } finally {
       setSaving(false);
     }
@@ -2263,6 +2477,16 @@ function EditVendorServicesModal({ isOpen, onClose, dbServices, currentServices,
           </div>
         </Card>
       </motion.div>
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={confirmSave}
+        title="Confirm Save"
+        message="Are you sure you want to save these changes to your offered services?"
+        confirmText="Save Changes"
+        cancelText="Cancel"
+        type="info"
+      />
     </div>
   );
 }
@@ -2283,6 +2507,7 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
   const [success, setSuccess] = useState('');
   const [vendorRequests, setVendorRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const dbServiceMatch = dbServices.find(s => s.name.toLowerCase() === service.service.toLowerCase());
   const dbSubServiceMatch = dbServiceMatch?.subServices?.find((sub: any) => (sub.name || sub).toLowerCase() === subServiceName.toLowerCase());
@@ -2346,8 +2571,8 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
     setProposedRows(proposedRows.filter((_, i) => i !== index));
   };
 
-  const handleSubmitAll = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitAll = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
     if (!p) {
@@ -2377,6 +2602,10 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
       }
     }
 
+    setShowConfirm(true);
+  };
+
+  const confirmSubmitAll = async () => {
     setSubmitting(true);
     try {
       await Promise.all(
@@ -2398,8 +2627,10 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
       setProposedRows([]);
       fetchVendorRequests();
       onNewRequest();
+      setShowConfirm(false);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to submit requests');
+      setShowConfirm(false);
     } finally {
       setSubmitting(false);
     }
@@ -2604,6 +2835,16 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
           </div>
         </Card>
       </motion.div>
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={confirmSubmitAll}
+        title="Submit Proposals"
+        message="Are you sure you want to submit these work type proposals? An admin will review them shortly."
+        confirmText="Submit"
+        cancelText="Cancel"
+        type="info"
+      />
     </div>
   );
 }
@@ -2618,6 +2859,7 @@ function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
   const [form, setForm] = useState({ name: '', tagline: '', description: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -2626,8 +2868,8 @@ function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
     }
   }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
     if (!p) {
       setError('Not authenticated');
@@ -2637,6 +2879,10 @@ function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
       setError('All fields are required.');
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const confirmSubmit = async () => {
     setSubmitting(true);
     try {
       await api.post('/api/services/requests/main-service', {
@@ -2648,8 +2894,10 @@ function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
       });
       onSubmitted();
       onClose();
+      setShowConfirm(false);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to submit request');
+      setShowConfirm(false);
     } finally {
       setSubmitting(false);
     }
@@ -2692,12 +2940,23 @@ function ProposeMainServiceModal({ isOpen, onClose, onSubmitted }: {
               </div>
               <div className="flex gap-3 pt-4">
                 <Button variant="ghost" className="flex-1" onClick={onClose} type="button">Cancel</Button>
-                <Button variant="success" className="flex-1" type="submit" loading={submitting}>Submit Proposal</Button>
+                <Button variant="success" className="flex-1" type="button" onClick={() => handleSubmit()} loading={submitting}>Submit Proposal</Button>
               </div>
             </form>
           </div>
         </Card>
       </motion.div>
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={confirmSubmit}
+        title="Submit Proposal"
+        message="Are you sure you want to submit this main service proposal? An admin will review it shortly."
+        confirmText="Submit"
+        cancelText="Cancel"
+        type="info"
+      />
     </div>
   );
 }
@@ -2713,6 +2972,7 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
   const [form, setForm] = useState({ serviceId: '', name: '', description: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -2721,8 +2981,8 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
     }
   }, [isOpen, dbServices]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
     if (!p) {
       setError('Not authenticated');
@@ -2732,6 +2992,10 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
       setError('All fields are required.');
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const confirmSubmit = async () => {
     const parentSvc = dbServices.find(s => s.id === form.serviceId || s.name === form.serviceId);
     setSubmitting(true);
     try {
@@ -2745,8 +3009,10 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
       });
       onSubmitted();
       onClose();
+      setShowConfirm(false);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to submit request');
+      setShowConfirm(false);
     } finally {
       setSubmitting(false);
     }
@@ -2804,12 +3070,23 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
               </div>
               <div className="flex gap-3 pt-4">
                 <Button variant="ghost" className="flex-1" onClick={onClose} type="button">Cancel</Button>
-                <Button variant="success" className="flex-1" type="submit" loading={submitting}>Submit Proposal</Button>
+                <Button variant="success" className="flex-1" type="button" onClick={() => handleSubmit()} loading={submitting}>Submit Proposal</Button>
               </div>
             </form>
           </div>
         </Card>
       </motion.div>
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={confirmSubmit}
+        title="Submit Proposal"
+        message="Are you sure you want to submit this sub-service proposal? An admin will review it shortly."
+        confirmText="Submit"
+        cancelText="Cancel"
+        type="info"
+      />
     </div>
   );
 }

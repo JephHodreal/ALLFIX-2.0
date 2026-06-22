@@ -21,6 +21,7 @@ import AreaServiceManager from './AreaServiceManager';
 import { useTheme } from '../context/ThemeContext';
 import PartnerLogosManager from './PartnerLogosManager';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 
 // ─── Dashboard Tab ──────────────────────────────────────────────────────────
 function DashboardHome() {
@@ -1388,7 +1389,9 @@ function BookingsTab() {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showConfirmPayment, setShowConfirmPayment] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ show: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' | 'warning' } | null>(null);
 
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState('');
@@ -1465,9 +1468,9 @@ function BookingsTab() {
             : b
         )
       );
-      alert('Payment confirmed successfully!');
+      setAlertConfig({ show: true, type: 'success', title: 'Payment Confirmed', message: 'Payment confirmed successfully!' });
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to confirm payment.');
+      setAlertConfig({ show: true, type: 'danger', title: 'Error', message: err.response?.data?.message || 'Failed to confirm payment.' });
     }
   };
 
@@ -1519,7 +1522,7 @@ function BookingsTab() {
 
       setShowRefundForm(false);
       setProofImageUrl('');
-      alert('Booking cancelled and refund details linked successfully!');
+      setAlertConfig({ show: true, type: 'success', title: 'Booking Cancelled', message: 'Booking cancelled and refund details linked successfully!' });
     } catch (err: any) {
       setRefundError(err.response?.data?.message || 'Failed to submit refund.');
     } finally {
@@ -1699,7 +1702,7 @@ function BookingsTab() {
               <Button
                 variant="success"
                 className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl"
-                onClick={handleConfirmPayment}
+                onClick={() => setShowConfirmPayment(true)}
               >
                 Confirm
               </Button>
@@ -1708,36 +1711,53 @@ function BookingsTab() {
         )}
 
         {/* Cancel Confirmation Dialog */}
-        {showCancelConfirm && (
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
-            </div>
-            <p className="text-sm text-slate-655 dark:text-slate-350">
-              Are you sure you want to cancel this booking?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setShowCancelConfirm(false);
-                  // Open Refund Form & populate Refund Amount
-                  const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00';
-                  setRefundAmount(String(totalAmt));
-                  setRefundMethod('GCash');
-                  setReceiverGcashNumber('');
-                  setReferenceNumber('');
-                  setShowRefundForm(true);
-                }}
-              >
-                Yes, Cancel
-              </Button>
-            </div>
-          </div>
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            setShowCancelConfirm(false);
+            // Open Refund Form & populate Refund Amount
+            const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00';
+            setRefundAmount(String(totalAmt));
+            setRefundMethod('GCash');
+            setReceiverGcashNumber('');
+            setReferenceNumber('');
+            setShowRefundForm(true);
+          }}
+          title="Cancel Booking"
+          message="Are you sure you want to cancel this booking?"
+          confirmText="Yes, Cancel"
+          cancelText="No, Keep Booking"
+          type="danger"
+        />
+
+        {/* Confirm Payment Dialog */}
+        <ConfirmModal
+          isOpen={showConfirmPayment}
+          onClose={() => setShowConfirmPayment(false)}
+          onConfirm={async () => {
+            setShowConfirmPayment(false);
+            await handleConfirmPayment();
+          }}
+          title="Confirm Payment"
+          message="Are you sure you want to confirm the payment for this booking?"
+          confirmText="Yes, Confirm"
+          cancelText="No, Cancel"
+          type="info"
+        />
+
+        {/* Alert Modal */}
+        {alertConfig && (
+          <ConfirmModal
+            isOpen={alertConfig.show}
+            onClose={() => setAlertConfig(null)}
+            onConfirm={() => setAlertConfig(null)}
+            title={alertConfig.title}
+            message={alertConfig.message}
+            type={alertConfig.type}
+            hideCancel={true}
+            confirmText="Okay"
+          />
         )}
 
         {/* Refund Form */}
@@ -2180,7 +2200,9 @@ function CalendarPage() {
         subtitle="View all scheduled service bookings and availability."
         icon={<CalendarDays />}
       />
-      {/* Calendar Card */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        <div className="xl:col-span-2 space-y-6">
+          {/* Calendar Card */}
       <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl animate-in fade-in duration-200">
         <div className="p-6">
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -2250,6 +2272,7 @@ function CalendarPage() {
 
               const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
               const isToday = dateObj.toDateString() === today.toDateString();
+              const isPastDate = dateObj < today && !isToday;
               const dateSlots = getSlotsForDate(day);
               const totalAvailable = getTotalAvailableForDate(day);
               const hasSlots = dateSlots.length > 0;
@@ -2264,28 +2287,42 @@ function CalendarPage() {
                     setShowModal(true);
                   }}
                   className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${
-                    hasSlots
-                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 border-emerald-400/20 text-white shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20'
-                      : isToday
-                        ? 'bg-white dark:bg-slate-950 border-brand-green border-2 text-slate-900 dark:text-white shadow-sm font-bold'
-                        : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                    isPastDate
+                      ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 opacity-60'
+                      : hasSlots
+                        ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
+                        : isToday
+                          ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
+                          : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
                   <div className="flex justify-between items-start">
-                    <span className={`text-sm font-black ${hasSlots ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+                    <span className={`text-sm font-black ${
+                      isToday 
+                        ? 'text-blue-600 dark:text-blue-400' 
+                        : isPastDate 
+                          ? 'text-slate-400 dark:text-slate-600' 
+                          : 'text-slate-800 dark:text-white'
+                    }`}>
                       {day}
                     </span>
-                    {isToday && !hasSlots && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
+                    {isToday && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
                     )}
                   </div>
 
                   {hasSlots && (
                     <div className="mt-auto">
-                      <div className="text-[10px] font-black bg-white/20 dark:bg-black/20 text-white rounded-md px-1 py-0.5 inline-block backdrop-blur-sm max-w-full truncate">
-                        {totalAvailable} slot{totalAvailable !== 1 ? 's' : ''}
+                      <div className={`text-[10px] font-black rounded-md px-1 py-0.5 inline-block max-w-full truncate ${
+                        isPastDate 
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-500' 
+                          : 'bg-brand-green/20 dark:bg-brand-green/30 text-brand-green dark:text-brand-green'
+                      }`}>
+                        {totalAvailable} avail
                       </div>
-                      <div className="text-[8px] text-white/80 font-bold mt-0.5 hidden sm:block truncate">
+                      <div className={`text-[8px] font-bold mt-0.5 hidden sm:block truncate ${
+                        isPastDate ? 'text-slate-400' : 'text-brand-green/80'
+                      }`}>
                         {dateSlots.length} vendor{dateSlots.length !== 1 ? 's' : ''}
                       </div>
                     </div>
@@ -2296,8 +2333,10 @@ function CalendarPage() {
           </div>
         </div>
       </Card>
+        </div>
 
-      {/* Global Calendar Status Overview */}
+        <div className="space-y-6">
+          {/* Global Calendar Status Overview */}
       <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="w-10 h-10 rounded-xl bg-brand-navy/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
@@ -2317,13 +2356,14 @@ function CalendarPage() {
         ) : slots.length === 0 ? (
           <EmptyState title="No active slots" description="Vendors have not configured any slots yet." icon={<CalendarDays className="w-6 h-6 text-slate-400" />} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-4 max-h-[700px] overflow-y-auto pr-1">
             {slots.map((s, i) => {
               const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
               const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
               const safeAvail = Math.max(0, avail);
               const safeTotal = Math.max(0, total);
-              const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
+              const booked = safeTotal - safeAvail;
+              const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
               const vName = getVendorName(s.vendor_id);
 
               return (
@@ -2338,11 +2378,13 @@ function CalendarPage() {
                       </div>
                     </div>
                     <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
-                      safeAvail > 0 
-                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40' 
-                        : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40'
+                      booked >= safeTotal 
+                        ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40' 
+                        : booked > 0
+                          ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40'
+                          : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40'
                     }`}>
-                      {safeAvail}/{safeTotal}
+                      {booked}/{safeTotal} Booked
                     </span>
                   </div>
 
@@ -2350,13 +2392,13 @@ function CalendarPage() {
                     <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          percentAvail > 50 
-                            ? 'bg-emerald-500' 
-                            : percentAvail > 20 
+                          percentBooked >= 100 
+                            ? 'bg-rose-500' 
+                            : percentBooked >= 50 
                               ? 'bg-amber-500' 
-                              : 'bg-rose-500'
+                              : 'bg-emerald-500'
                         }`}
-                        style={{ width: `${percentAvail}%` }}
+                        style={{ width: `${percentBooked}%` }}
                       />
                     </div>
                   </div>
@@ -2366,6 +2408,8 @@ function CalendarPage() {
           </div>
         )}
       </Card>
+        </div>
+      </div>
 
       {/* Date Details Modal */}
       <AnimatePresence>
@@ -2409,7 +2453,8 @@ function CalendarPage() {
                         const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
                         const safeAvail = Math.max(0, avail);
                         const safeTotal = Math.max(0, total);
-                        const percentAvail = safeTotal > 0 ? (safeAvail / safeTotal) * 100 : 0;
+                        const booked = safeTotal - safeAvail;
+                        const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
                         const vName = getVendorName(s.vendor_id);
 
                         return (
@@ -2424,11 +2469,13 @@ function CalendarPage() {
                                 </div>
                               </div>
                               <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
-                                safeAvail > 0 
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40' 
-                                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40'
+                                booked >= safeTotal 
+                                  ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40' 
+                                  : booked > 0
+                                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40'
+                                    : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40'
                               }`}>
-                                {safeAvail}/{safeTotal}
+                                {booked}/{safeTotal} Booked
                               </span>
                             </div>
 
@@ -2436,13 +2483,13 @@ function CalendarPage() {
                               <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div 
                                   className={`h-full rounded-full transition-all duration-500 ${
-                                    percentAvail > 50 
-                                      ? 'bg-emerald-500' 
-                                      : percentAvail > 20 
+                                    percentBooked >= 100 
+                                      ? 'bg-rose-500' 
+                                      : percentBooked >= 50 
                                         ? 'bg-amber-500' 
-                                        : 'bg-rose-500'
+                                        : 'bg-emerald-500'
                                   }`}
-                                  style={{ width: `${percentAvail}%` }}
+                                  style={{ width: `${percentBooked}%` }}
                                 />
                               </div>
                             </div>

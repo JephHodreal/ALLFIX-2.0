@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -228,7 +228,15 @@ function AdminSidebarSectionGroup({
   section: SidebarSection;
   collapsed: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(
+    section.title === 'Overview' || section.title === 'Operations'
+  );
+
+  useEffect(() => {
+    if (collapsed && (section.title === 'Finance' || section.title === 'People & Communication')) {
+      setOpen(false);
+    }
+  }, [collapsed, section.title]);
 
   return (
     <div className="mb-2 overflow-visible">

@@ -32,6 +32,12 @@ public class SlotController {
         return ResponseEntity.ok(Map.of("id", id, "message", "Slot created"));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateSlot(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
+        slotService.updateSlot(id, body);
+        return ResponseEntity.ok(Map.of("message", "Slot updated"));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteSlot(@PathVariable String id) throws Exception {
         slotService.deleteSlot(id);

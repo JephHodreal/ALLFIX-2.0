@@ -61,6 +61,20 @@ public class BookingService {
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + details + " has been successfully submitted.");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + details + ".");
 
+        try {
+            List<Map<String, Object>> admins = firestoreService.getAll("admins");
+            for (Map<String, Object> admin : admins) {
+                String adminId = (String) admin.get("id");
+                if (adminId == null) adminId = (String) admin.get("uid");
+                if (adminId != null) {
+                    notificationService.notify(adminId, "admin", "New Booking",
+                        "A new booking request (" + bookingId + ") for " + serviceType + " has been created.");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to notify admins of new booking: " + e.getMessage());
+        }
+
         return bookingId;
     }
 

@@ -105,6 +105,10 @@ public class SlotService {
         return firestoreService.create("vendor_slots", data);
     }
 
+    public void updateSlot(String slotId, Map<String, Object> updates) throws Exception {
+        firestoreService.update("vendor_slots", slotId, updates);
+    }
+
     public void deleteSlot(String slotId) throws Exception {
         firestoreService.delete("vendor_slots", slotId);
     }
