@@ -5,7 +5,7 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 

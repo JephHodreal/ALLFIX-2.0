@@ -1,15 +1,110 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Image, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Image, X, AlertCircle, Edit2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Card } from '../components/shared/Card';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import api from '../services/apiService';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 
+const SortableLogoCard = ({ logo, onEdit, onDelete, failedLogos, setFailedLogos }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: logo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group bg-white dark:bg-slate-900 border ${isDragging ? 'border-brand-blue shadow-2xl scale-105' : 'border-slate-200 dark:border-slate-800 shadow-md'} hover:shadow-lg rounded-3xl p-6 transition-all flex flex-col justify-between items-center min-h-[180px] cursor-grab active:cursor-grabbing`}
+    >
+      <div 
+        {...attributes} 
+        {...listeners}
+        className="absolute top-3 left-3 p-1.5 text-slate-300 hover:text-slate-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 cursor-grab active:cursor-grabbing outline-none"
+      >
+        <GripVertical className="w-5 h-5" />
+      </div>
+      
+      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => onEdit(logo)}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-brand-navy hover:bg-slate-100 dark:hover:bg-slate-800 transition-all pointer-events-auto"
+          title="Edit Partner Logo"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onDelete(logo.id)}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-550 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all pointer-events-auto"
+          title="Delete Partner Logo"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-2 w-full min-h-[100px] pointer-events-none">
+        {failedLogos[logo.id] ? (
+          <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+            <Image className="w-8 h-8 mb-1.5 opacity-60" />
+            <span className="text-[10px] font-extrabold text-red-500 dark:text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+              Invalid Image Link
+            </span>
+          </div>
+        ) : (
+          <img
+            src={logo.url}
+            alt={logo.name}
+            className="h-[80px] w-full object-contain filter dark:brightness-90 transition-transform group-hover:scale-105"
+            onError={() => {
+              setFailedLogos((prev: Record<string, boolean>) => ({ ...prev, [logo.id]: true }));
+            }}
+          />
+        )}
+      </div>
+
+      <div className="mt-4 text-center pointer-events-none">
+        <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200 block truncate max-w-[200px]">
+          {logo.name}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export default function PartnerLogosManager() {
   const [logos, setLogos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [failedLogos, setFailedLogos] = useState<Record<string, boolean>>({});
@@ -32,6 +127,17 @@ export default function PartnerLogosManager() {
       })
       .finally(() => setLoading(false));
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     loadLogos();
@@ -83,8 +189,13 @@ export default function PartnerLogosManager() {
         url: logoUrl.trim()
       };
 
-      await api.post('/api/admin/partner-logos', payload);
+      if (editingId) {
+        await api.put(`/api/admin/partner-logos/${editingId}`, payload);
+      } else {
+        await api.post('/api/admin/partner-logos', payload);
+      }
       setShowAddModal(false);
+      setEditingId(null);
 
       // Reset
       setName('');
@@ -113,6 +224,26 @@ export default function PartnerLogosManager() {
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const oldIndex = logos.findIndex((item) => item.id === active.id);
+      const newIndex = logos.findIndex((item) => item.id === over?.id);
+      
+      const newOrder = arrayMove(logos, oldIndex, newIndex);
+      setLogos(newOrder); // Optimistic UI update
+      
+      try {
+        const ids = newOrder.map(logo => logo.id);
+        await api.post('/api/admin/partner-logos/reorder', ids);
+      } catch (err) {
+        console.error('Failed to save new order', err);
+        loadLogos();
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -120,7 +251,15 @@ export default function PartnerLogosManager() {
         subtitle="Manage the partner logos displayed in the auto-scrolling ticker on the Vendor Landing page."
         icon={<Image />}
         action={
-          <Button onClick={() => { setShowAddModal(true); setError(''); setPreviewFailed(false); }} icon={<Plus className="w-4 h-4" />}>
+          <Button onClick={() => { 
+            setEditingId(null);
+            setName('');
+            setLogoUrl('');
+            setUrlType('upload');
+            setShowAddModal(true); 
+            setError(''); 
+            setPreviewFailed(false); 
+          }} icon={<Plus className="w-4 h-4" />}>
             Add Partner Logo
           </Button>
         }
@@ -138,47 +277,35 @@ export default function PartnerLogosManager() {
           description="Click 'Add Partner Logo' to upload image files or provide links of partner logos."
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {logos.map((logo) => (
-            <div
-              key={logo.id}
-              className="relative group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-lg rounded-3xl p-6 transition-all flex flex-col justify-between items-center min-h-[180px]"
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <SortableContext 
+              items={logos.map(l => l.id)}
+              strategy={rectSortingStrategy}
             >
-              <button
-                onClick={() => handleDelete(logo.id)}
-                className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-red-550 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-
-              <div className="flex-1 flex flex-col items-center justify-center p-2 w-full min-h-[100px]">
-                {failedLogos[logo.id] ? (
-                  <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-                    <Image className="w-8 h-8 mb-1.5 opacity-60" />
-                    <span className="text-[10px] font-extrabold text-red-500 dark:text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
-                      Invalid Image Link
-                    </span>
-                  </div>
-                ) : (
-                  <img
-                    src={logo.url}
-                    alt={logo.name}
-                    className="max-h-[80px] max-w-full object-contain filter dark:brightness-90 transition-transform group-hover:scale-105"
-                    onError={() => {
-                      setFailedLogos(prev => ({ ...prev, [logo.id]: true }));
-                    }}
-                  />
-                )}
-              </div>
-
-              <div className="mt-4 text-center">
-                <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200 block truncate max-w-[200px]">
-                  {logo.name}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              {logos.map((logo) => (
+                <SortableLogoCard 
+                  key={logo.id} 
+                  logo={logo} 
+                  failedLogos={failedLogos}
+                  setFailedLogos={setFailedLogos}
+                  onEdit={(editedLogo: any) => {
+                    setEditingId(editedLogo.id);
+                    setName(editedLogo.name);
+                    setLogoUrl(editedLogo.url);
+                    setUrlType(editedLogo.url.startsWith('http') && !editedLogo.url.includes('firebase') ? 'link' : 'upload');
+                    setShowAddModal(true);
+                  }}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </SortableContext>
+          </div>
+        </DndContext>
       )}
 
       {/* Add Partner Logo Modal */}
@@ -192,8 +319,12 @@ export default function PartnerLogosManager() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add Partner Logo</h3>
-                    <p className="text-xs text-slate-400 font-bold">Upload an image or add a link to the partner's logo</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                      {editingId ? 'Edit Partner Logo' : 'Add Partner Logo'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-bold">
+                      {editingId ? 'Update the image or link for this partner logo' : 'Upload an image or add a link to the partner\'s logo'}
+                    </p>
                   </div>
                   <button onClick={() => setShowAddModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
                     <X className="w-5 h-5" />
@@ -332,7 +463,7 @@ export default function PartnerLogosManager() {
                       type="submit"
                       disabled={uploadingImage || saving}
                     >
-                      {saving ? 'Adding...' : 'Add Logo'}
+                      {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Logo'}
                     </Button>
                   </div>
                 </form>

@@ -110,6 +110,34 @@ public class AdminController {
             logger.warn("No pending work type requests collection: " + e.getMessage());
         }
 
+        long pendingCancellations = 0;
+        try {
+            pendingCancellations = firestoreService.getWhere("bookings", "status", "cancellation_requested").size();
+        } catch (Exception e) {
+            logger.warn("No pending cancellations: " + e.getMessage());
+        }
+
+        long pendingBookings = 0;
+        try {
+            pendingBookings = firestoreService.getWhere("bookings", "status", "pending").size();
+        } catch (Exception e) {
+            logger.warn("No pending bookings: " + e.getMessage());
+        }
+
+        long pendingRefunds = 0;
+        try {
+            pendingRefunds = firestoreService.getWhere("refunds", "status", "pending").size();
+        } catch (Exception e) {
+            logger.warn("No pending refunds: " + e.getMessage());
+        }
+
+        long pendingVendors = 0;
+        try {
+            pendingVendors = firestoreService.getWhereMultiple("vendors", Map.of("temp_delete", 0, "acc_approve", "pending")).size();
+        } catch (Exception e) {
+            logger.warn("No pending vendors: " + e.getMessage());
+        }
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalCustomers", totalCustomers);
         stats.put("totalVendors", totalVendors);
@@ -118,6 +146,10 @@ public class AdminController {
         stats.put("pendingMainServices", pendingMainServices);
         stats.put("pendingSubServices", pendingSubServices);
         stats.put("pendingWorkTypes", pendingWorkTypes);
+        stats.put("pendingCancellations", pendingCancellations);
+        stats.put("pendingBookings", pendingBookings);
+        stats.put("pendingRefunds", pendingRefunds);
+        stats.put("pendingVendors", pendingVendors);
         return ResponseEntity.ok(stats);
     }
 

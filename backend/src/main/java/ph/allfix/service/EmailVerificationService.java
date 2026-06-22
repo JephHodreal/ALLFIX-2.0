@@ -92,9 +92,9 @@ public class EmailVerificationService {
                 "                  </td>\n" +
                 "                  <td align=\"left\" valign=\"middle\" style=\"padding-left: 12px; line-height: 1.1;\">\n" +
                 "                    <div style=\"font-size: 32px; font-weight: 800; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; letter-spacing: -1px; margin-bottom: 2px;\">\n" +
-                "                      <span style=\"color: #0f172a;\">All</span><span style=\"color: #16a34a;\">F</span><span style=\"color: #eab308;\">i</span><span style=\"color: #dc2626;\">x</span><span style=\"color: #0f172a;\">.ph</span>\n" +
+                "                      <span style=\"color: #041e41;\">All</span><span style=\"color: #20b759;\">F</span><span style=\"color: #ffbd00;\">i</span><span style=\"color: #ef4444;\">x</span><span style=\"color: #041e41;\">.ph</span>\n" +
                 "                    </div>\n" +
-                "                    <div style=\"font-size: 10px; font-weight: 700; color: #475569; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; letter-spacing: 0.5px;\">\n" +
+                "                    <div style=\"font-size: 10px; font-weight: 700; color: #041e41; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; letter-spacing: 0.5px;\">\n" +
                 "                      YOUR PERSONAL CONCIERGE\n" +
                 "                    </div>\n" +
                 "                  </td>\n" +
@@ -155,7 +155,7 @@ public class EmailVerificationService {
         helper.setSubject("Verify Your Email Address");
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Verify Your Email Address</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Verify Your Email Address</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 32px; margin-top: 0; text-align: center;\">\n" +
                 "                Welcome to AllFix.ph! Please verify your email address to complete your registration and secure your account.\n" +
                 "              </p>\n" +
@@ -194,7 +194,7 @@ public class EmailVerificationService {
         helper.setSubject("Your Verification Code: " + otp);
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Your Verification Code</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Your Verification Code</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 24px; margin-top: 0; text-align: center;\">\n" +
                 "                Please use the following 6-digit code to verify your account registration.\n" +
                 "              </p>\n" +
@@ -228,7 +228,7 @@ public class EmailVerificationService {
         helper.setSubject("Vendor Registration Pending Review");
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Registration Pending Review</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Registration Pending Review</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 20px; margin-top: 0; text-align: center;\">\n" +
                 "                Thank you for registering as a vendor. Your account will now be reviewed by the admin.\n" +
                 "              </p>\n" +
@@ -267,7 +267,7 @@ public class EmailVerificationService {
         helper.setSubject("Your Vendor Account is Approved!");
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Account Approved!</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Account Approved!</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 20px; margin-top: 0; text-align: center;\">\n" +
                 "                Congratulations! You are now an official partner of AllFix.ph.\n" +
                 "              </p>\n" +
@@ -307,7 +307,7 @@ public class EmailVerificationService {
         helper.setSubject("Welcome to AllFix - Your Vendor Account is Ready!");
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Welcome to AllFix!</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Welcome to AllFix!</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 24px; margin-top: 0; text-align: center;\">\n" +
                 "                An account has been created for you as a vendor. Please keep these credentials secure.\n" +
                 "              </p>\n" +
@@ -349,7 +349,7 @@ public class EmailVerificationService {
         helper.setSubject("Welcome to AllFix - Your Personnel Account is Ready!");
 
         String contentHtml = 
-                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center;\">Welcome to AllFix!</h2>\n" +
+                "              <h2 style=\"margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 700; color: #041e41; text-align: center;\">Welcome to AllFix!</h2>\n" +
                 "              <p style=\"font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 24px; margin-top: 0; text-align: center;\">\n" +
                 "                Congratulations, your account is created by the company: <strong>" + companyName + "</strong><br/>\n" +
                 "                You are now a partner of AllFix.\n" +

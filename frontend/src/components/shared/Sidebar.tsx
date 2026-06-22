@@ -7,7 +7,7 @@ import {
   CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
   Home, Wrench, UserCog, Building2, User,
   History, ArrowRightLeft, Ticket, Tag, UserCheck, Wallet, MessageSquare,
-  Bell, HelpCircle, ChevronDown, MapPin, Image
+  Bell, HelpCircle, ChevronDown, MapPin, Image, TrendingUp
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -87,7 +87,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
     {
       title: 'Main',
       items: [
-        { label: 'Dashboard', path: '/vendor', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
+        { label: 'Overview', path: '/vendor', icon: <TrendingUp className="w-5 h-5" />, end: true },
       ],
     },
     {

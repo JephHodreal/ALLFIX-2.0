@@ -96,148 +96,119 @@ const ServiceCard = ({ service, isSubService = false, onServiceClick }: { servic
 
   return (
     <div
+      onClick={() => onServiceClick(service)}
+      className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-880 transition-all duration-300 bg-white dark:bg-slate-900 flex flex-col h-full cursor-pointer"
       style={{
-        position: 'relative',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        border: '1px solid #e5e5e5',
-        borderTop: isSubService ? `4px solid ${service.accent}` : 'none',
-        boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.1)',
-        transition: 'all 0.3s ease',
+        borderTop: isSubService ? `4px solid ${service.accent}` : undefined,
+        boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.05)',
         transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
-        cursor: 'pointer',
-        backgroundColor: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={() => onServiceClick(service)}
     >
       {/* Image showcase */}
-      <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
         <img
           src={service.image}
           alt={service.brand}
+          className="w-full h-full object-cover transition-opacity duration-500 absolute top-0 left-0"
           style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
             objectPosition: 'center 10%',
             opacity: hovered ? 0.3 : 1,
-            transition: 'opacity 0.5s ease',
-            position: 'absolute',
-            top: 0,
-            left: 0,
           }}
         />
-        <div style={{ position: 'absolute', inset: 0, background: service.accent, opacity: hovered ? 0.8 : 0, transition: 'opacity 0.3s ease' }} />
+        <div
+          className="absolute inset-0 transition-opacity duration-300"
+          style={{
+            backgroundColor: service.accent,
+            opacity: hovered ? 0.6 : 0
+          }}
+        />
+
+        {!isSubService && (
+          <>
+            {/* Floating Top Left Tag */}
+            <div className="absolute top-4 left-4 z-20">
+              <div className="text-[10px] font-black tracking-wider uppercase px-3 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md text-white shadow-sm border border-white/10">
+                {service.brand}
+              </div>
+            </div>
+
+            {/* Floating Top Right Actions */}
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/60 backdrop-blur-md border border-white/10 shadow-sm">
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+            </div>
+          </>
+        )}
 
         {isSubService && (
-          <div style={{ position: 'absolute', top: '16px', right: '16px', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: service.accent, color: '#fff', zIndex: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-            <Icon style={{ width: '18px', height: '18px' }} />
+          <div className="absolute top-4 right-4 z-20">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: service.accent }}>
+              <Icon className="w-4 h-4" />
+            </div>
           </div>
         )}
 
         {hovered && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 2,
-              pointerEvents: 'none',
-              transition: 'opacity 0.3s, transform 0.3s',
-              opacity: hovered ? 1 : 0,
-              transform: hovered ? 'scale(1)' : 'scale(0.95)',
-            }}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
           >
             {isSubService ? (
-              <div
-                style={{
-                  color: '#ffffff',
-                  fontWeight: 900,
-                  fontSize: '1.1rem',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  border: '2px solid #ffffff',
-                  padding: '8px 24px',
-                  borderRadius: '30px',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(4px)'
-                }}
-              >
+              <div className="text-white font-black text-lg tracking-wide uppercase border-2 border-white px-6 py-2 rounded-full shadow-lg bg-white/15 backdrop-blur-sm">
                 Book Now
               </div>
             ) : (
               <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg animate-pulse"
                 style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   backgroundColor: service.accent,
-                  boxShadow: `0 0 20px ${service.accent}80, 0 0 40px ${service.accent}40, 0 8px 16px rgba(0,0,0,0.4)`,
+                  boxShadow: `0 0 20px ${service.accent}80, 0 0 40px ${service.accent}40`,
                 }}
               >
-                <Icon style={{ width: '32px', height: '32px', color: '#fff' }} />
+                <Icon className="w-7 h-7 text-white" />
               </div>
             )}
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Header for Main Services */}
-      {!isSubService && (
-        <div
-          style={{
-            position: 'relative',
-            padding: '32px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: `linear-gradient(135deg, ${service.headerBg} 0%, ${service.headerBgLight} 100%)`,
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>
-            {service.brand}
-          </div>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)', position: 'relative', zIndex: 2 }}>
-            <Icon style={{ width: '22px', height: '22px', color: '#fff' }} />
-          </div>
-        </div>
-      )}
-
       {/* Body */}
-      <div style={{ padding: isSubService ? '24px 24px 20px 24px' : '12px 24px 20px 24px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-        <h3 style={{ fontWeight: 900, fontSize: '1.25rem', color: '#000', marginBottom: '2px' }}>{service.brand}</h3>
-        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: service.accent, marginBottom: '12px' }}>{service.tagline}</p>
-        <p style={{ fontSize: '0.9rem', color: '#666', lineHeight: 1.5, marginBottom: '16px', flex: 1 }}>{service.description}</p>
+      <div className="p-6 sm:p-7 flex flex-col flex-grow bg-white dark:bg-slate-900 relative z-30">
+        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-0.5">{service.brand}</h3>
+        <p className="text-xs font-bold mb-3" style={{ color: service.accent }}>{service.tagline}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4 flex-grow">{service.description}</p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', marginBottom: '16px' }}>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
           {service.services.map((tag: string) => (
-            <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircleIcon style={{ width: '14px', height: '14px', color: service.accent, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.8rem', fontWeight: 500, color: service.pillText }}>{tag}</span>
+            <div key={tag} className="flex items-center gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: service.accent }} />
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{tag}</span>
             </div>
           ))}
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 700, color: hovered ? service.accentDark : service.accent, transition: 'color 0.2s ease', marginTop: 'auto' }}>
-          Book {service.brand}
-          <ArrowForwardIcon style={{ width: '16px', height: '16px', transition: 'transform 0.2s ease', transform: hovered ? 'translateX(4px)' : 'translateX(0)' }} />
+
+        <div
+          className="inline-flex items-center gap-1.5 text-xs font-bold transition-colors duration-200 mt-auto"
+          style={{ color: hovered ? (service.accentDark || service.accent) : service.accent }}
+        >
+          <span>Book {service.brand}</span>
+          <ArrowRight
+            className="w-3.5 h-3.5 transition-transform duration-200"
+            style={{ transform: hovered ? 'translateX(4px)' : 'translateX(0)' }}
+          />
         </div>
       </div>
-      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '2px', backgroundColor: service.accent, width: hovered ? '100%' : '0%', transition: 'width 0.3s ease' }} />
+      <div
+        className="absolute bottom-0 left-0 h-0.5 transition-all duration-300"
+        style={{
+          backgroundColor: service.accent,
+          width: hovered ? '100%' : '0%'
+        }}
+      />
     </div>
   );
 };
@@ -350,9 +321,21 @@ function CustomerHome() {
 
         // Add remaining frontend services not in backend
         servicesData.forEach((fs) => {
-          if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase())) {
+          if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase() || m.brand.toLowerCase() === fs.brand.toLowerCase())) {
             merged.push(fs);
           }
+        });
+
+        const desiredOrder = [
+          'coolfix', 'sanifix', 'homefix', 'techfix', 'movefix', 
+          'spacefix', 'poolfix', 'healthfix', 'greenfix'
+        ];
+        merged.sort((a, b) => {
+          const brandA = (a.brand || '').toLowerCase();
+          const brandB = (b.brand || '').toLowerCase();
+          const indexA = desiredOrder.indexOf(brandA);
+          const indexB = desiredOrder.indexOf(brandB);
+          return (indexA !== -1 ? indexA : 999) - (indexB !== -1 ? indexB : 999);
         });
 
         if (merged.length > 0) {
@@ -421,29 +404,26 @@ function CustomerHome() {
                     </Box>
                     {/* Selector pills at the bottom */}
                     <NavigationPills
-                      services={services}
+                      services={services.slice(0, 9)}
                       activeServiceIdx={activeServiceIdx}
                       setActiveServiceIdx={setActiveServiceIdx}
                     />
                   </Box>
 
                   {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
-                  <Grid container rowSpacing={3} columnSpacing={1.5}
-                    sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center', mt: 2 }}>
-                    {services.map((service, index) => (
-                      <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={index} sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Box sx={{ width: '100%', maxWidth: '420px', display: 'flex' }}>
-                          <ServiceCard
-                            service={service}
-                            onServiceClick={(svc) => {
-                              setSelectedBrandService(svc);
-                              window.scrollTo(0, 0);
-                            }}
-                          />
-                        </Box>
-                      </Grid>
+                  <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {services.slice(0, 9).map((service, index) => (
+                      <div key={index} className="h-full w-full flex">
+                        <ServiceCard
+                          service={service}
+                          onServiceClick={(svc) => {
+                            setSelectedBrandService(svc);
+                            window.scrollTo(0, 0);
+                          }}
+                        />
+                      </div>
                     ))}
-                  </Grid>
+                  </div>
                 </div>
               )}
             </>
@@ -1389,7 +1369,6 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
         ...booking,
         reviewed: true
       });
-      alert('Thank you! Your rating and review have been submitted successfully.');
     } catch (err: any) {
       console.error('[CAVEMAN] Review submission failed:', err);
       setError(err.response?.data?.message || 'Failed to submit review. Please try again.');
@@ -1545,7 +1524,6 @@ function MyBookingsTab() {
 
       setShowRefundForm(false);
       setRefundReason('');
-      alert('Your cancellation and refund request has been submitted. An administrator will review and process it shortly.');
     } catch (err: any) {
       console.error('[CAVEMAN] Refund request failed:', err);
       setRefundError(err.response?.data?.message || 'Failed to submit refund request. Please try again.');
@@ -1634,7 +1612,7 @@ function MyBookingsTab() {
               {selectedBooking.personnel_id && (
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <span className="text-slate-400 font-medium">Personnel:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold font-semibold">Assigned</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold font-semibold">{selectedBooking.personnel_name || 'Assigned'}</span>
                 </div>
               )}
             </div>
@@ -1715,14 +1693,14 @@ function MyBookingsTab() {
         {!showRefundForm && !showCancelConfirm && isCancellable && (
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
             <Button
-              variant="danger"
-              className="flex-1 py-3 text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 min-w-[140px] shadow-sm transition-colors"
+              variant="outline"
+              className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[140px] shadow-none transition-colors"
               onClick={() => {
                 console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
                 setShowCancelConfirm(true);
               }}
             >
-              Cancel Booking
+              Cancel
             </Button>
           </div>
         )}
@@ -1751,6 +1729,14 @@ function MyBookingsTab() {
             <p className="text-sm text-slate-600 dark:text-slate-350">
               Are you sure you want to cancel this booking? A refund request will be automatically submitted to the administrator for review.
             </p>
+            <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-amber-200/50 dark:border-amber-900/50 space-y-2 text-xs text-amber-900 dark:text-amber-300">
+              <p className="font-bold uppercase tracking-wider">Cancellation Policy</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Cancellations made 24 hours before the schedule are eligible for a full refund.</li>
+                <li>Cancellations within 24 hours may incur a processing or cancellation fee depending on the vendor's policy.</li>
+                <li>Once a technician is en route or the booking is in-progress, cancellations may not be permitted.</li>
+              </ul>
+            </div>
             <div className="flex gap-3 justify-end">
               <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
               <Button
@@ -1958,7 +1944,6 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
         const currentMin = now.getMinutes();
         const [selHour, selMin] = item.scheduledTime.split(':').map(Number);
         if (selHour < currentHour || (selHour === currentHour && selMin <= currentMin)) {
-          alert(`The booking for "${item.subServiceName}" - "${item.workType}" has a preferred start time that has already passed today (${item.scheduledTime}). Please edit or remove this item to proceed.`);
           return;
         }
       }

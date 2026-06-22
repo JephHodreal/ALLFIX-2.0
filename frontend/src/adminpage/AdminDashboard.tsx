@@ -31,6 +31,7 @@ function DashboardHome() {
   const [revenueTrend, setRevenueTrend] = useState<any[]>([]);
   const [jobTrend, setJobTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAttentionModal, setShowAttentionModal] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -45,6 +46,8 @@ function DashboardHome() {
   }, []);
 
   if (loading) return <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array(4).fill(0).map((_, i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}</div>;
+
+  const totalPending = (stats?.pendingWorkTypes ?? 0) + (stats?.pendingCancellations ?? 0) + (stats?.pendingRefunds ?? 0) + (stats?.pendingVendors ?? 0) + (stats?.pendingBookings ?? 0);
 
   return (
     <div className="space-y-6">
@@ -62,16 +65,17 @@ function DashboardHome() {
       </div>
 
       {/* Service Request Counters */}
+      {/* Single Dynamic Attention Required Banner */}
       <div 
         onClick={() => {
-          if ((stats?.pendingWorkTypes ?? 0) > 0) {
-            navigate('/admin/services');
+          if (totalPending > 0) {
+            setShowAttentionModal(true);
           }
         }}
-        className={`relative overflow-hidden bg-[#021024] rounded-2xl p-4 sm:p-5 shadow-lg border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
-          (stats?.pendingWorkTypes ?? 0) > 0 
-            ? 'cursor-pointer hover:shadow-xl hover:scale-[1.01] hover:border-brand-green/30 group' 
-            : ''
+        className={`relative overflow-hidden bg-[#021024] rounded-2xl p-4 sm:p-5 shadow-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
+          totalPending > 0 
+            ? 'cursor-pointer hover:shadow-xl hover:scale-[1.01] border-white/5 dark:border-brand-red/40 hover:border-brand-green/30 dark:hover:border-brand-red/60 dark:bg-brand-red/10 group' 
+            : 'border-white/5'
         }`}
       >
         {/* Subtle glow effect */}
@@ -82,25 +86,129 @@ function DashboardHome() {
             Attention Required
           </p>
           <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
-            Service Management Requests
+            {totalPending > 0 
+              ? "Action Items Pending" 
+              : "All Caught Up!"}
           </h3>
           <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-            There are pending items that require your review and approval before they can go live.
+            {totalPending > 0 
+              ? "There are items that require your review and approval."
+              : "No pending requests, approvals, or cancellations at this time."}
           </p>
         </div>
 
         <div className="relative z-10 flex items-center bg-[#1E293B] border border-[#334155] rounded-2xl p-3 gap-4 min-w-[200px] shadow-sm">
           <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center flex-shrink-0 shadow-inner">
-            <Sparkles className="w-4 h-4 text-blue-400" />
+            {totalPending > 0 
+              ? <AlertCircle className="w-4 h-4 text-brand-red" /> 
+              : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending Requests</p>
-            <p className={`text-2xl font-black leading-none ${(stats?.pendingWorkTypes ?? 0) > 0 ? 'text-brand-red' : 'text-white'}`}>
-              {stats?.pendingWorkTypes ?? 0}
+            <p className="text-[10px] font-bold text-slate-200 uppercase tracking-wider mb-0.5">Pending Requests</p>
+            <p className={`text-2xl font-black leading-none ${totalPending > 0 ? 'text-brand-red' : 'text-emerald-400'}`}>
+              {totalPending}
             </p>
           </div>
         </div>
       </div>
+
+      {showAttentionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAttentionModal(false)} />
+          <div className="relative bg-white dark:bg-[#0a1628] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="p-6 bg-[#0a1628] border-b border-slate-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white">Attention Required</h3>
+                <p className="text-sm text-slate-400">Select an item below to take action.</p>
+              </div>
+              <button onClick={() => setShowAttentionModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {(() => {
+                const items = [];
+                if ((stats?.pendingBookings ?? 0) > 0) {
+                  items.push({
+                    title: 'New Pending Bookings',
+                    description: 'New service requests waiting to be assigned or confirmed.',
+                    count: stats?.pendingBookings,
+                    icon: <Calendar className="w-5 h-5 text-purple-400" />,
+                    colorClass: 'border-purple-500/30 bg-purple-500/10 hover:border-purple-500/50 hover:bg-purple-500/20 text-purple-400',
+                    path: '/admin/bookings'
+                  });
+                }
+                if ((stats?.pendingCancellations ?? 0) > 0) {
+                  items.push({
+                    title: 'Late Cancellation Requests',
+                    description: 'Bookings awaiting intervention before they can be cancelled.',
+                    count: stats?.pendingCancellations,
+                    icon: <AlertCircle className="w-5 h-5 text-rose-400" />,
+                    colorClass: 'border-rose-500/30 bg-rose-500/10 hover:border-rose-500/50 hover:bg-rose-500/20 text-rose-400',
+                    path: '/admin/bookings'
+                  });
+                }
+                if ((stats?.pendingRefunds ?? 0) > 0) {
+                  items.push({
+                    title: 'Pending Refunds',
+                    description: 'Refund requests requiring review and processing.',
+                    count: stats?.pendingRefunds,
+                    icon: <RefreshCcw className="w-5 h-5 text-orange-400" />,
+                    colorClass: 'border-orange-500/30 bg-orange-500/10 hover:border-orange-500/50 hover:bg-orange-500/20 text-orange-400',
+                    path: '/admin/refunds'
+                  });
+                }
+                if ((stats?.pendingWorkTypes ?? 0) > 0) {
+                  items.push({
+                    title: 'Service Management Requests',
+                    description: 'Pending work types require review before they can go live.',
+                    count: stats?.pendingWorkTypes,
+                    icon: <Sparkles className="w-5 h-5 text-blue-400" />,
+                    colorClass: 'border-blue-500/30 bg-blue-500/10 hover:border-blue-500/50 hover:bg-blue-500/20 text-blue-400',
+                    path: '/admin/services'
+                  });
+                }
+                if ((stats?.pendingVendors ?? 0) > 0) {
+                  items.push({
+                    title: 'Pending Vendor Approvals',
+                    description: 'New vendor registrations waiting for background check and approval.',
+                    count: stats?.pendingVendors,
+                    icon: <UserCog className="w-5 h-5 text-brand-green" />,
+                    colorClass: 'border-brand-green/30 bg-brand-green/10 hover:border-brand-green/50 hover:bg-brand-green/20 text-brand-green',
+                    path: '/admin/vendors'
+                  });
+                }
+                return items.map((item, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => {
+                      setShowAttentionModal(false);
+                      navigate(item.path);
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${item.colorClass}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-black/5 dark:bg-black/20 flex items-center justify-center flex-shrink-0">
+                        {item.icon}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 dark:text-white mb-0.5">{item.title}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-300 dark:opacity-80">{item.description}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center gap-4">
+                      <div className="font-black text-2xl">{item.count}</div>
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowRight className="w-4 h-4 text-slate-400 dark:text-white" />
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="flex flex-col">
@@ -1387,11 +1495,18 @@ function VendorsTab() {
 function BookingsTab() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [urgentFilterActive, setUrgentFilterActive] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showConfirmPayment, setShowConfirmPayment] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ show: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' | 'warning' } | null>(null);
+
+  // Late Cancellation Penalty State
+  const [resolutionPenalty, setResolutionPenalty] = useState<string>('');
+  const [showPenaltyModal, setShowPenaltyModal] = useState(false);
+  const [showFullRefundConfirm, setShowFullRefundConfirm] = useState(false);
+  const [showDenyConfirm, setShowDenyConfirm] = useState(false);
 
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState('');
@@ -1446,9 +1561,13 @@ function BookingsTab() {
       confirmed: 'badge-confirmed',
       in_progress: 'badge-in-progress',
       completed: 'badge-completed',
-      cancelled: 'badge-cancelled'
+      cancellation_requested: 'bg-rose-500/10 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-500/20 font-semibold px-2.5 py-1 rounded-xl text-[11px] tracking-wide'
     };
-    return <span className={cls[status] || 'badge'}>{status?.replace('_', ' ')}</span>;
+    
+    // Standardize text formatting to Title Case
+    const formattedStatus = status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    
+    return <span className={cls[status] || 'badge'}>{formattedStatus}</span>;
   };
 
   const handleConfirmPayment = async () => {
@@ -1471,6 +1590,22 @@ function BookingsTab() {
       setAlertConfig({ show: true, type: 'success', title: 'Payment Confirmed', message: 'Payment confirmed successfully!' });
     } catch (err: any) {
       setAlertConfig({ show: true, type: 'danger', title: 'Error', message: err.response?.data?.message || 'Failed to confirm payment.' });
+    }
+  };
+
+  const handleResolveCancellation = async (action: 'full_refund' | 'penalty' | 'deny') => {
+    try {
+      const penaltyAmt = action === 'penalty' ? parseFloat(resolutionPenalty) : undefined;
+      await api.patch(`/api/bookings/${selectedBooking.id}/resolve-cancellation`, { action, penalty_amount: penaltyAmt });
+      setSelectedBooking(null);
+      setShowPenaltyModal(false);
+      setResolutionPenalty('');
+      // Reload bookings
+      const r = await api.get('/api/bookings');
+      setBookings(r.data);
+      setAlertConfig({ show: true, type: 'success', title: 'Resolved', message: 'Cancellation request resolved successfully.' });
+    } catch (err: any) {
+      setAlertConfig({ show: true, type: 'danger', title: 'Error', message: err.response?.data?.message || 'Failed to resolve.' });
     }
   };
 
@@ -1558,6 +1693,16 @@ function BookingsTab() {
         </div>
 
         {/* Two column layout: Booking Info & Payment Info */}
+        {selectedBooking.status === 'cancellation_requested' && (
+          <div className="bg-rose-50 dark:bg-rose-950/20 border-l-4 border-rose-500 p-4 rounded-xl flex items-start gap-3 shadow-sm mb-6">
+            <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-rose-900 dark:text-rose-300 font-bold text-sm uppercase tracking-wide">URGENT: Customer Requested Cancellation</h4>
+              <p className="text-rose-700 dark:text-rose-400 text-sm mt-1">Technician <span className="font-bold">{selectedBooking.personnel_name || 'Assigned'}</span> is currently dispatched. Please contact the vendor or technician to check if they have left for the job yet.</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Booking Info Card */}
           <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
@@ -1652,9 +1797,13 @@ function BookingsTab() {
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
                   {selectedBooking.payment_confirmed ? (
-                    <span className="badge-completed">Confirmed</span>
+                    <span className="text-green-600 dark:text-green-400 font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" /> Paid
+                    </span>
                   ) : (
-                    <span className="badge-pending">Pending</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5">
+                      <Clock className="w-4 h-4" /> Awaiting Payment
+                    </span>
                   )}
                 </span>
               </div>
@@ -1687,28 +1836,121 @@ function BookingsTab() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && (
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
-              <Button
-                variant="danger"
-                className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => {
-                  setShowCancelConfirm(true);
-                }}
-              >
-                Cancel
-              </Button>
-            )}
-            {!selectedBooking.payment_confirmed && selectedBooking.status !== 'cancelled' && (
-              <Button
-                variant="success"
-                className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl"
-                onClick={() => setShowConfirmPayment(true)}
-              >
-                Confirm
-              </Button>
+            {selectedBooking.status === 'cancellation_requested' ? (
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 py-3 text-sm font-bold rounded-xl border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30 shadow-none" 
+                  onClick={() => setShowFullRefundConfirm(true)}
+                >
+                  Approve & Full Refund
+                </Button>
+                <Button 
+                  variant="primary" 
+                  className="flex-1 py-3 text-sm font-bold rounded-xl bg-brand-navy hover:bg-[#061936] dark:bg-brand-navy dark:hover:bg-[#061936] text-white border-0 shadow-lg shadow-brand-navy/20" 
+                  onClick={() => setShowPenaltyModal(true)}
+                >
+                  Approve with Penalty
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1 py-3 text-sm font-bold rounded-xl border-2 border-rose-500 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 shadow-none" 
+                  onClick={() => setShowDenyConfirm(true)}
+                >
+                  Deny Cancellation
+                </Button>
+              </div>
+            ) : (
+              <>
+                {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none"
+                    onClick={() => {
+                      setShowCancelConfirm(true);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                {!selectedBooking.payment_confirmed && selectedBooking.status !== 'cancelled' && (
+                  <Button
+                    variant="success"
+                    className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl"
+                    onClick={() => setShowConfirmPayment(true)}
+                  >
+                    Confirm Payment
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
+
+        {/* Penalty Modal */}
+        <ConfirmModal
+          isOpen={showPenaltyModal}
+          onClose={() => { setShowPenaltyModal(false); setResolutionPenalty(''); }}
+          onConfirm={() => {
+            if (!resolutionPenalty || isNaN(parseFloat(resolutionPenalty))) {
+              alert("Please enter a valid penalty amount.");
+              return;
+            }
+            handleResolveCancellation('penalty');
+          }}
+          title="Approve Cancellation with Penalty"
+          message={
+            <div className="space-y-4 text-left">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                The technician is already en route. Enter the Late Cancellation Fee (₱) to be deducted from the customer's refund and retained.
+              </p>
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Late Cancellation Fee (₱)</label>
+                <input
+                  type="number"
+                  value={resolutionPenalty}
+                  onChange={(e) => setResolutionPenalty(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm font-black focus:outline-none"
+                  placeholder="e.g. 500"
+                  required
+                />
+              </div>
+            </div>
+          }
+          confirmText="Confirm Penalty & Cancel"
+          cancelText="Back"
+          type="warning"
+        />
+
+        {/* Full Refund Confirmation Dialog */}
+        <ConfirmModal
+          isOpen={showFullRefundConfirm}
+          onClose={() => setShowFullRefundConfirm(false)}
+          onConfirm={() => {
+            setShowFullRefundConfirm(false);
+            handleResolveCancellation('full_refund');
+          }}
+          title="Approve & Full Refund"
+          message="Are you sure you want to approve this cancellation and issue a full refund? The vendor will not receive any compensation for this booking."
+          confirmText="Yes, Issue Full Refund"
+          cancelText="Back"
+          type="warning"
+        />
+
+        {/* Deny Cancellation Confirmation Dialog */}
+        <ConfirmModal
+          isOpen={showDenyConfirm}
+          onClose={() => setShowDenyConfirm(false)}
+          onConfirm={() => {
+            setShowDenyConfirm(false);
+            handleResolveCancellation('deny');
+          }}
+          title="Deny Cancellation Request"
+          message="Are you sure you want to deny this cancellation request? The booking will remain active and the customer will not be refunded."
+          confirmText="Yes, Deny Cancellation"
+          cancelText="Back"
+          type="danger"
+        />
 
         {/* Cancel Confirmation Dialog */}
         <ConfirmModal
@@ -1740,7 +1982,7 @@ function BookingsTab() {
             await handleConfirmPayment();
           }}
           title="Confirm Payment"
-          message="Are you sure you want to confirm the payment for this booking?"
+          message={`Are you sure you want to confirm the payment of ₱${selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'} for Booking ${selectedBooking.id}?`}
           confirmText="Yes, Confirm"
           cancelText="No, Cancel"
           type="info"
@@ -1907,8 +2149,65 @@ function BookingsTab() {
         subtitle="Manage and view all service bookings across the platform."
         icon={<ClipboardList />}
       />
+
+      {bookings.filter(b => b.status === 'cancellation_requested').length > 0 && (
+        <div className="bg-white dark:bg-[#021024] rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border border-rose-200 dark:border-rose-900/50">
+          <div className="space-y-1">
+            <h5 className="text-rose-600 dark:text-rose-500 font-black text-[10px] tracking-widest uppercase">Attention Required</h5>
+            <h3 className="text-slate-800 dark:text-white text-lg sm:text-xl font-bold">Late Cancellation Requests</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">There are bookings awaiting your intervention before they can be cancelled.</p>
+          </div>
+          <button 
+            onClick={() => setUrgentFilterActive(!urgentFilterActive)}
+            className={`group border rounded-xl p-3 flex items-center gap-4 shadow-sm transition-all duration-200 cursor-pointer outline-none ${
+              urgentFilterActive 
+                ? 'border-rose-400 dark:border-rose-500 ring-4 ring-rose-500/10 bg-rose-100 dark:bg-rose-900/40' 
+                : 'bg-rose-50 dark:bg-slate-800/50 border-rose-100 dark:border-slate-700/50 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+              urgentFilterActive 
+                ? 'bg-rose-500 text-white dark:bg-rose-500 dark:text-white group-hover:bg-rose-600 dark:group-hover:bg-rose-600' 
+                : 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400'
+            }`}>
+              {urgentFilterActive ? (
+                <>
+                  <AlertCircle className="w-5 h-5 group-hover:hidden" />
+                  <X className="w-5 h-5 hidden group-hover:block" />
+                </>
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+            </div>
+            <div className="text-left">
+              <p className={`text-[10px] font-bold uppercase tracking-wider ${urgentFilterActive ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                {urgentFilterActive ? (
+                  <>
+                    <span className="group-hover:hidden">Filter Active</span>
+                    <span className="hidden group-hover:inline">Clear Filter</span>
+                  </>
+                ) : 'Filter Urgent'}
+              </p>
+              <p className={`font-black text-xl leading-none ${urgentFilterActive ? 'text-rose-700 dark:text-rose-200 group-hover:hidden' : 'text-rose-600 dark:text-rose-400'}`}>
+                {urgentFilterActive ? (
+                  <>
+                    <span className="group-hover:hidden">{bookings.filter(b => b.status === 'cancellation_requested').length}</span>
+                    <span className="hidden group-hover:inline text-rose-600 dark:text-rose-300 text-sm">Reset</span>
+                  </>
+                ) : (
+                  bookings.filter(b => b.status === 'cancellation_requested').length
+                )}
+              </p>
+            </div>
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={[
+          { key: 'id', label: 'Booking ID', render: (item: any) => <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{item.id}</span> },
+          { key: 'customer_name', label: 'Customer', sortable: true },
+          { key: 'vendor_name', label: 'Vendor', sortable: true, render: (item: any) => item.vendor_name || '—' },
           {
             key: 'sub_service',
             label: 'Service',
@@ -1935,7 +2234,15 @@ function BookingsTab() {
             )
           },
         ]}
-        data={bookings}
+        data={[...bookings]
+          .filter(b => urgentFilterActive ? b.status === 'cancellation_requested' : true)
+          .sort((a, b) => {
+            if (a.status === 'cancellation_requested' && b.status !== 'cancellation_requested') return -1;
+            if (b.status === 'cancellation_requested' && a.status !== 'cancellation_requested') return 1;
+            return 0;
+          })
+        }
+        rowClassName={(item: any) => item.status === 'cancellation_requested' ? 'bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100/50 dark:hover:bg-rose-900/40' : ''}
         loading={loading}
         searchPlaceholder="Search bookings..."
       />
@@ -2671,6 +2978,30 @@ function AdminServiceCard({ service, onServiceClick, onEditClick }: { service: a
             opacity: hovered ? 0.6 : 0
           }}
         />
+
+        {/* Floating Top Left Tag */}
+        <div className="absolute top-4 left-4 z-20">
+          <div className="text-[10px] font-black tracking-wider uppercase px-3 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md text-white shadow-sm border border-white/10">
+            {service.brand}
+          </div>
+        </div>
+
+        {/* Floating Top Right Actions */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditClick(service);
+            }}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/60 hover:bg-slate-900/80 text-white transition-all border border-white/10 backdrop-blur-md shadow-sm"
+            title="Edit Service"
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/60 backdrop-blur-md border border-white/10 shadow-sm">
+            <Icon style={{ width: '16px', height: '16px', color: '#fff' }} />
+          </div>
+        </div>
         {hovered && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -2690,35 +3021,8 @@ function AdminServiceCard({ service, onServiceClick, onEditClick }: { service: a
         )}
       </div>
 
-      {/* Header */}
-      <div
-        className="relative px-6 py-5 flex items-center justify-between"
-        style={{
-          background: `linear-gradient(135deg, ${service.headerBg} 0%, ${service.headerBgLight} 100%)`,
-        }}
-      >
-        <div className="text-xs font-black tracking-wider uppercase px-3 py-1 rounded-full bg-white/20 text-white">
-          {service.brand}
-        </div>
-        <div className="flex items-center gap-2 relative z-20">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditClick(service);
-            }}
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-all border border-white/10 backdrop-blur-sm shadow-sm"
-            title="Edit Service"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/15">
-            <Icon style={{ width: '20px', height: '20px', color: '#fff' }} />
-          </div>
-        </div>
-      </div>
-
       {/* Body */}
-      <div className="p-6 flex flex-col flex-grow">
+      <div className="p-6 sm:p-7 flex flex-col flex-grow bg-white dark:bg-slate-900 relative z-30">
         <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-0.5">{service.brand}</h3>
         <p className="text-xs font-bold mb-3" style={{ color: service.accent }}>{service.tagline}</p>
         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4 flex-grow">{service.description}</p>
@@ -2839,9 +3143,21 @@ function ServicesManagementPage() {
 
         // Add remaining frontend services
         servicesData.forEach((fs) => {
-          if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase())) {
+          if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase() || m.brand.toLowerCase() === fs.brand.toLowerCase())) {
             merged.push(fs);
           }
+        });
+
+        const desiredOrder = [
+          'coolfix', 'sanifix', 'homefix', 'techfix', 'movefix', 
+          'spacefix', 'poolfix', 'healthfix', 'greenfix'
+        ];
+        merged.sort((a, b) => {
+          const brandA = (a.brand || '').toLowerCase();
+          const brandB = (b.brand || '').toLowerCase();
+          const indexA = desiredOrder.indexOf(brandA);
+          const indexB = desiredOrder.indexOf(brandB);
+          return (indexA !== -1 ? indexA : 999) - (indexB !== -1 ? indexB : 999);
         });
 
         setServices(merged);
@@ -5319,6 +5635,11 @@ function RefundsPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'success' | 'danger'}>({ isOpen: false, title: '', message: '', type: 'success' });
+  const showAlert = (message: string, type: 'success' | 'danger' = 'success') => {
+    setAlertConfig({ isOpen: true, title: type === 'success' ? 'Success' : 'Error', message, type });
+  };
 
   // Cancel Details & Deduction States
   const [cancelledBy, setCancelledBy] = useState('');
@@ -5494,50 +5815,60 @@ function RefundsPage() {
       return;
     }
 
-    setSubmitting(true);
-    setError('');
+    const processType = isProcessingExisting ? 'Process' : 'Create';
 
-    try {
-      const deductionAmt = isProcessingExisting ? (totalPrice * (deductionPercentage / 100)) : 0;
-      const deductionPct = isProcessingExisting ? deductionPercentage : 0;
+    confirm({
+      title: `Confirm ${processType} Refund`,
+      message: `Are you sure you want to ${processType.toLowerCase()} this refund? Please double check the deduction amount and reference numbers. This action cannot be undone.`,
+      confirmText: `Yes, ${processType} Refund`,
+      type: 'warning',
+      onConfirm: async () => {
+        setSubmitting(true);
+        setError('');
 
-      const payload = {
-        booking_id: selectedBookingId,
-        reference_number: referenceNumber.trim(),
-        account_number: accountNumber.trim(),
-        proof_image_url: proofImageUrl,
-        refund_amount: parseFloat(refundAmount) || 0,
-        deduction_amount: deductionAmt,
-        deduction_percentage: deductionPct,
-        cancelled_by: cancelledBy,
-        status_at_cancellation: statusAtCancellation,
-      };
+        try {
+          const deductionAmt = isProcessingExisting ? (totalPrice * (deductionPercentage / 100)) : 0;
+          const deductionPct = isProcessingExisting ? deductionPercentage : 0;
 
-      console.log('[CAVEMAN] RefundsPage: Submitting payload:', payload);
+          const payload = {
+            booking_id: selectedBookingId,
+            reference_number: referenceNumber.trim(),
+            account_number: accountNumber.trim(),
+            proof_image_url: proofImageUrl,
+            refund_amount: parseFloat(refundAmount) || 0,
+            deduction_amount: deductionAmt,
+            deduction_percentage: deductionPct,
+            cancelled_by: cancelledBy,
+            status_at_cancellation: statusAtCancellation,
+          };
 
-      if (isProcessingExisting && selectedRefundId) {
-        await api.patch(`/api/refunds/${selectedRefundId}/approve`, payload);
-        console.log('[CAVEMAN] RefundsPage: Process/Approve refund successful');
-        alert('Refund approved and details recorded successfully!');
-      } else {
-        if (!selectedBookingId) {
-          setError('Please select a booking.');
+          console.log('[CAVEMAN] RefundsPage: Submitting payload:', payload);
+
+          if (isProcessingExisting && selectedRefundId) {
+            await api.patch(`/api/refunds/${selectedRefundId}/approve`, payload);
+            console.log('[CAVEMAN] RefundsPage: Process/Approve refund successful');
+            showAlert('Refund approved and details recorded successfully!');
+          } else {
+            if (!selectedBookingId) {
+              setError('Please select a booking.');
+              setSubmitting(false);
+              return;
+            }
+            await api.post('/api/refunds/direct', payload);
+            console.log('[CAVEMAN] RefundsPage: Direct refund creation successful');
+            showAlert('Direct refund created and processed successfully!');
+          }
+
+          setShowModal(false);
+          loadData();
+        } catch (err: any) {
+          console.error('[CAVEMAN] RefundsPage: Submission failed', err);
+          setError(err.response?.data?.message || 'Failed to submit refund details. Please check the inputs.');
+        } finally {
           setSubmitting(false);
-          return;
         }
-        await api.post('/api/refunds/direct', payload);
-        console.log('[CAVEMAN] RefundsPage: Direct refund creation successful');
-        alert('Direct refund created and processed successfully!');
       }
-
-      setShowModal(false);
-      loadData();
-    } catch (err: any) {
-      console.error('[CAVEMAN] RefundsPage: Submission failed', err);
-      setError(err.response?.data?.message || 'Failed to submit refund details. Please check the inputs.');
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   const handleReject = (refundId: string) => {
@@ -5583,11 +5914,11 @@ function RefundsPage() {
             status_at_cancellation: refund.status_at_cancellation || '',
           });
           console.log('[CAVEMAN] RefundsPage: Quick approve successful for vendor-cancelled refund');
-          alert('Vendor-cancelled refund approved and marked as processed!');
+          showAlert('Vendor-cancelled refund approved and marked as processed!');
           loadData();
         } catch (err: any) {
           console.error('[CAVEMAN] RefundsPage: Quick approve failed', err);
-          alert(err.response?.data?.message || 'Failed to process vendor-cancelled refund.');
+          showAlert(err.response?.data?.message || 'Failed to process vendor-cancelled refund.', 'danger');
         }
       }
     });
@@ -5610,59 +5941,74 @@ function RefundsPage() {
         <div className="p-6">
           <DataTable
             columns={[
+              { key: 'created_at', label: 'Date Requested', sortable: true, render: (item: any) => {
+                let parsedDate = null;
+                if (item.created_at) {
+                  if (Array.isArray(item.created_at)) {
+                    const [y, m, d, h = 0, min = 0, s = 0] = item.created_at;
+                    parsedDate = new Date(y, m - 1, d, h, min, s);
+                  } else {
+                    parsedDate = new Date(item.created_at);
+                  }
+                }
+                const formatted = parsedDate && !isNaN(parsedDate.getTime())
+                  ? parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : '—';
+                return (
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">
+                    {formatted}
+                  </span>
+                );
+              }},
               { key: 'id', label: 'Refund ID', sortable: true, render: (item: any) => <span className="font-mono text-xs font-semibold text-slate-500">{item.id?.substring(0, 8)}...</span> },
               { key: 'booking_id', label: 'Booking ID', sortable: true, render: (item: any) => (
-                <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
                   <span className="font-mono text-xs font-semibold text-slate-850 dark:text-white">{formatBookingId(item.booking_id)}</span>
                   {item.is_automatic_expiration && (
-                    <span className="bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[9px] px-1.5 py-0.5 rounded-full inline-block mt-1 font-semibold w-fit">
-                      ⚠️ Missed Deadline
+                    <span className="text-rose-500 cursor-help flex items-center justify-center w-4 h-4 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-bold" title="Missed Deadline">
+                      !
                     </span>
                   )}
                 </div>
               ) },
               { key: 'customer_name', label: 'Customer Name', sortable: true, render: (item: any) => <span className="font-bold text-slate-800 dark:text-white">{item.customer_name}</span> },
               { key: 'refund_amount', label: 'Refund Amount', sortable: true, render: (item: any) => <span className="font-black text-brand-green">₱{Number(item.refund_amount || 0).toFixed(2)}</span> },
-              { key: 'reason', label: 'Reason', render: (item: any) => (
-                <div className="flex flex-col gap-0.5 max-w-[150px]">
-                  <span className="text-xs text-slate-700 dark:text-white font-bold truncate" title={item.reason}>
-                    {item.reason || 'Customer Requested'}
-                  </span>
-                  {item.is_automatic_expiration && (
-                    <span className="text-[9px] text-rose-500 font-extrabold">
-                      Automatic Expiration
-                    </span>
-                  )}
-                </div>
-              ) },
-              { key: 'cancelled_by', label: 'Cancelled By', render: (item: any) => {
+              { key: 'context', label: 'Context', render: (item: any) => {
                 const cb = item.cancelled_by || '—';
-                const colorMap: Record<string, string> = {
-                  customer: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-                  vendor: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
-                  admin: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
-                  system: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
-                };
-                const cls = colorMap[cb.toLowerCase()] || 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
-                return cb === '—'
-                  ? <span className="text-xs text-slate-400">—</span>
-                  : <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cls}`}>{cb}</span>;
+                const formattedCb = cb === '—' ? 'Unknown' : cb.charAt(0).toUpperCase() + cb.slice(1).toLowerCase();
+                let reasonText = item.reason || 'Customer Requested';
+                if (item.is_automatic_expiration) reasonText = 'Automatic Expiration';
+                
+                // Truncate to 25 chars and enforce Sentence case
+                let formattedReason = reasonText.charAt(0).toUpperCase() + reasonText.slice(1).toLowerCase();
+                if (formattedReason.length > 25) {
+                  formattedReason = formattedReason.substring(0, 25) + '...';
+                }
+                
+                return (
+                  <div className="flex flex-col max-w-[200px]">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400" title={`${formattedCb} - ${item.reason || 'Customer Requested'}`}>
+                      <span className="font-bold text-slate-900 dark:text-white">{formattedCb}</span> - {formattedReason}
+                    </span>
+                  </div>
+                );
               } },
-              { key: 'account_number', label: 'Account Number', render: (item: any) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{item.account_number || '—'}</span> },
-              { key: 'proof_image_url', label: 'Proof Image', render: (item: any) => item.proof_image_url ? (
-                <a href={item.proof_image_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-brand-navy dark:text-brand-green hover:underline font-bold">
-                  <Eye className="w-3.5 h-3.5" /> View Proof
-                </a>
-              ) : <span className="text-xs text-slate-400">None</span> },
               {
                 key: 'status',
                 label: 'Status',
                 sortable: true,
                 render: (item: any) => {
-                  const status = item.status || 'pending';
+                  const status = (item.status || 'pending').toLowerCase();
+                  let colorClass = 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'; // pending
+                  if (status === 'processed' || status === 'approved') {
+                    colorClass = 'bg-slate-500/10 text-slate-600 border border-slate-500/20'; // processed
+                  } else if (status === 'rejected') {
+                    colorClass = 'bg-rose-500/10 text-rose-600 border border-rose-500/20'; // rejected
+                  }
+                  
                   return (
-                    <span className={status === 'approved' || status.toLowerCase() === 'processed' ? 'badge-completed' : status === 'rejected' ? 'badge-cancelled' : 'badge-pending'}>
-                      {status.toUpperCase()}
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${colorClass}`}>
+                      {status === 'approved' ? 'PROCESSED' : status.toUpperCase()}
                     </span>
                   );
                 }
@@ -5674,16 +6020,27 @@ function RefundsPage() {
                   const status = item.status || 'pending';
                   if (status === 'pending') {
                     return (
-                      <Button size="sm" onClick={() => handleOpenProcess(item)}>
-                        Process
-                      </Button>
+                      <button 
+                        onClick={() => handleOpenProcess(item)}
+                        className="text-xs font-bold text-brand-green hover:text-emerald-700 transition-colors flex items-center gap-1 group"
+                      >
+                        Review <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                      </button>
                     );
                   }
                   return <span className="text-xs text-slate-400">—</span>;
                 }
               }
             ]}
-            data={refunds}
+            data={[...refunds].sort((a, b) => {
+              const parseDt = (val: any) => {
+                if (!val) return 0;
+                if (Array.isArray(val)) return new Date(val[0], val[1] - 1, val[2], val[3] || 0, val[4] || 0, val[5] || 0).getTime();
+                const d = new Date(val);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+              };
+              return parseDt(a.created_at) - parseDt(b.created_at);
+            })}
             loading={loading}
             searchPlaceholder="Search refunds..."
             emptyTitle="No Refunds Recorded"
@@ -5700,11 +6057,11 @@ function RefundsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg"
+              className="w-full max-w-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <Card className="p-6 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-xl space-y-6">
-                <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
+              <Card className="p-5 sm:p-6 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-xl space-y-4 sm:space-y-5">
+                <div className="flex items-center justify-between border-b pb-3 sm:pb-4 border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-brand-navy/10 dark:bg-brand-green/10 flex items-center justify-center text-brand-navy dark:text-brand-green">
                       <CreditCard className="w-5 h-5" />
@@ -5727,14 +6084,14 @@ function RefundsPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                   {!isProcessingExisting ? (
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Select Booking *</label>
                       <select
                         value={selectedBookingId}
                         onChange={e => setSelectedBookingId(e.target.value)}
-                        className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy"
                         required
                       >
                         <option value="">Select a booking to refund...</option>
@@ -5748,40 +6105,35 @@ function RefundsPage() {
                       </select>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Booking ID</label>
-                        <input
-                          type="text"
-                          value={selectedBookingId}
-                          readOnly
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-semibold focus:outline-none"
-                        />
+                        <div className="w-full px-3 py-2 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                          {selectedBookingId || '—'}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Customer Name</label>
-                        <input
-                          type="text"
-                          value={customerName}
-                          readOnly
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
-                          placeholder="Customer Name"
-                        />
+                        <div className="w-full px-3 py-2 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-bold">
+                          {customerName || '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Cancelled By</label>
+                        <div className="w-full px-3 py-2 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-bold">
+                          {cancelledBy ? cancelledBy.charAt(0).toUpperCase() + cancelledBy.slice(1).toLowerCase() : '—'}
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {!isProcessingExisting && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Customer Name</label>
-                        <input
-                          type="text"
-                          value={customerName}
-                          readOnly
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
-                          placeholder="Customer Name"
-                        />
+                        <div className="w-full px-3 py-2 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-bold">
+                          {customerName || '—'}
+                        </div>
                       </div>
 
                       <div>
@@ -5790,7 +6142,7 @@ function RefundsPage() {
                           type="text"
                           value={refundAmount ? `₱${Number(refundAmount).toFixed(2)}` : '₱0.00'}
                           readOnly
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-brand-green text-xs sm:text-sm font-black focus:outline-none"
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-brand-green text-xs font-black focus:outline-none"
                           placeholder="₱0.00"
                         />
                       </div>
@@ -5798,18 +6150,8 @@ function RefundsPage() {
                   )}
 
                   {isProcessingExisting && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Cancelled By</label>
-                        <input
-                          type="text"
-                          value={cancelledBy || '—'}
-                          readOnly
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-550 dark:text-slate-400 text-xs sm:text-sm font-bold focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
                         <div>
                           <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Percentage (%) *</label>
                           <input
@@ -5821,25 +6163,24 @@ function RefundsPage() {
                               const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                               setDeductionPercentage(val);
                             }}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-navy"
                             placeholder="0"
                             required
                           />
                         </div>
-
                         <div>
                           <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Deduction Amount (₱)</label>
                           <input
                             type="text"
                             value={`₱${(totalPrice * (deductionPercentage / 100)).toFixed(2)}`}
                             readOnly
-                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-rose-500 text-xs sm:text-sm font-black focus:outline-none"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-rose-500 text-xs sm:text-sm font-black focus:outline-none"
                           />
                         </div>
                       </div>
-
-                      <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-2">
-                        <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Refund Breakdown</p>
+                      
+                      <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-col justify-center space-y-1.5 sm:space-y-2 h-full">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Refund Breakdown</p>
                         <div className="flex justify-between text-xs font-semibold text-slate-650 dark:text-slate-350">
                           <span>Original Price:</span>
                           <span>₱{totalPrice.toFixed(2)}</span>
@@ -5848,23 +6189,23 @@ function RefundsPage() {
                           <span>Deductions Applied:</span>
                           <span>- ₱{(totalPrice * (deductionPercentage / 100)).toFixed(2)} ({deductionPercentage}%)</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-brand-green border-t border-dashed border-slate-200 dark:border-slate-700 pt-2 mt-1">
+                        <div className="flex justify-between text-sm font-bold text-brand-green border-t border-dashed border-slate-200 dark:border-slate-700 pt-1.5 mt-1">
                           <span>Final Refund Amount:</span>
                           <span>₱{Number(refundAmount).toFixed(2)}</span>
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reference Number *</label>
                       <input
                         type="text"
                         value={referenceNumber}
                         onChange={e => setReferenceNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
-                        placeholder="Enter Reference Number"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
+                        placeholder="Reference #"
                         required
                       />
                     </div>
@@ -5875,91 +6216,90 @@ function RefundsPage() {
                         type="text"
                         value={accountNumber}
                         onChange={e => setAccountNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
-                        placeholder={selectedBooking?.account_number || "Enter Customer's Account Number"}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 font-bold"
+                        placeholder="Account #"
                         required
                       />
                     </div>
                   </div>
 
-                  {/* Proof of Refund Image File Input */}
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                      Proof of Refund Image (Optional)
-                    </label>
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
-                      {uploadingImage ? (
-                        <div className="text-xs text-slate-500 font-bold animate-pulse">Uploading Image...</div>
-                      ) : proofImageUrl ? (
-                        <div className="relative w-full h-40 rounded-xl overflow-hidden">
-                          <img src={proofImageUrl} alt="Proof of Refund" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProofImageUrl('');
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-lg transition-colors z-10"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 mb-2">
-                            <Plus className="w-5 h-5" />
-                          </div>
-                          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                            Click to upload receipt or transaction proof image
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-1 font-medium">PNG, JPG, or WEBP formats allowed</p>
-                        </>
-                      )}
-                      {!proofImageUrl && !uploadingImage && (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={handleFileChange}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {isProcessingExisting && (
+                  {/* Proof of Refund Image File Input & Rejection side-by-side if rejecting */}
+                  <div className={`grid gap-3 ${isProcessingExisting ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <div>
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                        Rejection Details / Reason (Required if Rejecting)
+                        Proof of Refund Image (Optional)
                       </label>
-                      <textarea
-                        value={rejectionDetails}
-                        onChange={e => setRejectionDetails(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400"
-                        placeholder="Provide details or reason for rejection if you choose to reject this request..."
-                        rows={3}
-                      />
+                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-350 dark:border-slate-700 rounded-2xl p-2.5 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group h-24">
+                        {uploadingImage ? (
+                          <div className="text-[10px] text-slate-500 font-bold animate-pulse">Uploading...</div>
+                        ) : proofImageUrl ? (
+                          <div className="relative w-full h-full rounded-xl overflow-hidden">
+                            <img src={proofImageUrl} alt="Proof" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProofImageUrl('');
+                              }}
+                              className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black text-white rounded-lg transition-colors z-10"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 mb-1">
+                              <Plus className="w-4 h-4" />
+                            </div>
+                            <p className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 text-center px-2">
+                              Upload receipt image
+                            </p>
+                          </>
+                        )}
+                        {!proofImageUrl && !uploadingImage && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={handleFileChange}
+                          />
+                        )}
+                      </div>
                     </div>
-                  )}
+
+                    {isProcessingExisting && (
+                      <div>
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
+                          Rejection Details (Required if Rejecting)
+                        </label>
+                        <textarea
+                          value={rejectionDetails}
+                          onChange={e => setRejectionDetails(e.target.value)}
+                          className="w-full h-24 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-navy placeholder:text-slate-400 resize-none"
+                          placeholder="Reason for rejection..."
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   {(() => {
                     const showRejectButton = isProcessingExisting;
 
                     return (
-                      <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                         {showRejectButton && (
-                          <Button
-                            variant="danger"
-                            className="flex-1"
+                          <button
                             type="button"
                             onClick={() => handleReject(selectedRefundId!)}
                             disabled={submitting}
+                            className="flex-1 py-2 text-sm font-bold text-rose-500 bg-white border border-rose-500 rounded-xl hover:bg-rose-50 transition-colors disabled:opacity-50"
                           >
                             Reject Refund
-                          </Button>
+                          </button>
                         )}
                         <Button
                           variant="success"
-                          className="flex-1"
+                          className="flex-1 py-2 text-sm"
                           type="submit"
                           loading={submitting}
                         >
@@ -5974,6 +6314,18 @@ function RefundsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        hideCancel={true}
+        confirmText="OK"
+      />
+      <ConfirmComponent />
     </div>
   );
 }

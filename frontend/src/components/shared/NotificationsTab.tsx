@@ -5,12 +5,14 @@ import api from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import { EmptyState } from '../shared/EmptyState';
 import { AdminPageHeader } from './AdminPageHeader';
+import { useNavigate } from 'react-router-dom';
 export function NotificationsTab() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const navigate = useNavigate();
 
   const getCategory = (n: any) => {
     const t = (n.type || n.title || '').toLowerCase();
@@ -264,7 +266,53 @@ export function NotificationsTab() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   key={n.id}
-                  onClick={() => { if (!isRead) markAsRead(n.id); }}
+                  onClick={() => {
+                    if (!isRead) markAsRead(n.id);
+                    if (!profile?.role) return;
+                    
+                    const role = profile.role.toLowerCase();
+                    const title = (n.type || n.title || '').toLowerCase();
+                    const message = (n.message || '').toLowerCase();
+                    
+                    const match = n.message.match(/BK-\d+/);
+                    const bookingId = match ? match[0] : null;
+
+                    // Cancellation or Refund -> Refunds tab (Admin/Customer), Bookings tab (Vendor/Personnel)
+                    if (title.includes('cancel') || title.includes('refund') || message.includes('cancel') || message.includes('refund')) {
+                      if (role === 'admin' || role === 'customer') {
+                        navigate(`/${role}/refunds`, { state: bookingId ? { bookingId } : undefined });
+                      } else {
+                        navigate(`/${role}/bookings`, { state: bookingId ? { bookingId } : undefined });
+                      }
+                      return;
+                    }
+                    
+                    // Vouchers -> Vouchers tab (Admin/Customer)
+                    if (title.includes('voucher') || message.includes('voucher')) {
+                      if (role === 'admin' || role === 'customer') {
+                        navigate(`/${role}/vouchers`);
+                      }
+                      return;
+                    }
+
+                    // Admin specific routes
+                    if (role === 'admin') {
+                      if (title.includes('message') || message.includes('message')) {
+                        navigate(`/admin/messages`);
+                        return;
+                      }
+                      if ((title.includes('vendor') || message.includes('vendor')) && (title.includes('review') || title.includes('register') || title.includes('pending'))) {
+                        navigate(`/admin/vendors-management`);
+                        return;
+                      }
+                    }
+
+                    // Default to bookings if there's a booking ID
+                    if (bookingId) {
+                      navigate(`/${role}/bookings`, { state: { bookingId } });
+                      return;
+                    }
+                  }}
                   className={`group relative p-4 sm:p-5 rounded-none border-l-4 border-y border-r flex flex-col sm:flex-row sm:items-start gap-4 transition-all duration-300 cursor-pointer 
                     ${isRead 
                       ? `opacity-70 bg-white/50 dark:bg-slate-900/40 border-y-slate-100 border-r-slate-100 dark:border-y-slate-800/50 dark:border-r-slate-800/50 border-l-slate-300 dark:border-l-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60` 
@@ -273,7 +321,7 @@ export function NotificationsTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <div className="flex items-center gap-2">
-                        {!isRead && <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold bg-brand-navy dark:bg-brand-green text-white rounded-sm">New</span>}
+                        {!isRead && <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold bg-brand-navy dark:bg-brand-green text-white rounded-sm">Recently</span>}
                         <h3 className={`text-sm sm:text-base font-bold tracking-tight ${isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>
                           {n.title || "Notification"}
                         </h3>

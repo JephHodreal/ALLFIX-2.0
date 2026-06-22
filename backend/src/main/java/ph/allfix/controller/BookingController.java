@@ -94,4 +94,19 @@ public class BookingController {
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
+
+    @PatchMapping("/{id}/resolve-cancellation")
+    public ResponseEntity<?> resolveCancellation(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            String action = (String) body.get("action");
+            Double penaltyAmount = null;
+            if (body.get("penalty_amount") != null) {
+                penaltyAmount = Double.valueOf(body.get("penalty_amount").toString());
+            }
+            bookingService.resolveCancellation(id, action, penaltyAmount);
+            return ResponseEntity.ok(Map.of("message", "Cancellation resolved"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
 }

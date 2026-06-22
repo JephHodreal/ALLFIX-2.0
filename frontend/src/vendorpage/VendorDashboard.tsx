@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
+import { AdminPageHeader } from '../components/shared/AdminPageHeader';
+import { LayoutDashboard } from 'lucide-react';
 
 /**
  * Filters the vendor's profile services list against active database services.
@@ -119,6 +121,12 @@ function VendorHome() {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Overview"
+        subtitle="Monitor your business performance and metrics."
+        icon={<TrendingUp />}
+      />
+
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="Total Jobs" value={stats?.totalJobs ?? 0} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
@@ -151,12 +159,18 @@ function VendorHome() {
 
 function VendorBookings() {
   const { profile } = useAuth();
+  const location = useLocation();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [showAssignPersonnelModal, setShowAssignPersonnelModal] = useState(false);
+  const [personnelToAssign, setPersonnelToAssign] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchPersonnel, setSearchPersonnel] = useState('');
+  const [assignError, setAssignError] = useState('');
 
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState('');
@@ -168,6 +182,7 @@ function VendorBookings() {
 
   // Cancellation Reason Form State
   const [cancellationReason, setCancellationReason] = useState('');
+  const [cancelReasonType, setCancelReasonType] = useState('Out of service zone');
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
@@ -180,7 +195,9 @@ function VendorBookings() {
     if (profile?.id) {
       setLoading(true);
       api.get(`/api/bookings/vendor/${profile.id}`)
-        .then(r => setBookings(r.data || []))
+        .then(r => {
+          setBookings(r.data || []);
+        })
         .catch(() => { })
         .finally(() => setLoading(false));
 
@@ -191,6 +208,15 @@ function VendorBookings() {
       setLoading(false);
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (location.state?.bookingId && bookings.length > 0) {
+      const matched = bookings.find((b: any) => b.id === location.state.bookingId);
+      if (matched && selectedBooking?.id !== matched.id) {
+        setSelectedBooking(matched);
+      }
+    }
+  }, [location.state?.bookingId, bookings]);
 
   // [CAVEMAN] Compute set of personnel IDs who are actively assigned (in_progress bookings)
   // These personnel must be excluded from the assign-personnel list
@@ -214,6 +240,7 @@ function VendorBookings() {
 
   const handleAssignPersonnelSubmit = async (personnelId: string) => {
     setAssigningLoading(true);
+    setAssignError('');
     try {
       await api.patch(`/api/bookings/${selectedBooking.id}/assign-personnel`, {
         personnel_id: personnelId,
@@ -236,9 +263,8 @@ function VendorBookings() {
       );
 
       setShowAssignPersonnelModal(false);
-      alert('Personnel assigned successfully!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign personnel.');
+      setAssignError(err.response?.data?.message || 'Failed to assign personnel. Please try again.');
     } finally {
       setAssigningLoading(false);
     }
@@ -263,7 +289,7 @@ function VendorBookings() {
         )
       );
 
-      alert('Booking completed successfully!');
+      // We removed the native alert to rely on natural UI updates
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to complete booking.');
     }
@@ -330,7 +356,10 @@ function VendorBookings() {
   if (selectedBooking) {
     // [CAVEMAN] Filter personnel: must be approved, not deleted, qualified for sub-service,
     // AND not currently assigned to an active/in_progress booking.
-    const bookingSubService = (selectedBooking.sub_service || selectedBooking.service_type || '').toLowerCase();
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const bSubNorm = normalize(selectedBooking.sub_service || '');
+    const bTypeNorm = normalize(selectedBooking.service_type || '');
+
     const matchedPersonnel = personnel.filter((p: any) => {
       if (p.acc_approve !== 'approved' || p.temp_delete === 1) return false;
       // Exclude personnel currently on an active assignment (in_progress)
@@ -338,11 +367,37 @@ function VendorBookings() {
         console.log(`[CAVEMAN] Excluding busy personnel: ${p.first_name} ${p.last_name} (ID: ${p.id})`);
         return false;
       }
-      if (!p.services || !Array.isArray(p.services)) return false;
-      return p.services.some((svc: any) => {
-        const subs = svc.sub_services || [];
-        return subs.some((sub: string) => sub.toLowerCase() === bookingSubService);
-      });
+      let pServices = p.services;
+      if (typeof pServices === 'string') {
+        try { pServices = JSON.parse(pServices); } catch(e) { pServices = []; }
+      }
+      
+      // Just in case it's an object, wrap it
+      if (pServices && !Array.isArray(pServices) && typeof pServices === 'object') {
+        pServices = [pServices];
+      }
+
+      let matched = false;
+      if (Array.isArray(pServices)) {
+        matched = pServices.some((svc: any) => {
+          const svcName = normalize(typeof svc === 'string' ? svc : (svc.service || ''));
+          const subs = Array.isArray(svc?.sub_services) ? svc.sub_services.map((s: string) => normalize(s)) : [];
+          
+          const matchesMain = (bSubNorm && svcName === bSubNorm) || (bTypeNorm && svcName === bTypeNorm);
+          const matchesSub = (bSubNorm && subs.includes(bSubNorm)) || (bTypeNorm && subs.includes(bTypeNorm));
+          
+          return matchesMain || matchesSub;
+        });
+      }
+
+      // ULTIMATE FAILSAFE: If structured matching failed, do a raw string dump fuzzy search
+      if (!matched) {
+        const rawDump = normalize(JSON.stringify(p));
+        if (bSubNorm && bSubNorm.length > 2 && rawDump.includes(bSubNorm)) matched = true;
+        else if (bTypeNorm && bTypeNorm.length > 2 && rawDump.includes(bTypeNorm)) matched = true;
+      }
+
+      return matched;
     });
 
     // showAllPersonnel fallback also excludes actively-busy personnel
@@ -501,10 +556,10 @@ function VendorBookings() {
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
           <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && selectedBooking.status !== 'pending' && (
+            {selectedBooking.status === 'confirmed' && (
               <Button
-                variant="danger"
-                className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white min-w-[120px]"
+                variant="outline"
+                className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none"
                 onClick={() => {
                   setShowCancelConfirm(true);
                 }}
@@ -528,7 +583,7 @@ function VendorBookings() {
               <Button
                 variant="success"
                 className="flex-grow sm:flex-1 py-3 text-sm font-semibold rounded-xl min-w-[150px]"
-                onClick={handleCompleteBooking}
+                onClick={() => setShowCompleteConfirm(true)}
               >
                 Complete
               </Button>
@@ -536,126 +591,121 @@ function VendorBookings() {
           </div>
         )}
 
-        {/* Cancel Confirmation Dialog */}
-        {showCancelConfirm && (
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
-            </div>
-            <p className="text-sm text-slate-655 dark:text-slate-350">
-              Are you sure you want to cancel this booking?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setShowCancelConfirm(false);
-                  setCancellationReason('');
-                  setCancelError('');
-                  setShowRefundForm(true);
-                }}
-              >
-                Yes, Cancel
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Cancel Confirmation Dialog is rendered below */}
 
-        {/* Cancellation Reason Form */}
+        {/* Cancellation Reason Form (Modal) */}
         {showRefundForm && (
-          <Card className="p-6 bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/30 rounded-2xl shadow-xl space-y-6">
-            <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
-                <AlertCircle className="w-5 h-5" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200" onClick={() => setShowRefundForm(false)}>
+            <Card className="p-6 bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/30 rounded-2xl shadow-2xl space-y-6 w-full max-w-lg" onClick={(e: any) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 flex-shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
+                  <p className="text-xs text-slate-500">Provide a reason for cancelling this booking. A full refund will be automatically issued to the customer.</p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
-                <p className="text-xs text-slate-500">Provide a reason for cancelling this booking. A full refund will be automatically issued to the customer.</p>
+
+              {cancelError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Cancellation *</label>
+                  <select
+                    value={cancelReasonType}
+                    onChange={(e) => setCancelReasonType(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 font-semibold appearance-none"
+                  >
+                    <option value="Out of service zone">Out of service zone</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Equipment/Inventory Issue">Equipment / Inventory Issue</option>
+                    <option value="Scheduling Conflict">Scheduling Conflict</option>
+                    <option value="Other">Other (Please specify)</option>
+                  </select>
+                </div>
+
+                {cancelReasonType === 'Other' && (
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Specify Reason *</label>
+                    <textarea
+                      rows={3}
+                      value={cancellationReason}
+                      onChange={(e) => setCancellationReason(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-slate-400 resize-none"
+                      placeholder="Explain why you are cancelling..."
+                      required
+                    />
+                  </div>
+                )}
               </div>
-            </div>
 
-            {cancelError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
-                {cancelError}
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  ⚠ A full refund of <span className="font-black">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span> will be submitted to the admin for processing.
+                </p>
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Cancellation *</label>
-              <textarea
-                rows={4}
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-slate-400 resize-none"
-                placeholder="e.g. Vendor is unavailable on this date, equipment issue, etc."
-                required
-              />
-            </div>
-
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                ⚠ A full refund of <span className="font-black">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span> will be submitted to the admin for processing.
-              </p>
-            </div>
-
-            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowRefundForm(false);
-                  setCancelError('');
-                }}
-                disabled={cancelSubmitting}
-              >
-                Back to Details
-              </Button>
-              <Button
-                variant="danger"
-                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
-                onClick={async () => {
-                  if (!cancellationReason.trim()) {
-                    setCancelError('Please provide a reason for cancellation.');
-                    return;
-                  }
-                  setCancelSubmitting(true);
-                  setCancelError('');
-                  try {
-                    const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0;
-                    await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, {
-                      refund_amount: totalAmt,
-                      reason: cancellationReason.trim(),
-                      cancelled_by: 'vendor',
-                    });
-                    setSelectedBooking((prev: any) => ({
-                      ...prev,
-                      status: 'cancelled',
-                      cancellation_requested: true,
-                    }));
-                    setBookings((prevList: any[]) =>
-                      prevList.map((b: any) =>
-                        b.id === selectedBooking.id
-                          ? { ...b, status: 'cancelled', cancellation_requested: true }
-                          : b
-                      )
-                    );
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
                     setShowRefundForm(false);
-                    alert('Booking cancelled. A full refund request has been submitted to the admin.');
-                  } catch (err: any) {
-                    setCancelError(err.response?.data?.message || 'Failed to cancel booking. Please try again.');
-                  } finally {
-                    setCancelSubmitting(false);
-                  }
-                }}
-                loading={cancelSubmitting}
-              >
-                Confirm Cancellation
-              </Button>
-            </div>
-          </Card>
+                    setCancelError('');
+                  }}
+                  disabled={cancelSubmitting}
+                >
+                  Go Back
+                </Button>
+                <Button
+                  variant="danger"
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-6"
+                  onClick={async () => {
+                    const finalReason = cancelReasonType === 'Other' ? cancellationReason.trim() : cancelReasonType;
+                    if (!finalReason) {
+                      setCancelError('Please provide a reason for cancellation.');
+                      return;
+                    }
+                    setCancelSubmitting(true);
+                    setCancelError('');
+                    try {
+                      const totalAmt = selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0;
+                      await api.post(`/api/bookings/${selectedBooking.id}/cancel-with-refund`, {
+                        refund_amount: totalAmt,
+                        reason: finalReason,
+                        cancelled_by: 'vendor',
+                      });
+                      setSelectedBooking((prev: any) => ({
+                        ...prev,
+                        status: 'cancelled',
+                        cancellation_requested: true,
+                      }));
+                      setBookings((prevList: any[]) =>
+                        prevList.map((b: any) =>
+                          b.id === selectedBooking.id
+                            ? { ...b, status: 'cancelled', cancellation_requested: true }
+                            : b
+                        )
+                      );
+                      setShowRefundForm(false);
+                      // Native alert removed since statusBadge changes instantly
+                    } catch (err: any) {
+                      setCancelError(err.response?.data?.message || 'Failed to cancel booking. Please try again.');
+                    } finally {
+                      setCancelSubmitting(false);
+                    }
+                  }}
+                  loading={cancelSubmitting}
+                >
+                  Confirm Cancellation
+                </Button>
+              </div>
+            </Card>
+          </div>
         )}
 
         {/* Assign Personnel Modal/Section */}
@@ -680,6 +730,12 @@ function VendorBookings() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {assignError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl mb-4">
+                {assignError}
+              </div>
+            )}
 
             {displayPersonnelList.length === 0 ? (
               <div className="text-center py-8 space-y-4">
@@ -724,13 +780,29 @@ function VendorBookings() {
                   )}
                 </div>
 
-                {displayPersonnelList.map((p: any) => (
+                <div className="mb-3 px-1">
+                  <input
+                    type="text"
+                    placeholder="Search personnel..."
+                    value={searchPersonnel}
+                    onChange={(e) => setSearchPersonnel(e.target.value)}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+
+                {displayPersonnelList.filter((p: any) => `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchPersonnel.toLowerCase())).map((p: any) => (
                   <div
                     key={p.id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/50 dark:hover:bg-slate-900 flex justify-between items-center transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/50 dark:hover:bg-slate-900 flex justify-between items-center transition-all mb-2"
                   >
                     <div>
-                      <h5 className="text-sm font-bold text-slate-900 dark:text-white">{p.first_name} {p.last_name}</h5>
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-sm font-bold text-slate-900 dark:text-white">{p.first_name} {p.last_name}</h5>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-full">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-green-700 dark:text-green-400">No conflicts today</span>
+                        </div>
+                      </div>
                       <div className="flex flex-col sm:flex-row sm:gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1">
                         <span>✉ {p.email}</span>
                         {p.phone && <span>📞 {p.phone}</span>}
@@ -739,7 +811,7 @@ function VendorBookings() {
                     <Button
                       size="sm"
                       className="bg-brand-navy hover:bg-[#0a2d5c]"
-                      onClick={() => handleAssignPersonnelSubmit(p.id)}
+                      onClick={() => setPersonnelToAssign(p)}
                       loading={assigningLoading}
                     >
                       Assign
@@ -748,28 +820,103 @@ function VendorBookings() {
                 ))}
               </div>
             )}
-
-            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                variant="ghost"
-                onClick={() => setShowAssignPersonnelModal(false)}
-                disabled={assigningLoading}
-              >
-                Cancel
-              </Button>
-            </div>
           </Card>
         )}
+        
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            setShowCancelConfirm(false);
+            setCancellationReason('');
+            setCancelError('');
+            setShowRefundForm(true);
+          }}
+          title="Cancel Booking"
+          message="Are you sure you want to cancel this booking? This will open the cancellation reason form."
+          confirmText="Yes, Cancel"
+          cancelText="No, Keep Booking"
+          type="danger"
+        />
+
+        <ConfirmModal
+          isOpen={showCompleteConfirm}
+          onClose={() => setShowCompleteConfirm(false)}
+          onConfirm={() => {
+            setShowCompleteConfirm(false);
+            handleCompleteBooking();
+          }}
+          title="Complete Booking"
+          message="Are you sure you want to mark this booking as completed? Please only do this if the job is truly finished."
+          confirmText="Yes, Complete"
+          cancelText="Cancel"
+          type="info"
+        />
+
+        <ConfirmModal
+          isOpen={!!personnelToAssign}
+          onClose={() => setPersonnelToAssign(null)}
+          onConfirm={() => {
+            if (personnelToAssign) {
+              handleAssignPersonnelSubmit(personnelToAssign.id);
+              setPersonnelToAssign(null);
+            }
+          }}
+          title="Confirm Personnel Assignment"
+          message={`Are you sure you want to assign ${personnelToAssign?.first_name} ${personnelToAssign?.last_name} to this booking?`}
+          confirmText="Yes, Assign Personnel"
+          cancelText="Cancel"
+          type="info"
+        />
       </div>
     );
   }
 
+  const tabs = [
+    { id: 'all', label: 'All' },
+    { id: 'pending', label: 'Pending' },
+    { id: 'confirmed', label: 'Confirmed' },
+    { id: 'in_progress', label: 'In Progress' },
+    { id: 'completed', label: 'Completed' },
+    { id: 'cancelled', label: 'Cancelled' },
+  ];
+
+  const filteredBookings = bookings.filter((b: any) => {
+    if (activeTab === 'all') return true;
+    return b.status === activeTab;
+  });
+
   return (
-    <DataTable
-      columns={[
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Bookings & Requests"
+        subtitle="Manage your service appointments and new requests."
+        icon={<ClipboardList />}
+      />
+
+      {/* Status Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto custom-scrollbar">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
+                ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <DataTable
+        columns={[
         { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
+        { key: 'customer', label: 'Customer Name', render: (item: any) => <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.customer_name || '—'}</span> },
         { key: 'service_type', label: 'Service', sortable: true },
-        { key: 'scheduled_date', label: 'Date', sortable: true },
+        { key: 'schedule', label: 'Time/Schedule', render: (item: any) => <div className="text-xs whitespace-nowrap"><div className="font-medium text-slate-700 dark:text-slate-300">{item.scheduled_date}</div><div className="text-slate-500 font-bold">{item.scheduled_time}</div></div> },
+        { key: 'location', label: 'Location', render: (item: any) => <span className="truncate max-w-[150px] block" title={item.address || item.service_address || '—'}>{item.address || item.service_address || '—'}</span> },
         { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
         {
           key: 'actions',
@@ -789,10 +936,11 @@ function VendorBookings() {
           )
         },
       ]}
-      data={bookings}
+      data={filteredBookings}
       loading={loading}
       searchPlaceholder="Search bookings..."
     />
+    </div>
   );
 }
 
@@ -811,8 +959,14 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
   
+  const [showConfirmAddSlot, setShowConfirmAddSlot] = useState(false);
+  
   const [showEditSlotModal, setShowEditSlotModal] = useState(false);
   const [editSlot, setEditSlot] = useState<any>(null);
+
+  const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'info'|'warning'|'danger'|'success'}>({
+    isOpen: false, title: '', message: '', type: 'info'
+  });
 
   const vendorProfile = profile as any;
   const vendorServices = getFilteredVendorServices(vendorProfile?.services || [], dbServices);
@@ -894,7 +1048,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
     }, 0);
   };
 
-  const handleAddSlot = async () => {
+  const handleAddSlot = () => {
     setTimeError('');
     if (!newSlot.service || newSlot.total_slots < 1) {
       setAlertConfig({ isOpen: true, title: 'Error', message: 'Fill all fields', type: 'danger' });
@@ -944,6 +1098,14 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       }
     }
 
+    setShowConfirmAddSlot(true);
+  };
+
+  const executeAddSlot = async () => {
+    const datesToProcess = isSelectionMode
+      ? selectedDates.map(d => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d))
+      : [selectedDate!];
+
     try {
       await Promise.all(datesToProcess.map(d => {
         const dateStr = formatLocalYYYYMMDD(d);
@@ -962,6 +1124,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       setNewSlot({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
       setIsSelectionMode(false);
       setSelectedDates([]);
+      setAlertConfig({ isOpen: true, title: 'Success', message: 'Booking slot(s) added successfully.', type: 'success' });
     } catch (err) {
       setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to create slots for some or all dates', type: 'danger' });
     }
@@ -1021,6 +1184,11 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Schedule & Availability"
+        subtitle="Manage your time slots and working hours."
+        icon={<CalendarDays />}
+      />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 space-y-6">
           {/* Calendar Card */}
@@ -1558,10 +1726,32 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         }}
         onConfirm={confirmDeleteSlot}
         title="Delete Slot"
-        message="Are you sure you want to delete this slot? All availability for this time will be removed."
+        message="Are you sure you want to delete this slot? Any existing bookings for this slot will not be automatically cancelled."
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={showConfirmAddSlot}
+        onClose={() => setShowConfirmAddSlot(false)}
+        onConfirm={executeAddSlot}
+        title="Confirm Booking Slot"
+        message="Are you sure you want to add this booking slot to your schedule?"
+        type="info"
+        confirmText="Add Slot"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })}
+        onConfirm={() => setAlertConfig({ ...alertConfig, isOpen: false })}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        confirmText="OK"
+        type={alertConfig.type}
+        cancelText=""
       />
     </div>
   );
@@ -1800,7 +1990,8 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         phone: createForm.phone,
         acc_approve: 'approved',
         temp_delete: 0,
-        last_login: null
+        last_login: null,
+        services: selectedServices
       };
       setPersonnel(prev => [newPersonnel, ...prev]);
       setShowCreateSuccessModal(true);
@@ -1825,6 +2016,12 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Personnel"
+        subtitle="Manage your service technicians and staff."
+        icon={<UserCheck />}
+      />
+
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Personnel List</h3>
         <Button onClick={() => { setShowCreateModal(true); setCreateError(''); }} icon={<Plus className="w-4 h-4" />}>
@@ -2607,9 +2804,10 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
 
   const confirmSubmitAll = async () => {
     setSubmitting(true);
+    const validNewProposals = proposedRows.filter(r => r.name.trim());
     try {
       await Promise.all(
-        validNewProposals.map(row =>
+        validNewProposals.map((row: any) =>
           api.post('/api/services/requests/work-type', {
             vendorId: p.id,
             vendorName: p.company_name || p.name || 'Vendor',
@@ -3144,12 +3342,14 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Offered Services"
+        subtitle="Configure offered service brands, propose custom categories, or manage custom Work Types."
+        icon={<Wrench />}
+      />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Service Brand Management</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Configure offered service brands, propose custom categories, or manage custom Work Types.
-          </p>
         </div>
         <div className="flex gap-2">
           {activeTab === 'offered' ? (

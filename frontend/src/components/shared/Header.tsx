@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Bell, Sun, Moon, Menu, Check, Trash2, ArrowRight } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -79,6 +79,19 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
     }
   };
 
+  const sortedNotifications = React.useMemo(() => {
+    return [...notifications].sort((a, b) => {
+      const getMs = (d: any) => {
+        if (!d) return 0;
+        if (typeof d === 'string') return new Date(d).getTime();
+        if (d.seconds) return d.seconds * 1000;
+        if (d._seconds) return d._seconds * 1000;
+        return 0;
+      };
+      return getMs(b.created_at) - getMs(a.created_at);
+    });
+  }, [notifications]);
+
   return (
     <header className="h-16 bg-white dark:bg-[#020617] border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center gap-4">
@@ -154,29 +167,51 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                 ) : (
                   <>
                   <div className="p-2 space-y-1">
-                    {(expanded ? notifications.filter(n => filter === 'all' || !(n.is_read || n.read)) : notifications.filter(n => filter === 'all' || !(n.is_read || n.read)).slice(0, 5)).map((item) => {
+                    {(expanded ? sortedNotifications.filter(n => filter === 'all' || !(n.is_read || n.read)) : sortedNotifications.filter(n => filter === 'all' || !(n.is_read || n.read)).slice(0, 5)).map((item) => {
                       const isRead = item.read || item.is_read;
                       return (
                         <div
                           key={item.id}
                           onClick={(e) => {
+                            e.stopPropagation();
                             if (!isRead) handleMarkAsRead(item.id, e);
+                            
+                            if (profile?.role) {
+                              const role = profile.role.toLowerCase();
+                              const messageLower = item.message.toLowerCase();
+                              
+                              if (messageLower.includes('refund')) {
+                                navigate(`/${role}/refunds`);
+                              } else {
+                                const match = item.message.match(/BK-\d+/);
+                                if (match) {
+                                  const bookingId = match[0];
+                                  navigate(`/${role}/bookings`, { state: { bookingId } });
+                                } else {
+                                  navigate(`/${role}/notifications`);
+                                }
+                              }
+                              setShowDropdown(false);
+                            }
                           }}
                           className={`p-3.5 rounded-xl transition-all flex items-start gap-3 relative cursor-pointer ${isRead ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/40' : 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm'}`}
                         >
-                          {!isRead && (
-                            <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)] mt-1.5 flex-shrink-0 animate-pulse" />
-                          )}
-                          <div className={`flex-grow min-w-0 ${isRead ? 'ml-5' : ''}`}>
+                          <div className="flex-grow min-w-0">
                             <p className={`text-[13px] leading-relaxed break-words pr-2 ${isRead ? 'text-slate-600 dark:text-slate-400 font-medium' : 'text-slate-800 dark:text-slate-100 font-semibold'}`}>
                               {item.message}
                             </p>
+                            {!isRead && (
+                              <div className="mt-1.5 flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Recently</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                     );
                   })}
                   </div>
-                  {!expanded && notifications.filter(n => filter === 'all' || !(n.is_read || n.read)).length > 5 && (
+                  {!expanded && sortedNotifications.filter(n => filter === 'all' || !(n.is_read || n.read)).length > 5 && (
                     <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-center sticky bottom-0">
                       <button
                         onClick={(e) => {

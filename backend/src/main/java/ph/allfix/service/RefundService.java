@@ -391,7 +391,7 @@ public class RefundService {
             "<html>" +
             "<body style=\"font-family: Arial, sans-serif; color: #333333; line-height: 1.6; margin: 0; padding: 0;\">" +
             "  <div style=\"max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">" +
-            "    <div style=\"background-color: #0c1a30; padding: 24px; text-align: center; color: #ffffff;\">" +
+            "    <div style=\"background-color: #041e41; padding: 24px; text-align: center; color: #ffffff;\">" +
             "      <h2 style=\"margin: 0; font-size: 24px; font-weight: bold;\">Refund Processed Successfully</h2>" +
             "      <p style=\"margin: 4px 0 0 0; font-size: 14px; opacity: 0.85;\">Your refund transaction details</p>" +
             "    </div>" +

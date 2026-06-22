@@ -58,7 +58,6 @@ public class BookingService {
         String schedDate = (String) data.get("scheduled_date");
         String schedTime = (String) data.get("scheduled_time");
         String details = "ID: " + bookingId + " - " + serviceType;
-        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Scheduled", "Your booking for " + details + " has been successfully submitted.");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "New Booking Request", "You have a new pending booking request for " + details + ".");
 
         try {
@@ -102,8 +101,18 @@ public class BookingService {
     }
 
     public void assignPersonnel(String bookingId, String personnelId) throws Exception {
+        Map<String, Object> personnel = firestoreService.getById("personnel", personnelId);
+        String personnelName = "A personnel";
+        if (personnel != null) {
+            String fName = (String) personnel.get("first_name");
+            String lName = (String) personnel.get("last_name");
+            personnelName = (fName != null ? fName : "") + (lName != null ? " " + lName : "");
+            personnelName = personnelName.trim().isEmpty() ? "A personnel" : personnelName.trim();
+        }
+
         Map<String, Object> updates = new HashMap<>();
         updates.put("personnel_id", personnelId);
+        updates.put("personnel_name", personnelName);
         updates.put("status", "in_progress");
         firestoreService.update("bookings", bookingId, updates);
 
@@ -115,8 +124,22 @@ public class BookingService {
         String schedDate = (String) booking.get("scheduled_date");
         String schedTime = (String) booking.get("scheduled_time");
         String details = "ID: " + bookingId + " - " + serviceType;
-        if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", "A personnel has been assigned to your booking for " + details + ".");
+        if (customerId != null) notificationService.notify(customerId, "customer", "Personnel Assigned", personnelName + " has been assigned to your booking for " + details + ".");
         notificationService.notify(personnelId, "personnel", "New Assignment", "You have been assigned a new job for " + details + ".");
+
+        try {
+            List<Map<String, Object>> admins = firestoreService.getAll("admins");
+            for (Map<String, Object> admin : admins) {
+                String adminId = (String) admin.get("id");
+                if (adminId == null) adminId = (String) admin.get("uid");
+                if (adminId != null) {
+                    notificationService.notify(adminId, "admin", "Personnel Assigned", 
+                        "Vendor assigned " + personnelName + " to booking " + bookingId + " (" + serviceType + "). Status is now in-progress.");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to notify admins of personnel assignment: " + e.getMessage());
+        }
     }
 
     public void completeBooking(String bookingId) throws Exception {
@@ -168,36 +191,127 @@ public class BookingService {
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
 
-        // Update booking status to cancelled AND mark cancellation_requested
+        String currentStatus = (String) booking.get("status");
+        boolean isInProgress = "in_progress".equals(currentStatus);
+
         Map<String, Object> updates = new HashMap<>();
-        updates.put("status", "cancelled");
         updates.put("cancellation_requested", true);
         updates.put("cancelled_by", "customer");
-        updates.put("status_at_cancellation", booking.get("status"));
+        updates.put("status_at_cancellation", currentStatus);
+
+        if (isInProgress) {
+            updates.put("status", "cancellation_requested");
+            firestoreService.update("bookings", bookingId, updates);
+            // DO NOT restore slot yet, wait for Admin resolution
+        } else {
+            updates.put("status", "cancelled");
+            firestoreService.update("bookings", bookingId, updates);
+            // Restore slot back to vendor slots
+            try {
+                slotService.restoreSlotForCancelledBooking(bookingId);
+            } catch (Exception e) {
+                System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in requestCancellation: " + e.getMessage());
+            }
+        }
+
+        // Notify admin ONLY
+        String title = isInProgress ? "[URGENT] Cancellation Request" : "Cancellation Requested";
+        String message = "A booking for \"" + booking.get("service_type") + "\" has been cancelled by the customer.";
+
+        try {
+            List<Map<String, Object>> admins = firestoreService.getAll("admins");
+            for (Map<String, Object> admin : admins) {
+                String adminId = (String) admin.get("id");
+                if (adminId == null) adminId = (String) admin.get("uid");
+                if (adminId != null) {
+                    notificationService.notify(adminId, "admin", title, message);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to notify admins of cancellation request: " + e.getMessage());
+        }
+
+        System.out.println("requestCancellation complete: status updated, notifications sent.");
+    }
+
+    public void resolveCancellation(String bookingId, String action, Double penaltyAmount) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        if ("deny".equals(action)) {
+            // Revert back to in_progress
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("status", "in_progress");
+            updates.put("cancellation_requested", false);
+            firestoreService.update("bookings", bookingId, updates);
+            
+            // Notify customer
+            String customerId = (String) booking.get("customer_id");
+            if (customerId != null) {
+                notificationService.notify(customerId, "customer", "Cancellation Denied",
+                    "Your cancellation request for \"" + booking.get("service_type") + "\" was denied. The technician is en route.");
+            }
+
+            // Notify vendor
+            String vendorId = (String) booking.get("vendor_id");
+            if (vendorId != null) {
+                notificationService.notify(vendorId, "vendor", "Cancellation Denied",
+                    "Admin has denied the customer's cancellation request for booking \"" + booking.get("service_type") + "\". Please proceed as scheduled.");
+            }
+            return;
+        }
+
+        // Action is "full_refund" or "penalty"
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "cancelled");
         firestoreService.update("bookings", bookingId, updates);
 
-        // Restore slot back to vendor slots
+        // Restore slot
         try {
             slotService.restoreSlotForCancelledBooking(bookingId);
         } catch (Exception e) {
-            System.err.println("ERROR: Failed to execute restoreSlotForCancelledBooking in requestCancellation: " + e.getMessage());
+            System.err.println("ERROR: Failed to restore slot in resolveCancellation: " + e.getMessage());
         }
+
+        // Handle refund logic
+        double totalPrice = 0.0;
+        if (booking.get("total_price") != null) {
+            totalPrice = Double.parseDouble(booking.get("total_price").toString());
+        } else if (booking.get("price") != null) {
+            totalPrice = Double.parseDouble(booking.get("price").toString()) * 
+                         Double.parseDouble(booking.getOrDefault("quantity", "1").toString());
+        }
+
+        double refundAmount = totalPrice;
+        if ("penalty".equals(action) && penaltyAmount != null) {
+            refundAmount = Math.max(0, totalPrice - penaltyAmount);
+        }
+
+        Map<String, Object> refundRecord = new HashMap<>();
+        refundRecord.put("booking_id", bookingId);
+        refundRecord.put("customer_id", booking.get("customer_id"));
+        refundRecord.put("vendor_id", booking.get("vendor_id"));
+        refundRecord.put("status", "approved"); // Auto-approve the refund portion
+        refundRecord.put("amount", String.valueOf(refundAmount));
+        refundRecord.put("deduction_amount", "penalty".equals(action) ? String.valueOf(penaltyAmount) : "0");
+        refundRecord.put("reason", "Customer Cancellation (Admin Resolved)");
+        refundRecord.put("created_at", new java.util.Date());
+
+        firestoreService.create("refunds", refundRecord);
 
         // Notify customer
         String customerId = (String) booking.get("customer_id");
         if (customerId != null) {
-            notificationService.notify(customerId, "customer", "Cancellation Requested",
-                "Your booking for \"" + booking.get("service_type") + "\" has been cancelled. A refund request has been submitted for admin review.");
+            notificationService.notify(customerId, "customer", "Cancellation Approved",
+                "Your cancellation for \"" + booking.get("service_type") + "\" was approved. Refund Amount: ₱" + refundAmount);
         }
 
         // Notify vendor
         String vendorId = (String) booking.get("vendor_id");
         if (vendorId != null) {
-            notificationService.notify(vendorId, "vendor", "Booking Cancelled",
-                "A booking for \"" + booking.get("service_type") + "\" has been cancelled by the customer.");
+            notificationService.notify(vendorId, "vendor", "Cancellation Approved",
+                "Admin has approved the cancellation request for booking \"" + booking.get("service_type") + "\".");
         }
-
-        System.out.println("requestCancellation complete: status set to cancelled, notifications sent.");
     }
 
     public void cancelWithRefund(String bookingId, Map<String, Object> refundDetails) throws Exception {

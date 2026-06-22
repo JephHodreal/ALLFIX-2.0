@@ -19,6 +19,7 @@ interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   onRowClick?: (item: T) => void;
+  rowClassName?: (item: T) => string;
 }
 
 export function DataTable<T extends { id?: string }>({
@@ -31,6 +32,7 @@ export function DataTable<T extends { id?: string }>({
   emptyTitle = 'No data found',
   emptyDescription = 'There are no records to display.',
   onRowClick,
+  rowClassName,
 }: DataTableProps<T>) {
   const [search, setSearch] = React.useState('');
   const [page, setPage] = React.useState(0);
@@ -158,7 +160,7 @@ export function DataTable<T extends { id?: string }>({
                     onRowClick
                       ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50'
                       : 'hover:bg-slate-50/50 dark:hover:bg-slate-700/30'
-                  }`}
+                  } ${rowClassName ? rowClassName(item) : ''}`}
                   onClick={() => onRowClick?.(item)}
                 >
                   {columns.map((col) => (

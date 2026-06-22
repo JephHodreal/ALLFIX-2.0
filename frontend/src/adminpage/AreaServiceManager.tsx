@@ -5,6 +5,7 @@ import { Card } from '../components/shared/Card';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -159,8 +160,8 @@ function ServiceToggleCard({
       <div className={`
         w-2.5 h-2.5 rounded-full transition-all duration-300
         ${available
-          ? 'bg-[#10355f] dark:bg-[#60a5fa] shadow-[0_0_8px_rgba(16,53,95,0.3)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]'
-          : 'bg-slate-300 dark:bg-slate-600'
+          ? 'bg-[#10355f] dark:bg-[#60a5fa] shadow-[0_0_8px_rgba(16,53,95,0.3)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)] border-0'
+          : 'bg-transparent border border-slate-400 dark:border-slate-500'
         }
       `} />
 
@@ -175,24 +176,7 @@ function ServiceToggleCard({
         {service}
       </span>
 
-      {/* COMING SOON badge — inactive overlay */}
-      <AnimatePresence>
-        {!available && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex items-center justify-center rounded-2xl pointer-events-none"
-          >
-            <div className="px-3 py-1.5 rounded-lg bg-red-500/85 dark:bg-red-600/80 backdrop-blur-sm shadow-lg shadow-red-500/20">
-              <span className="text-[10px] font-black tracking-widest text-white uppercase">
-                Coming Soon
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* No overlay badge needed. The grey out and hollow circle natively communicate the inactive state. */}
 
       {/* Hover pulse ring for active cards */}
       {available && (
@@ -214,6 +198,30 @@ export default function AreaServiceManager() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'error' });
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [masterServices, setMasterServices] = useState<string[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'warning' | 'info';
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  useEffect(() => {
+    api.get('/api/services')
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          setMasterServices(res.data.map((s: any) => s.name));
+        }
+      })
+      .catch(err => console.error('Failed to load master services', err));
+  }, []);
 
   const selectedLabel = AREAS.find(a => a.id === selectedArea)?.label || '';
   
@@ -268,42 +276,58 @@ export default function AreaServiceManager() {
       return;
     }
     
-    const updatedCustom = [...customServices, name];
-    setCustomServices(updatedCustom);
-    localStorage.setItem('global_custom_services', JSON.stringify(updatedCustom));
-    
-    // Auto-enable it for the current area
-    const newState = { ...availability, [name]: true };
-    setAvailability(newState);
-    localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
-    
-    setNewServiceName('');
-    setToast({ show: true, message: `Added new service card: ${name}`, type: 'success' });
+    setConfirmModal({
+      isOpen: true,
+      title: 'Add New Service',
+      message: `Are you sure you want to add "${name}" to the service grid for all areas and enable it for ${selectedLabel}?`,
+      type: 'info',
+      confirmText: 'Add Service',
+      onConfirm: () => {
+        const updatedCustom = [...customServices, name];
+        setCustomServices(updatedCustom);
+        localStorage.setItem('global_custom_services', JSON.stringify(updatedCustom));
+        
+        // Auto-enable it for the current area
+        const newState = { ...availability, [name]: true };
+        setAvailability(newState);
+        localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
+        
+        setNewServiceName('');
+        setToast({ show: true, message: `Added new service card: ${name}`, type: 'success' });
+      }
+    });
   };
   
   // ── Delete Service ──
   const handleDeleteService = (e: React.MouseEvent, serviceToRemove: string) => {
     e.stopPropagation(); // prevent toggling
     
-    if (window.confirm(`Are you sure you want to completely remove "${serviceToRemove}" from all areas?`)) {
-      // Remove from customServices if it's a custom service
-      if (customServices.includes(serviceToRemove)) {
-        const updatedCustom = customServices.filter(s => s !== serviceToRemove);
-        setCustomServices(updatedCustom);
-        localStorage.setItem('global_custom_services', JSON.stringify(updatedCustom));
-      } else {
-        // If they try to delete a default one, just hide it from this area by toggling off, 
-        // or actually allow deleting defaults by moving it to a "deleted_defaults" list. 
-        // For simplicity, let's just allow removing defaults from the view for this area.
-        const newState = { ...availability, [serviceToRemove]: false };
-        setAvailability(newState);
-        localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
-        setToast({ show: true, message: `Default service ${serviceToRemove} hidden (cannot permanently delete defaults).`, type: 'success' });
-        return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Service',
+      message: `Are you sure you want to completely remove "${serviceToRemove}" from all areas?`,
+      type: 'danger',
+      confirmText: 'Remove',
+      onConfirm: () => {
+        // Remove from customServices if it's a custom service
+        if (customServices.includes(serviceToRemove)) {
+          const updatedCustom = customServices.filter(s => s !== serviceToRemove);
+          setCustomServices(updatedCustom);
+          localStorage.setItem('global_custom_services', JSON.stringify(updatedCustom));
+        } else {
+          // If they try to delete a default one, just hide it from this area by toggling off, 
+          // or actually allow deleting defaults by moving it to a "deleted_defaults" list. 
+          // For simplicity, let's just allow removing defaults from the view for this area.
+          const newState = { ...availability, [serviceToRemove]: false };
+          setAvailability(newState);
+          localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
+          setToast({ show: true, message: `Default service ${serviceToRemove} hidden (cannot permanently delete defaults).`, type: 'success' });
+          return;
+        }
+        
+        setToast({ show: true, message: `Removed ${serviceToRemove}.`, type: 'success' });
       }
-      
-      setToast({ show: true, message: `Removed ${serviceToRemove}.`, type: 'success' });
-    }
+    });
   };
 
   // ── Optimistic toggle ──
@@ -312,20 +336,26 @@ export default function AreaServiceManager() {
     
     // Ask for confirmation first before toggling!
     const actionStr = prev ? 'DISABLE' : 'ENABLE';
-    if (!window.confirm(`Are you sure you want to ${actionStr} ${serviceId} in ${selectedLabel}?`)) {
-      return; // Cancelled
-    }
-
-    const newState = { ...availability, [serviceId]: !prev };
     
-    // Update local state and persist to localStorage
-    setAvailability(newState);
-    localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
-    
-    setToast({ 
-      show: true, 
-      message: `${serviceId} ${!prev ? 'enabled' : 'disabled'} in ${selectedLabel}`, 
-      type: 'success' 
+    setConfirmModal({
+      isOpen: true,
+      title: `${prev ? 'Disable' : 'Enable'} Service`,
+      message: `Are you sure you want to ${actionStr} ${serviceId} in ${selectedLabel}?`,
+      type: prev ? 'warning' : 'info',
+      confirmText: prev ? 'Disable' : 'Enable',
+      onConfirm: () => {
+        const newState = { ...availability, [serviceId]: !prev };
+        
+        // Update local state and persist to localStorage
+        setAvailability(newState);
+        localStorage.setItem(`area_services_${selectedArea}`, JSON.stringify(newState));
+        
+        setToast({ 
+          show: true, 
+          message: `${serviceId} ${!prev ? 'enabled' : 'disabled'} in ${selectedLabel}`, 
+          type: 'success' 
+        });
+      }
     });
   };
 
@@ -433,13 +463,19 @@ export default function AreaServiceManager() {
             
             {/* Add Service Form */}
             <form onSubmit={handleAddService} className="flex items-center gap-2 max-w-xs w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="New service (e.g. AutoFix)"
+              <select
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
-                className="flex-1 min-w-[140px] px-3 py-2 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#10355f]/20 focus:border-[#10355f] dark:focus:ring-[#60a5fa]/20 transition-all"
-              />
+                className="flex-1 min-w-[140px] px-3 py-2 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#10355f]/20 focus:border-[#10355f] dark:focus:ring-[#60a5fa]/20 transition-all appearance-none cursor-pointer"
+              >
+                <option value="">Select global service...</option>
+                {masterServices
+                  .filter(ms => !allServicesList.some(s => s.toLowerCase() === ms.toLowerCase()))
+                  .map(ms => (
+                    <option key={ms} value={ms}>{ms}</option>
+                  ))
+                }
+              </select>
               <button
                 type="submit"
                 disabled={!newServiceName.trim()}
@@ -479,6 +515,20 @@ export default function AreaServiceManager() {
 
       {/* ── Toast ── */}
       <Toast toast={toast} onClose={() => setToast(t => ({ ...t, show: false }))} />
+
+      {/* ── Confirm Modal ── */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+      />
     </div>
   );
 }
