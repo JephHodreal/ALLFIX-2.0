@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, MessageSquare, Building2, User, HelpCircle, Bug, X, AlertCircle } from 'lucide-react';
+import { Button } from '../components/shared/Button';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -9,8 +10,115 @@ import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
 import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../hooks/useConfirm';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
+import { useChatMessages } from '../hooks/useChat';
+
+function PersonnelChatModal({ 
+  isOpen, 
+  onClose, 
+  type, 
+  booking, 
+  profile 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  type: 'hq' | 'customer'; 
+  booking: any; 
+  profile: any; 
+}) {
+  const threadId = type === 'hq' ? `hq_${profile.id}_${booking.vendor_id}` : booking.id;
+  const { messages, loading, sendMessage, retryMessage } = useChatMessages(threadId);
+  const [inputText, setInputText] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSend = async () => {
+    if (!inputText.trim()) return;
+    try {
+      await sendMessage(profile.id, 'technician', inputText, true);
+      setInputText('');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[600px] max-h-[90vh]">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${type === 'hq' ? 'bg-brand-navy' : 'bg-brand-green'}`}>
+              {type === 'hq' ? <Building2 className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white">
+                {type === 'hq' ? 'Vendor HQ' : booking.customer_name || 'Customer'}
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold">
+                {type === 'hq' ? 'Internal Channel' : formatBookingId(booking.id)}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {loading ? (
+             <div className="text-center py-4 text-sm text-slate-500">Loading messages...</div>
+          ) : messages.length === 0 ? (
+             <div className="text-center py-4 text-sm text-slate-500">No messages yet. Say hello!</div>
+          ) : (
+            // For customer channel, only show logistics messages!
+            messages.filter(m => type === 'hq' ? true : m.is_logistics).map(msg => (
+              <div key={msg.id} className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === profile.id ? 'justify-end' : 'justify-start'}`}>
+                {msg.sender_role === 'system' ? (
+                  <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
+                    {msg.text}
+                  </span>
+                ) : (
+                  <div className="flex flex-col gap-1 items-end">
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.sender_id === profile.id ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'} ${msg.delivery_status === 'sending' ? 'opacity-70' : ''}`}>
+                      {msg.sender_id !== profile.id && (
+                        <div className="text-[10px] font-bold text-slate-400 mb-1">
+                          {msg.sender_role === 'vendor' ? 'Vendor Manager' : booking.customer_name}
+                        </div>
+                      )}
+                      <p className="text-sm">{msg.text}</p>
+                    </div>
+                    {msg.sender_id === profile.id && msg.delivery_status === 'sending' && (
+                      <span className="text-[10px] text-slate-400">Sending...</span>
+                    )}
+                    {msg.sender_id === profile.id && msg.delivery_status === 'failed' && (
+                      <button onClick={() => retryMessage(msg)} className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Tap to retry
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Type your message..." 
+              className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20" 
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+            />
+            <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl shadow-md">Send</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PersonnelHome() {
   const { profile } = useAuth();
@@ -75,6 +183,7 @@ function PersonnelBookings() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [activeChat, setActiveChat] = useState<'hq' | 'customer' | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -295,8 +404,33 @@ function PersonnelBookings() {
           )}
         </Card>
 
+        {/* ── Communication Action Sheet ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+          <button
+            className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-navy hover:bg-slate-800 text-white font-bold transition-all shadow-sm active:scale-95"
+            onClick={() => setActiveChat('hq')}
+          >
+            <Building2 className="w-5 h-5" /> Message HQ
+          </button>
+          
+          {/* Conditional Customer Messaging Button */}
+          {(selectedBooking.status === 'dispatched' || selectedBooking.status === 'in-transit' || selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned') && (
+            <button
+              className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
+              onClick={() => setActiveChat('customer')}
+            >
+              <MessageSquare className="w-5 h-5" /> Message Customer
+            </button>
+          )}
+        </div>
 
-
+        <PersonnelChatModal 
+          isOpen={activeChat !== null}
+          onClose={() => setActiveChat(null)}
+          type={activeChat!}
+          booking={selectedBooking}
+          profile={profile}
+        />
       </div>
     );
   }
@@ -375,6 +509,89 @@ function PersonnelProfile() {
   );
 }
 
+// ─── Personnel Help & Support Tab ────────────────────────────────────────────────
+function PersonnelSupport() {
+  const { confirm, ConfirmComponent } = useConfirm();
+  const [showBugModal, setShowBugModal] = useState(false);
+  const [bugForm, setBugForm] = useState({ description: '' });
+
+  const handleSubmit = async () => {
+    try {
+      await api.post('/api/support', {
+        role: 'personnel',
+        issue_type: 'App Bug Report',
+        message: bugForm.description,
+        priority: 'medium'
+      });
+      confirm({
+        title: 'Success',
+        message: 'Bug reported successfully. Thank you for helping us improve!',
+        type: 'success',
+        hideCancel: true,
+        confirmText: 'Okay'
+      });
+      setShowBugModal(false);
+      setBugForm({ description: '' });
+    } catch (err) {
+      confirm({
+        title: 'Error',
+        message: 'Failed to report bug.',
+        type: 'danger',
+        hideCancel: true,
+        confirmText: 'Okay'
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <ConfirmComponent />
+      <Card className="p-8 text-center bg-brand-navy border-none shadow-lg relative overflow-hidden">
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
+            <HelpCircle className="w-8 h-8 text-brand-green" />
+          </div>
+          <h2 className="text-2xl font-black tracking-tight text-white">Personnel Support</h2>
+          <p className="text-sm text-slate-300 mt-2 max-w-md mx-auto">
+            If you encounter issues with platform payouts or customer disputes, please contact your Vendor Manager directly via the Message HQ button in your jobs.
+          </p>
+          <p className="text-xs font-bold text-slate-400 mt-6 mb-2 uppercase tracking-widest">Experiencing technical issues?</p>
+          <Button 
+            onClick={() => setShowBugModal(true)} 
+            className="bg-brand-green hover:bg-[#005e3f] text-white font-bold px-6 py-2 rounded-xl shadow-md flex items-center gap-2"
+          >
+            <Bug className="w-4 h-4" /> Report App Bug
+          </Button>
+        </div>
+        <Bug className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
+      </Card>
+
+      {showBugModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Bug className="w-5 h-5 text-brand-green" /> Report App Bug
+              </h3>
+              <button onClick={() => setShowBugModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500">Please describe the technical issue or error you experienced in the app.</p>
+              <div>
+                <textarea rows={5} placeholder="I clicked the complete job button and it crashed..." value={bugForm.description} onChange={e => setBugForm({...bugForm, description: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowBugModal(false)}>Cancel</Button>
+              <Button className="bg-brand-green hover:bg-[#005e3f] text-white" onClick={handleSubmit}>Submit Bug Report</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PersonnelDashboard() {
   const [collapsed, setCollapsed] = useState(true);
   return (
@@ -388,6 +605,7 @@ export default function PersonnelDashboard() {
             <Route path="bookings" element={<PersonnelBookings />} />
             <Route path="profile" element={<PersonnelProfile />} />
             <Route path="notifications" element={<NotificationsTab />} />
+            <Route path="support" element={<PersonnelSupport />} />
           </Routes>
         </main>
       </div>

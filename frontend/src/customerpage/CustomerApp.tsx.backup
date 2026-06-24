@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { NotificationsTab } from '../components/shared/NotificationsTab';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check, History, MessageSquare, HelpCircle } from 'lucide-react';
-import { AdminPageHeader } from '../components/shared/AdminPageHeader';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -908,23 +907,27 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Book a Service"
-        subtitle="Configure services, choose your preferred vendor, and bundle them in a single booking cart."
-        icon={<PlusCircle />}
-        action={
-          <Button variant="ghost" onClick={() => {
-            const rBrand = brandParam || activeServiceCategory?.brand || activeServiceCategory?.name;
-            if (rBrand) {
-              localStorage.setItem('restoreBrand', rBrand);
-            }
-            console.log('[DEBUG] Navigating back with restoreBrand:', rBrand, 'brandParam:', brandParam, 'activeSvc:', activeServiceCategory);
-            navigate('/customer', { state: { restoreBrand: rBrand } });
-          }} className="w-fit px-0 hover:bg-transparent text-slate-500 hover:text-brand-navy h-auto py-1">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Sub-services
-          </Button>
-        }
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Book a Service
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Configure services, choose your preferred vendor, and bundle them in a single booking cart.</p>
+        </div>
+        <Button variant="ghost" onClick={() => {
+          const rBrand = brandParam || activeServiceCategory?.brand || activeServiceCategory?.name;
+          if (rBrand) {
+            localStorage.setItem('restoreBrand', rBrand);
+          }
+          console.log('[DEBUG] Navigating back with restoreBrand:', rBrand, 'brandParam:', brandParam, 'activeSvc:', activeServiceCategory);
+          navigate('/customer', { state: { restoreBrand: rBrand } });
+        }} className="w-fit px-0 hover:bg-transparent text-slate-500 hover:text-brand-navy h-auto py-1">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Sub-services
+        </Button>
+      </div>
 
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-pulse">
@@ -1847,11 +1850,17 @@ function MyBookingsTab() {
   // ── Bookings List View ──
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="My Bookings"
-        subtitle="Track and manage your service requests, appointments, and past jobs."
-        icon={<History />}
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            My Bookings
+          </h2>
+          <p className="text-sm text-slate-500">Track and manage your service requests, appointments, and past jobs.</p>
+        </div>
+      </div>
 
       <DataTable
         columns={[
@@ -2019,25 +2028,32 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Your Booking Cart"
-        subtitle="Review selected services and schedule details before completing the booking."
-        icon={<ClipboardList />}
-      />
+  if (cart.length === 0) {
+    return (
+      <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl max-w-xl mx-auto p-8 space-y-4">
+        <ShoppingBag className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Your Cart is Empty</h2>
+        <p className="text-sm text-slate-500 max-w-sm mx-auto">Browse specialized care solutions to configure services and save items here.</p>
+        <Button variant="primary" className="py-2.5 px-6 text-sm font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors shadow-sm" onClick={() => navigate('/customer')}>
+          Browse Services
+        </Button>
+      </div>
+    );
+  }
 
-      <div className="max-w-3xl mx-auto">
-        {cart.length === 0 ? (
-          <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl p-8 space-y-4">
-            <ClipboardList className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto" />
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">No Pending Bookings</h2>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">You haven't added any services to your booking queue yet. Browse our specialized care solutions to get started.</p>
-            <Button variant="primary" className="py-2.5 px-6 text-sm font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors shadow-sm" onClick={() => navigate('/customer')}>
-              Browse Services
-            </Button>
-          </div>
-        ) : (
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Your Booking Cart
+          </h2>
+          <p className="text-sm text-slate-500">Review selected services and schedule details before completing the booking.</p>
+        </div>
+      </div>
 
       <Card className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl space-y-6">
         <div className="space-y-4">
@@ -2106,8 +2122,6 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
           </Button>
         </div>
       </Card>
-        )}
-      </div>
     </div>
   );
 }
@@ -2262,11 +2276,17 @@ function ProfileTab() {
 
   return (
     <div className="space-y-2 h-full flex flex-col">
-      <AdminPageHeader
-        title="My Profile"
-        subtitle="Manage your personal information and account security settings."
-        icon={<User />}
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            My Profile
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manage your personal information and account security settings.</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
 
@@ -2537,28 +2557,48 @@ function VouchersTab() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="My Vouchers"
-        subtitle="View and manage all your discount vouchers assigned by AllFix administrators."
-        icon={<Ticket />}
-        action={
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
-            {(['unused', 'used', 'expired'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status as any)}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all duration-200 ${
-                  filter === status
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-600'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
-                }`}
-              >
-                {status === 'unused' ? 'Active' : status === 'used' ? 'Redeemed' : 'Expired'}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <Ticket className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            My Vouchers
+          </h2>
+          <p className="text-sm text-slate-500">View and manage all your discount vouchers assigned by AllFix administrators.</p>
+        </div>
+
+        {/* Toggle Filters */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
+          <button
+            onClick={() => setFilter('unused')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'unused'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setFilter('used')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'used'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            Redeemed
+          </button>
+          <button
+            onClick={() => setFilter('expired')}
+            className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${filter === 'expired'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            Expired
+          </button>
+        </div>
+      </div>
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400">
@@ -2703,27 +2743,33 @@ function RefundsTab() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Refund Center"
-        subtitle="Track the status of your cancellations and automatic GCash refund transactions."
-        icon={<RefreshCcw />}
-        action={
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
-            {(['all', 'Processed', 'pending', 'rejected'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 capitalize ${filter === status
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
-              >
-                {status === 'all' ? 'All Transactions' : status === 'Processed' ? 'Completed' : status}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+              <RefreshCcw className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            Refund Center
+          </h2>
+          <p className="text-sm text-slate-500">Track the status of your cancellations and automatic GCash refund transactions.</p>
+        </div>
+
+        {/* Toggle Filters */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
+          {(['all', 'Processed', 'pending', 'rejected'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200 capitalize ${filter === status
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+            >
+              {status === 'all' ? 'All Transactions' : status === 'Processed' ? 'Completed' : status}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400">
@@ -3794,295 +3840,6 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
 }
 
 // ─── Notifications Tab ──────────────────────────────────────────────────────
-// ─── Customer Messages Tab ────────────────────────────────────────────────────────
-import { useChatThreads, useChatMessages } from '../hooks/useChat';
-import { useBookings } from '../hooks/useBookings';
-
-function CustomerMessages() {
-  const { user, profile } = useAuth();
-  const { threads, loading: threadsLoading } = useChatThreads([user?.uid, profile?.id], 'customer');
-  const { bookings } = useBookings(profile?.id, 'customer');
-  
-  const [selectedThread, setSelectedThread] = useState<any>(null);
-  const [activeChannel, setActiveChannel] = useState<'vendor'|'personnel'>('vendor');
-  
-  // Find associated booking for selected thread
-  const selectedBooking = useMemo(() => {
-    if (!selectedThread || !bookings) return null;
-    return bookings.find(b => b.id === selectedThread.booking_id);
-  }, [selectedThread, bookings]);
-  
-  const showPersonnelTab = selectedBooking?.status === 'dispatched' || selectedBooking?.status === 'in_progress' || selectedBooking?.status === 'in-transit';
-
-  const isHardLocked = useMemo(() => {
-    if (selectedBooking?.status !== 'completed') return false;
-    const completedAt = selectedBooking?.completed_at ? new Date(selectedBooking.completed_at) : null;
-    if (!completedAt) return false;
-    const hoursSinceCompletion = (new Date().getTime() - completedAt.getTime()) / (1000 * 60 * 60);
-    return hoursSinceCompletion > 48;
-  }, [selectedBooking]);
-  
-  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null);
-  const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeChannel]);
-
-  useEffect(() => {
-    if (activeChannel === 'personnel' && !showPersonnelTab) {
-      setActiveChannel('vendor');
-    }
-  }, [showPersonnelTab, activeChannel]);
-
-  const handleSend = async () => {
-    if (!inputText.trim() || !user || !selectedThread) return;
-    try {
-      await sendMessage(user.uid, 'customer', inputText, activeChannel === 'personnel');
-      setInputText('');
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  return (
-    <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
-      <AdminPageHeader
-        title="Messages"
-        subtitle="Coordinate directly with your service providers and technicians."
-        icon={<MessageSquare />}
-      />
-
-      <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex h-full min-h-[600px]">
-        {/* Left Pane (30%) */}
-        <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-            <h3 className="font-black text-slate-800 dark:text-white">Active Bookings</h3>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {threadsLoading ? (
-              <div className="text-center py-4 text-sm text-slate-500">Loading conversations...</div>
-            ) : threads.length === 0 ? (
-              <div className="text-center py-4 text-sm text-slate-500">No active conversations.</div>
-            ) : (
-              threads.map(t => (
-                <div key={t.id} onClick={() => { setSelectedThread(t); setActiveChannel('vendor'); }} className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-white dark:bg-slate-800 border-brand-navy shadow-md ring-1 ring-brand-navy/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.vendor_name || 'Vendor'}</h4>
-                  <p className="text-xs text-slate-500">{t.service_type || 'Service'}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Right Pane (70%) */}
-        <div className="w-2/3 flex flex-col bg-slate-50 dark:bg-slate-950 relative">
-          {selectedThread ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm">
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-white">
-                    {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
-                  </h3>
-                  <p className="text-xs text-slate-500 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Online
-                  </p>
-                </div>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                  <button
-                    onClick={() => setActiveChannel('vendor')}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      activeChannel === 'vendor' 
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    Vendor
-                  </button>
-                  {showPersonnelTab && (
-                    <button
-                      onClick={() => setActiveChannel('personnel')}
-                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        activeChannel === 'personnel' 
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
-                          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      Assigned Personnel
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Messages Area */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-6">
-                {messages.filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics).length === 0 ? (
-                  <div className="text-center py-10">
-                    <p className="text-slate-500 text-sm">No messages yet. Send a message to start the conversation.</p>
-                  </div>
-                ) : (
-                  messages
-                    .filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics)
-                    .map(msg => {
-                    const isMe = msg.sender_id === user?.uid;
-                    return (
-                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
-                          isMe 
-                            ? 'bg-brand-navy text-white rounded-tr-none' 
-                            : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
-                        }`}>
-                          <p>{msg.text}</p>
-                          <span className={`text-[10px] mt-1 block ${isMe ? 'text-slate-300' : 'text-slate-400'}`}>
-                            {msg.created_at?.toDate ? msg.created_at.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Area */}
-              {isHardLocked ? (
-                <div className="p-4 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
-                  This service is marked completed. This conversation is now closed for new messages.
-                  <button onClick={() => window.location.href = '/customer/support'} className="text-brand-green hover:underline ml-1">Need more help? Open a Support Ticket</button>
-                </div>
-              ) : selectedBooking?.status === 'completed' && activeChannel === 'personnel' ? (
-                <div className="p-4 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
-                  Personnel chat is closed for completed bookings.
-                </div>
-              ) : (
-                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Type a message..." 
-                      className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 text-slate-800 dark:text-white"
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    />
-                    <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl">Send</Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
-                <MessageSquare className="w-8 h-8 text-slate-300" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800 dark:text-slate-200">Your Conversations</h3>
-              <p className="text-sm text-slate-500 mt-2 max-w-sm">Select an active booking on the left to securely chat with vendors or assigned technicians.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Customer Help & Support Tab ────────────────────────────────────────────────
-function CustomerSupport() {
-  const [showTicketModal, setShowTicketModal] = useState(false);
-  const [ticketForm, setTicketForm] = useState({ issueType: 'Late Technician', bookingId: '', message: '' });
-
-  const handleSubmit = async () => {
-    try {
-      await api.post('/api/support', {
-        role: 'customer',
-        issue_type: ticketForm.issueType,
-        booking_id: ticketForm.bookingId,
-        message: ticketForm.message,
-        priority: 'medium'
-      });
-      alert('Support ticket submitted successfully. Our team will review this shortly.');
-      setShowTicketModal(false);
-      setTicketForm({ issueType: 'Late Technician', bookingId: '', message: '' });
-    } catch (err) {
-      alert('Failed to submit ticket');
-    }
-  };
-
-  const faqs = [
-    { q: 'How do I cancel a booking?', a: 'Go to your Bookings tab, select the booking, and click Cancel. Penalties may apply if cancelled late.' },
-    { q: 'When is the technician arriving?', a: 'Once Dispatched, you can message the technician directly via the Messages tab.' },
-    { q: 'How do refunds work?', a: 'Refunds are automatically processed to your AllFix wallet or original payment method upon approved cancellation.' }
-  ];
-
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Help & Support"
-        subtitle="Can't find the answer in our Knowledge Base? Report a problem below, and our administration team will investigate and resolve your issue."
-        icon={<HelpCircle />}
-        action={
-          <Button onClick={() => setShowTicketModal(true)} className="bg-brand-green hover:bg-[#005e3f] text-white font-bold px-6 py-2 rounded-xl shadow-md">
-            Report a Problem
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4">Knowledge Base / FAQ</h3>
-          <div className="space-y-4">
-            {faqs.map((faq, i) => (
-              <div key={i} className="border-b border-slate-100 dark:border-slate-800 pb-4 last:border-0 last:pb-0">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">{faq.q}</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {showTicketModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-slate-900 dark:text-white">Report a Problem</h3>
-              <button onClick={() => setShowTicketModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Issue Type</label>
-                <select value={ticketForm.issueType} onChange={e => setTicketForm({...ticketForm, issueType: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm">
-                  <option value="Late Technician">Late Technician</option>
-                  <option value="Poor Service Quality">Poor Service Quality</option>
-                  <option value="Billing/Refund Issue">Billing/Refund Issue</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Booking ID (Optional)</label>
-                <input type="text" placeholder="e.g. BK-000010" value={ticketForm.bookingId} onChange={e => setTicketForm({...ticketForm, bookingId: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Details</label>
-                <textarea rows={4} placeholder="Describe what happened..." value={ticketForm.message} onChange={e => setTicketForm({...ticketForm, message: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
-              </div>
-            </div>
-            <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowTicketModal(false)}>Cancel</Button>
-              <Button className="bg-brand-green hover:bg-[#005e3f] text-white" onClick={handleSubmit}>Submit Ticket</Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function CustomerApp() {
   const [collapsed, setCollapsed] = useState(true);
@@ -4124,8 +3881,6 @@ export default function CustomerApp() {
             <Route path="vouchers" element={<VouchersTab />} />
             <Route path="refunds" element={<RefundsTab />} />
             <Route path="notifications" element={<NotificationsTab />} />
-            <Route path="messages" element={<CustomerMessages />} />
-            <Route path="support" element={<CustomerSupport />} />
             <Route path="profile" element={<ProfileTab />} />
           </Routes>
         </main>

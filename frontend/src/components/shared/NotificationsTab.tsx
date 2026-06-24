@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Clock, Trash2, Check, CheckCircle2, AlertCircle, Ticket, Calendar, RefreshCcw } from 'lucide-react';
+import { Bell, Clock, Trash2, Check, CheckCircle2, AlertCircle, Ticket, Calendar, RefreshCcw, LifeBuoy } from 'lucide-react';
 import api from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import { EmptyState } from '../shared/EmptyState';
@@ -173,40 +173,50 @@ export function NotificationsTab() {
         subtitle="Your personal updates and alerts."
         icon={<Bell />}
         action={
-          notifications.length > 0 && (
-            <div className="flex items-center gap-3 self-start sm:self-auto">
-              <div className="relative">
-                <select 
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                  className="appearance-none bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all shadow-sm cursor-pointer"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+            <button 
+              onClick={() => navigate(`/${profile?.role?.toLowerCase() || 'customer'}/support`)}
+              className="text-sm font-bold text-white bg-brand-navy dark:bg-brand-green hover:bg-slate-800 dark:hover:bg-[#005e3f] transition-all rounded-xl px-4 py-2 shadow-sm flex items-center gap-2"
+            >
+              <LifeBuoy className="w-4 h-4" /> 
+              {profile?.role?.toLowerCase() === 'admin' ? 'Support Desk' : 'Help & Support'}
+            </button>
+            
+            {notifications.length > 0 && (
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <div className="relative">
+                  <select 
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                    className="appearance-none bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+
+                <div className="flex bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+                  <button 
+                    onClick={markAllAsUnread}
+                    title="Mark all as unread"
+                    className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 border-r border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  >
+                    <RefreshCcw className="w-4 h-4" /> <span className="hidden sm:inline">Mark all unread</span>
+                  </button>
+                  <button 
+                    onClick={markAllAsRead}
+                    title="Mark all as read"
+                    className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> <span className="hidden sm:inline">Mark all read</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="flex bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
-                <button 
-                  onClick={markAllAsUnread}
-                  title="Mark all as unread"
-                  className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 border-r border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                >
-                  <RefreshCcw className="w-4 h-4" /> <span className="hidden sm:inline">Mark all unread</span>
-                </button>
-                <button 
-                  onClick={markAllAsRead}
-                  title="Mark all as read"
-                  className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> <span className="hidden sm:inline">Mark all read</span>
-                </button>
-              </div>
-            </div>
-          )
+            )}
+          </div>
         }
       />
       

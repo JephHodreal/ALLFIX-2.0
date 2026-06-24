@@ -7,7 +7,7 @@ import {
   CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
   Home, Wrench, UserCog, Building2, User,
   History, ArrowRightLeft, Ticket, Tag, UserCheck, Wallet, MessageSquare,
-  Bell, HelpCircle, ChevronDown, MapPin, Image, TrendingUp
+  Bell, HelpCircle, ChevronDown, MapPin, Image, TrendingUp, LifeBuoy
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -24,7 +24,6 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       items: [
         { label: 'Dashboard', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
         { label: 'Calendar', path: '/admin/calendar', icon: <CalendarDays className="w-5 h-5" /> },
-        { label: 'Messages', path: '/admin/messages', icon: <MessageSquare className="w-5 h-5" /> },
       ],
     },
     {
@@ -48,11 +47,17 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       ],
     },
     {
-      title: 'People & Communication',
+      title: 'People',
       items: [
         { label: 'Service Providers', path: '/admin/vendors', icon: <Building2 className="w-5 h-5" /> },
         { label: 'Service Personnel', path: '/admin/personnel', icon: <UserCog className="w-5 h-5" /> },
         { label: 'Customers', path: '/admin/customers', icon: <Users className="w-5 h-5" /> },
+      ],
+    },
+    {
+      title: 'Communications & Support',
+      items: [
+        { label: 'Support Desk', path: '/admin/support', icon: <LifeBuoy className="w-5 h-5" /> },
         { label: 'Notifications', path: '/admin/notifications', icon: <Bell className="w-5 h-5" /> },
         { label: 'Reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" /> },
       ],
@@ -72,6 +77,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
         { label: 'Booking History', path: '/customer/bookings', icon: <History className="w-5 h-5" /> },
         { label: 'Refunds', path: '/customer/refunds', icon: <RefreshCcw className="w-5 h-5" /> },
         { label: 'Vouchers', path: '/customer/vouchers', icon: <Ticket className="w-5 h-5" /> },
+        { label: 'Messages', path: '/customer/messages', icon: <MessageSquare className="w-5 h-5" /> },
         { label: 'Notifications', path: '/customer/notifications', icon: <Bell className="w-5 h-5" /> },
       ],
     },
@@ -103,7 +109,13 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       items: [
         { label: 'Personnels', path: '/vendor/personnel', icon: <UserCheck className="w-5 h-5" /> },
         { label: 'Messages', path: '/vendor/messages', icon: <MessageSquare className="w-5 h-5" /> },
+      ],
+    },
+    {
+      title: 'Account & Support',
+      items: [
         { label: 'Notifications', path: '/vendor/notifications', icon: <Bell className="w-5 h-5" /> },
+        { label: 'Get Help/Support', path: '/vendor/support', icon: <HelpCircle className="w-5 h-5" /> },
       ],
     },
   ],
@@ -114,6 +126,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
         { label: 'Dashboard', path: '/personnel', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
         { label: 'My Bookings', path: '/personnel/bookings', icon: <ClipboardList className="w-5 h-5" /> },
         { label: 'Profile', path: '/personnel/profile', icon: <User className="w-5 h-5" /> },
+        { label: 'Get Help/Support', path: '/personnel/support', icon: <HelpCircle className="w-5 h-5" /> },
       ],
     },
   ],

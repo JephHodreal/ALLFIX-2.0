@@ -122,4 +122,10 @@ public class SupportController {
         firestoreService.updateField("support_tickets", id, "status", body.get("status"));
         return ResponseEntity.ok(Map.of("message", "Status updated"));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTicket(@PathVariable String id) throws Exception {
+        firestoreService.delete("support_tickets", id);
+        return ResponseEntity.ok(Map.of("message", "Ticket deleted successfully"));
+    }
 }

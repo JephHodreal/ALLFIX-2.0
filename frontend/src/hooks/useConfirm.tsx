@@ -7,7 +7,8 @@ interface ConfirmOptions {
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info' | 'success';
-  onConfirm: () => void;
+  hideCancel?: boolean;
+  onConfirm?: () => void;
 }
 
 export function useConfirm() {
@@ -36,12 +37,13 @@ export function useConfirm() {
       <ConfirmModal
         isOpen={modalState.isOpen}
         onClose={close}
-        onConfirm={modalState.options.onConfirm}
+        onConfirm={modalState.options.onConfirm || (() => {})}
         title={modalState.options.title}
         message={modalState.options.message}
         confirmText={modalState.options.confirmText}
         cancelText={modalState.options.cancelText}
         type={modalState.options.type}
+        hideCancel={modalState.options.hideCancel}
       />
     );
   };

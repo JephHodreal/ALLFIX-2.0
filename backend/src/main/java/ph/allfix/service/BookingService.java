@@ -98,6 +98,54 @@ public class BookingService {
         String details = "ID: " + bookingId + " - " + serviceType;
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking for " + details + " has been confirmed!");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking for " + details + " assigned to you.");
+        
+        // --- PHASE 1 REAL-TIME CHAT INIT ---
+        try {
+            String vendorName = "Your Provider";
+            String vendorAuthUid = vendorId;
+            if (vendorId != null && !vendorId.trim().isEmpty()) {
+                Map<String, Object> vendor = firestoreService.getById("vendors", vendorId);
+                if (vendor != null) {
+                    if (vendor.get("company_name") != null) {
+                        vendorName = (String) vendor.get("company_name");
+                    }
+                    if (vendor.get("auth_uid") != null) {
+                        vendorAuthUid = (String) vendor.get("auth_uid");
+                    }
+                }
+            }
+
+            String customerAuthUid = customerId;
+            if (customerId != null && !customerId.trim().isEmpty()) {
+                Map<String, Object> customer = firestoreService.getById("customers", customerId);
+                if (customer != null && customer.get("auth_uid") != null) {
+                    customerAuthUid = (String) customer.get("auth_uid");
+                }
+            }
+            
+            // 1. Create Thread
+            Map<String, Object> chatThread = new HashMap<>();
+            chatThread.put("booking_id", bookingId);
+            chatThread.put("customer_id", customerAuthUid);
+            chatThread.put("vendor_id", vendorAuthUid);
+            chatThread.put("status", "active");
+            chatThread.put("service_type", serviceType);
+            chatThread.put("customer_name", booking.get("customer_name"));
+            chatThread.put("vendor_name", vendorName);
+            chatThread.put("updated_at", new Date());
+            firestoreService.createWithId("chat_threads", bookingId, chatThread);
+
+            // 2. Inject System Welcome Message
+            Map<String, Object> sysMsg = new HashMap<>();
+            sysMsg.put("sender_id", "system");
+            sysMsg.put("sender_role", "system");
+            sysMsg.put("text", "Booking confirmed! You are now connected with " + vendorName + " for your " + serviceType + " on " + schedDate + " at " + schedTime + ". Feel free to share details or photos of your issue below.");
+            sysMsg.put("is_logistics", false);
+            firestoreService.create("chat_threads/" + bookingId + "/messages", sysMsg);
+            System.out.println("BookingService: Successfully created chat thread " + bookingId);
+        } catch (Exception e) {
+            System.err.println("BookingService: Failed to initialize chat thread: " + e.getMessage());
+        }
     }
 
     public void assignPersonnel(String bookingId, String personnelId) throws Exception {
@@ -115,6 +163,15 @@ public class BookingService {
         updates.put("personnel_name", personnelName);
         updates.put("status", "in_progress");
         firestoreService.update("bookings", bookingId, updates);
+
+        try {
+            Map<String, Object> chatUpdates = new HashMap<>();
+            chatUpdates.put("technician_id", personnelId);
+            chatUpdates.put("personnel_name", personnelName);
+            firestoreService.update("chat_threads", bookingId, chatUpdates);
+        } catch (Exception e) {
+            System.err.println("BookingService: Failed to update chat thread with personnel details: " + e.getMessage());
+        }
 
         handleSlotDecrementForBooking(bookingId);
 

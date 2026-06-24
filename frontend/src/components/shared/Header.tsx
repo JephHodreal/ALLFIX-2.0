@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, Sun, Moon, Menu, Check, Trash2, ArrowRight } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Check, Trash2, ArrowRight, LifeBuoy } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/apiService';
@@ -136,6 +136,17 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                 <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">
                   Notifications
                 </h2>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDropdown(false);
+                    const role = profile?.role?.toLowerCase() || 'customer';
+                    navigate(`/${role}/support`);
+                  }}
+                  className="text-[12px] font-bold text-brand-green hover:underline flex items-center gap-1"
+                >
+                  <LifeBuoy className="w-4 h-4" /> Help & Support
+                </button>
               </div>
               
               <div className="flex gap-6 px-5 border-b border-slate-100 dark:border-slate-800">

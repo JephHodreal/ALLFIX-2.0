@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown } from 'lucide-react';
+import { ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -12,6 +12,7 @@ import { NotificationsTab } from '../components/shared/NotificationsTab';
 import { Button } from '../components/shared/Button';
 import { EditModal } from '../components/shared/EditModal';
 import { ConfirmModal } from '../components/shared/ConfirmModal';
+import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
@@ -171,6 +172,7 @@ function VendorBookings() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchPersonnel, setSearchPersonnel] = useState('');
   const [assignError, setAssignError] = useState('');
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
 
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState('');
@@ -291,7 +293,7 @@ function VendorBookings() {
 
       // We removed the native alert to rely on natural UI updates
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to complete booking.');
+      showAlert({ title: 'Error', message: err.response?.data?.message || 'Failed to complete booking.', type: 'danger', hideCancel: true });
     }
   };
 
@@ -339,7 +341,7 @@ function VendorBookings() {
       );
 
       setShowRefundForm(false);
-      alert('Booking cancelled and refund details linked successfully!');
+      showAlert({ title: 'Success', message: 'Booking cancelled and refund details linked successfully!', type: 'success', hideCancel: true });
     } catch (err: any) {
       setRefundError(err.response?.data?.message || 'Failed to submit refund.');
     } finally {
@@ -940,6 +942,7 @@ function VendorBookings() {
       loading={loading}
       searchPlaceholder="Search bookings..."
     />
+      <ConfirmComponent />
     </div>
   );
 }
@@ -1255,7 +1258,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
                         
                         if (slotsToDelete.length === 0) {
-                          alert('No slots found on the selected dates.');
+                          setAlertConfig({ isOpen: true, title: 'Error', message: 'No slots found on the selected dates.', type: 'warning' });
                           return;
                         }
                         
@@ -1266,7 +1269,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         setSelectedDates([]);
                         setIsSelectionMode(false);
                       } catch (err) {
-                        alert('Failed to delete some or all slots');
+                        setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete some or all slots', type: 'danger' });
                       }
                     }}
                     className="px-3 py-1.5 rounded-lg text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-sm transition-all whitespace-nowrap"
@@ -2973,10 +2976,10 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
                         </div>
                         <div className="flex-shrink-0">
                           <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${req.status === 'approved'
-                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                              ? 'badge-completed'
                               : req.status === 'rejected'
-                                ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                                : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                ? 'badge-cancelled'
+                                : 'badge-pending'
                             }`}>
                             {req.status}
                           </span>
@@ -3603,6 +3606,331 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
 }
 
 
+// ─── Vendor Messages Tab ────────────────────────────────────────────────────────
+import { useChatThreads, useChatMessages } from '../hooks/useChat';
+import { isExpired } from '../utils/dateHelper';
+
+function VendorMessages() {
+  const { user, profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'customers'|'team'>('customers');
+  const { threads: customerThreads, loading: threadsLoading } = useChatThreads([user?.uid, profile?.id], 'vendor');
+  const [selectedThread, setSelectedThread] = useState<any>(null);
+  const [personnels, setPersonnels] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      api.get(`/api/personnel?vendor_id=${profile.id}`)
+        .then(r => setPersonnels(r.data || []))
+        .catch(() => {});
+    }
+  }, [profile]);
+
+  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null);
+  const [inputText, setInputText] = useState('');
+  
+  const handleSend = async () => {
+    if (!inputText.trim() || !user || !selectedThread) return;
+    try {
+      await sendMessage(user.uid, 'vendor', inputText, activeTab === 'team');
+      setInputText('');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  
+  // Team threads are the same booking threads but for communicating with the assigned personnel
+  const actualCustomerThreads = customerThreads.filter(t => !t.id.startsWith('hq_'));
+  
+  // Merge existing HQ threads with virtual threads for all personnel
+  const teamThreads = personnels.map(p => {
+    const threadId = `hq_${p.id}_${profile?.id}`;
+    const existing = customerThreads.find(t => t.id === threadId);
+    if (existing) return existing;
+    return {
+      id: threadId,
+      personnel_name: `${p.first_name} ${p.last_name}`,
+      vendor_id: profile?.id,
+      technician_id: p.id,
+      status: 'active'
+    };
+  });
+
+  return (
+    <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">Messages</h2>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage customer communications and team dispatch.</p>
+        </div>
+      </div>
+
+      <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex min-h-0">
+        {/* Left Pane (30%) */}
+        <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
+          <div className="flex border-b border-slate-200 dark:border-slate-800">
+            <button 
+              onClick={() => { setActiveTab('customers'); setSelectedThread(null); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${activeTab === 'customers' ? 'border-b-2 border-brand-green text-brand-green bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              Customers
+              {actualCustomerThreads.length > 0 && (
+                <span className="bg-brand-green text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                  {actualCustomerThreads.length}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => { setActiveTab('team'); setSelectedThread(null); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${activeTab === 'team' ? 'border-b-2 border-brand-green text-brand-green bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              My Team
+              {teamThreads.length > 0 && (
+                <span className="bg-slate-200 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full">
+                  {teamThreads.length}
+                </span>
+              )}
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {threadsLoading ? (
+              <div className="text-center py-4 text-sm text-slate-500">Loading conversations...</div>
+            ) : (activeTab === 'customers' ? actualCustomerThreads : teamThreads).length === 0 ? (
+              <div className="text-center py-4 text-sm text-slate-500">No active conversations.</div>
+            ) : (
+              (activeTab === 'customers' ? actualCustomerThreads : teamThreads).map((t: any) => (
+                <div key={t.id} onClick={() => setSelectedThread(t)} className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-white dark:bg-slate-800 border-brand-navy shadow-md ring-1 ring-brand-navy/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                  {activeTab === 'customers' ? (
+                    <>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
+                        {t.status === 'archived' && <span className="w-2 h-2 rounded-full bg-slate-300" title="Archived" />}
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.customer_name || 'Customer'}</h4>
+                      <p className="text-xs text-slate-500">{t.service_type || 'Service'}</p>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+                        <User className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.personnel_name}</h4>
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Online
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Right Pane (70%) */}
+        <div className="w-2/3 flex flex-col bg-slate-50 dark:bg-slate-950 relative">
+          {selectedThread ? (
+            <>
+              {activeTab === 'customers' ? (
+                <>
+                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.customer_name || 'Customer'}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">{selectedThread.service_type}</span>
+                        <span className="text-xs font-bold text-brand-green">{selectedThread.booking_id}</span>
+                      </div>
+                    </div>
+                    <Button variant="outline" className="text-xs font-bold border-slate-200 dark:border-slate-800">
+                      View Booking Details
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {messages.map((msg) => (
+                      <div key={msg.id} className={`flex ${msg.sender_role === 'system' || msg.sender_role === 'technician' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                        {msg.sender_role === 'system' ? (
+                          <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
+                            {msg.text}
+                          </span>
+                        ) : msg.sender_role === 'technician' ? (
+                          <div className="max-w-[60%] rounded-xl px-4 py-2 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-sm">
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Technician
+                            </div>
+                            <p className="text-sm text-center">{msg.text}</p>
+                          </div>
+                        ) : (
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
+                            {msg.sender_id !== user?.uid && (
+                              <div className="text-[10px] font-bold text-slate-400 mb-1">
+                                {selectedThread.customer_name}
+                              </div>
+                            )}
+                            <p className="text-sm">{msg.text}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {(selectedThread.status === 'archived' || isExpired(selectedThread.updated_at)) ? (
+                    <div className="p-4 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
+                      Booking archived. This conversation is read-only.
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Type a message..." 
+                          className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 text-slate-800 dark:text-white"
+                          value={inputText}
+                          onChange={(e) => setInputText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        />
+                        <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl">Send</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.personnel_name}</h3>
+                      <p className="text-xs font-semibold text-slate-500 mt-1">Internal Team Channel</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {messages.filter(m => m.is_logistics).map((msg) => (
+                      <div key={msg.id} className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                        {msg.sender_role === 'system' ? (
+                          <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
+                            {msg.text}
+                          </span>
+                        ) : (
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-navy text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
+                            {msg.sender_id !== user?.uid && (
+                              <div className="text-[10px] font-bold text-slate-400 mb-1">
+                                {selectedThread.personnel_name || 'Personnel'}
+                              </div>
+                            )}
+                            <p className="text-sm">{msg.text}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Message team member..." 
+                        className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy/20 text-slate-800 dark:text-white" 
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      />
+                      <Button onClick={handleSend} className="bg-brand-navy hover:bg-slate-800 text-white rounded-xl">Send</Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800 dark:text-slate-200">Select a Conversation</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Choose a customer thread or a team member from the sidebar to start messaging.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vendor Help & Support Tab ────────────────────────────────────────────────
+function VendorSupport() {
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [ticketForm, setTicketForm] = useState({ issueType: 'Dispute Payout', bookingId: '', message: '' });
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
+
+  const handleSubmit = async () => {
+    try {
+      await api.post('/api/support', {
+        role: 'vendor',
+        issue_type: ticketForm.issueType,
+        booking_id: ticketForm.bookingId,
+        message: ticketForm.message,
+        priority: 'high'
+      });
+      showAlert({ title: 'Success', message: 'Support ticket submitted successfully. AllFix Admin will review this shortly.', type: 'success', hideCancel: true });
+      setShowTicketModal(false);
+      setTicketForm({ issueType: 'Dispute Payout', bookingId: '', message: '' });
+    } catch (err) {
+      showAlert({ title: 'Error', message: 'Failed to submit ticket', type: 'danger', hideCancel: true });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-end bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <HelpCircle className="w-6 h-6 text-brand-green" /> Vendor Support Desk
+          </h2>
+          <p className="text-sm font-medium text-slate-500 mt-2 max-w-xl leading-relaxed">
+            Need help with a platform issue? Submit a ticket directly to AllFix Administration to appeal cancellation penalties, dispute payouts, or report fraudulent users.
+          </p>
+          <Button onClick={() => setShowTicketModal(true)} className="mt-6 bg-brand-navy hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-xl shadow-md">
+            Contact AllFix Support
+          </Button>
+        </div>
+      </div>
+
+      {showTicketModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 dark:text-white">Submit Support Ticket</h3>
+              <button onClick={() => setShowTicketModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Issue Type</label>
+                <select value={ticketForm.issueType} onChange={e => setTicketForm({...ticketForm, issueType: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm">
+                  <option value="Dispute Payout">Dispute Payout</option>
+                  <option value="Appeal Cancellation Penalty">Appeal Cancellation Penalty</option>
+                  <option value="Report Fraudulent User">Report Fraudulent User</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Booking ID (Optional)</label>
+                <input type="text" placeholder="e.g. BK-000010" value={ticketForm.bookingId} onChange={e => setTicketForm({...ticketForm, bookingId: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Message Details</label>
+                <textarea rows={4} placeholder="Describe the issue in detail..." value={ticketForm.message} onChange={e => setTicketForm({...ticketForm, message: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowTicketModal(false)}>Cancel</Button>
+              <Button className="bg-brand-green hover:bg-[#005e3f] text-white" onClick={handleSubmit}>Submit Ticket</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ConfirmComponent />
+    </div>
+  );
+}
+
+
 export default function VendorDashboard() {
   const [collapsed, setCollapsed] = useState(true);
   const [dbServices, setDbServices] = useState<any[]>([]);
@@ -3637,6 +3965,8 @@ export default function VendorDashboard() {
             <Route path="services" element={<VendorServices dbServices={dbServices} loadingDb={loadingDb} refreshServices={fetchServices} />} />
             <Route path="personnel" element={<VendorPersonnel dbServices={dbServices} />} />
             <Route path="notifications" element={<NotificationsTab />} />
+            <Route path="messages" element={<VendorMessages />} />
+            <Route path="support" element={<VendorSupport />} />
           </Routes>
         </main>
       </div>

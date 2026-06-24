@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag, ShieldCheck, LifeBuoy, CheckCircle } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -264,7 +264,7 @@ function CustomersTab() {
           setCustomers(cs => cs.filter(c => c.id !== id)); 
         } catch (error) {
           console.error('Delete failed:', error);
-          alert('Failed to delete customer.');
+          confirm({ title: 'Error', message: 'Failed to delete customer.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -1021,7 +1021,7 @@ function VendorsTab() {
           setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'approved', is_approved: true } : v)); 
         } catch (error) {
           console.error('Approval failed:', error);
-          alert('Failed to approve vendor.');
+          confirm({ title: 'Error', message: 'Failed to approve vendor.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -1039,7 +1039,7 @@ function VendorsTab() {
           setVendors(vs => vs.map(v => v.id === id ? { ...v, acc_approve: 'rejected', is_approved: false } : v)); 
         } catch (error) {
           console.error('Rejection failed:', error);
-          alert('Failed to reject vendor.');
+          confirm({ title: 'Error', message: 'Failed to reject vendor.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -1057,7 +1057,7 @@ function VendorsTab() {
           setVendors(vs => vs.filter(v => v.id !== id)); 
         } catch (error) {
           console.error('Deletion failed:', error);
-          alert('Failed to delete vendor.');
+          confirm({ title: 'Error', message: 'Failed to delete vendor.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -1893,7 +1893,7 @@ function BookingsTab() {
           onClose={() => { setShowPenaltyModal(false); setResolutionPenalty(''); }}
           onConfirm={() => {
             if (!resolutionPenalty || isNaN(parseFloat(resolutionPenalty))) {
-              alert("Please enter a valid penalty amount.");
+              setAlertConfig({ show: true, type: 'danger', title: 'Error', message: 'Please enter a valid penalty amount.' });
               return;
             }
             handleResolveCancellation('penalty');
@@ -2337,16 +2337,213 @@ function RefundsTab() {
 
 // ─── Support Tab ────────────────────────────────────────────────────────────
 function SupportTab() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { api.get('/api/support').then(r => setTickets(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('open'); // open, pending_reply, resolved
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+
+  const fetchTickets = () => {
+    setLoading(true);
+    api.get('/api/support')
+      .then(r => setTickets(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const handleResolve = (ticketId: string) => {
+    confirm({
+      title: 'Resolve Ticket',
+      message: 'Are you sure you want to mark this ticket as resolved? Escrow funds will be settled.',
+      type: 'warning',
+      confirmText: 'Resolve',
+      onConfirm: async () => {
+        try {
+          await api.patch(`/api/support/${ticketId}/status`, { status: 'resolved' });
+          fetchTickets();
+          if (selectedTicket?.id === ticketId) {
+            setSelectedTicket({ ...selectedTicket, status: 'resolved' });
+          }
+        } catch (err) {
+          confirm({ title: 'Error', message: 'Failed to resolve ticket', type: 'danger', hideCancel: true });
+        }
+      }
+    });
+  };
+
+  const handleDelete = (ticketId: string) => {
+    confirm({
+      title: 'Delete Ticket',
+      message: 'Are you sure you want to permanently delete this ticket? This action cannot be undone.',
+      type: 'danger',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/support/${ticketId}`);
+          fetchTickets();
+          if (selectedTicket?.id === ticketId) {
+            setSelectedTicket(null);
+          }
+        } catch (err) {
+          confirm({ title: 'Error', message: 'Failed to delete ticket', type: 'danger', hideCancel: true });
+        }
+      }
+    });
+  };
+
+  const filteredTickets = tickets.filter(t => {
+    const matchesStatus = statusFilter === 'all' || (t.status || 'open') === statusFilter;
+    const matchesSearch = (t.booking_id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (t.issue_type || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (t.subject || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
   return (
-    <DataTable columns={[
-      { key: 'subject', label: 'Subject', sortable: true },
-      { key: 'role', label: 'Role' },
-      { key: 'priority', label: 'Priority', render: (item: any) => <span className={item.priority === 'high' ? 'badge-cancelled' : item.priority === 'medium' ? 'badge-pending' : 'badge-confirmed'}>{item.priority}</span> },
-      { key: 'status', label: 'Status', render: (item: any) => <span className={item.status === 'resolved' ? 'badge-completed' : item.status === 'in_progress' ? 'badge-in-progress' : 'badge-pending'}>{item.status}</span> },
-    ]} data={tickets} loading={loading} searchPlaceholder="Search tickets..." emptyTitle="No support tickets" />
+    <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
+      <AdminPageHeader
+        title="Help & Support Desk"
+        subtitle="Manage platform escalations and resolve escrow disputes."
+        icon={<LifeBuoy />}
+      />
+
+      <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex h-full min-h-[600px]">
+        {/* Left Pane - Ticket Queue (30%) */}
+        <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search Booking ID or Issue..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none transition-all dark:text-white"
+              />
+            </div>
+            <div className="flex gap-2">
+              {['open', 'pending_reply', 'resolved'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+                    statusFilter === status
+                      ? 'bg-brand-navy text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  {status.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="w-6 h-6 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center px-4">
+                <LifeBuoy className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-sm font-bold text-slate-500">No tickets found</p>
+                <p className="text-xs text-slate-400 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              filteredTickets.map(ticket => (
+                <div
+                  key={ticket.id}
+                  onClick={() => setSelectedTicket(ticket)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    selectedTicket?.id === ticket.id
+                      ? 'bg-white dark:bg-slate-800 border-brand-navy dark:border-brand-navy shadow-md ring-1 ring-brand-navy/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                      {ticket.booking_id || 'General'}
+                    </span>
+                    <span className={`w-2 h-2 rounded-full ${
+                      ticket.priority === 'high' ? 'bg-rose-500' : ticket.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`} />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{ticket.issue_type || ticket.subject}</h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{ticket.message || ticket.description}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Right Pane - Resolution Thread (70%) */}
+        <div className="w-2/3 flex flex-col bg-slate-50 dark:bg-slate-950 relative">
+          {selectedTicket ? (
+            <>
+              {/* Context Header */}
+              <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {selectedTicket.customer_name || 'Customer'} vs. {selectedTicket.vendor_name || 'Vendor'}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs font-semibold text-slate-500">
+                    <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{selectedTicket.service_category || 'Service'}</span>
+                    <span>Escrow Funds Held: <span className="text-brand-green font-bold text-sm">₱{selectedTicket.escrow_amount || '0.00'}</span></span>
+                  </div>
+                </div>
+                {selectedTicket.status !== 'resolved' && (
+                  <Button 
+                    onClick={() => handleResolve(selectedTicket.id)}
+                    className="bg-brand-green hover:bg-[#005e3f] text-white shadow-sm font-bold"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Mark as Resolved
+                  </Button>
+                )}
+              </div>
+
+              {/* Resolution Thread Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-black uppercase text-slate-400">Original Complaint</span>
+                    <span className="text-[10px] font-bold text-slate-400">{new Date(selectedTicket.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedTicket.message || selectedTicket.description}
+                  </p>
+                </div>
+
+                {selectedTicket.status === 'resolved' && (
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-emerald-800 dark:text-emerald-400">Ticket Resolved & Locked</h4>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">This escalation has been resolved by the admin. Escrow funds have been settled into production accordingly.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800 dark:text-slate-200">Select a Ticket</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Choose a ticket from the queue on the left to view the resolution thread and manage escrow funds.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2400,18 +2597,7 @@ function PersonnelTab() {
 }
 
 // ─── Placeholder Pages ──────────────────────────────────────────────────────
-function MessagesTab() {
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Messages"
-        subtitle="View and manage user communications and support requests."
-        icon={<MessageSquare />}
-      />
-      <PlaceholderPage title="Messages" description="Message functionality coming soon." icon={<MessageSquare className="w-8 h-8" />} />
-    </div>
-  );
-}
+
 
 function PlaceholderPage({ title, description, icon }: { title: string; description: string; icon: React.ReactNode }) {
   return (
@@ -2750,6 +2936,7 @@ function CalendarPage() {
 }
 
 function ReviewsPage() {
+  const { confirm, ConfirmComponent } = useConfirm();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -2779,8 +2966,7 @@ function ReviewsPage() {
       await api.patch(`/api/reviews/${review.id}/featured`, { featured: newStatus });
       setReviews(prev => prev.map(r => r.id === review.id ? { ...r, featured: newStatus } : r));
     } catch (err) {
-      console.error("Failed to update featured status", err);
-      alert("Failed to update featured status");
+      confirm({ title: 'Error', message: 'Failed to update featured status', type: 'danger', hideCancel: true });
     }
   };
 
@@ -3288,7 +3474,7 @@ function ServicesManagementPage() {
           loadServices();
         } catch (e) {
           console.error(e);
-          alert('Failed to approve request.');
+          confirm({ title: 'Error', message: 'Failed to approve request.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -3306,7 +3492,7 @@ function ServicesManagementPage() {
           fetchPendingRequests();
         } catch (e) {
           console.error(e);
-          alert('Failed to reject request.');
+          confirm({ title: 'Error', message: 'Failed to reject request.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -3325,7 +3511,7 @@ function ServicesManagementPage() {
           loadServices();
         } catch (e) {
           console.error(e);
-          alert('Failed to approve request.');
+          confirm({ title: 'Error', message: 'Failed to approve request.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -3343,7 +3529,7 @@ function ServicesManagementPage() {
           fetchPendingRequests();
         } catch (e) {
           console.error(e);
-          alert('Failed to reject request.');
+          confirm({ title: 'Error', message: 'Failed to reject request.', type: 'danger', hideCancel: true });
         }
       }
     });
@@ -5811,12 +5997,12 @@ function RefundsPage() {
         try {
           await api.patch(`/api/refunds/${refundId}/reject`, { rejection_reason: rejectionDetails.trim() });
           console.log('[CAVEMAN] RefundsPage: Reject refund request successful');
-          alert('Refund request rejected successfully!');
+          showAlert('Refund request rejected successfully!', 'success');
           setShowModal(false);
           loadData();
         } catch (err: any) {
           console.error('[CAVEMAN] RefundsPage: Reject failed', err);
-          alert(err.response?.data?.message || 'Failed to reject refund request.');
+          showAlert(err.response?.data?.message || 'Failed to reject refund request.', 'danger');
         } finally {
           setSubmitting(false);
         }
@@ -6599,7 +6785,7 @@ export default function AdminDashboard() {
             {/* Overview */}
             <Route path="calendar" element={<CalendarPage />} />
             {/* Communications */}
-            <Route path="messages" element={<MessagesTab />} />
+            <Route path="support" element={<SupportTab />} />
             <Route path="reviews" element={<ReviewsPage />} />
             {/* People */}
             <Route path="customers" element={<CustomersTab />} />

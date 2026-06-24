@@ -109,4 +109,12 @@ public class BookingController {
             return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
+    @GetMapping("/debug-data")
+    public ResponseEntity<?> debugData() throws Exception {
+        Map<String, Object> data = new HashMap<>();
+        data.put("threads", firestoreService.getAll("chat_threads"));
+        data.put("customers", firestoreService.getAll("customers"));
+        data.put("vendors", firestoreService.getAll("vendors"));
+        return ResponseEntity.ok(data);
+    }
 }
