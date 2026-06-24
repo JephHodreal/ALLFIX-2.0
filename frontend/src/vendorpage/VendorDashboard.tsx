@@ -950,7 +950,11 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   const [newSlot, setNewSlot] = useState({ service: '', sub_service: '', total_slots: 5, time_from: '09:00', time_to: '17:00' });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeError, setTimeError] = useState<string>('');
@@ -1182,6 +1186,10 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
   const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  // Filter slots for sidebar
+  const selectedDateStr = selectedDate ? formatLocalYYYYMMDD(selectedDate) : '';
+  const activeSlotsForSelectedDate = slots.filter(s => s.slot_date === selectedDateStr);
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -1201,10 +1209,21 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
               </div>
               <div>
                 <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{monthName}</h2>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Manage and view your service slot capacities</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Manage and view your service slot capacity.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80 flex-wrap justify-end">
+              {!isSelectionMode && (
+                <button
+                  onClick={() => {
+                    setShowModal(true);
+                    setTimeError('');
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap flex items-center gap-1 mr-2"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create Slot
+                </button>
+              )}
               <button
                 onClick={() => {
                   setIsSelectionMode(!isSelectionMode);
@@ -1212,10 +1231,10 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all duration-200 ${isSelectionMode
                     ? 'bg-brand-navy text-white shadow-sm'
-                    : 'hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
-                {isSelectionMode ? 'Cancel Select' : 'Select'}
+                {isSelectionMode ? 'Cancel Select' : 'Select Multiple'}
               </button>
               {isSelectionMode && selectedDates.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -1319,6 +1338,8 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
               const totalAvailable = getTotalAvailableForDate(day);
               const hasSlots = dateSlots.length > 0;
 
+              const isSelected = selectedDate && dateObj.getTime() === selectedDate.getTime() && !isSelectionMode;
+
               return (
                 <motion.div
                   key={`day-${day}`}
@@ -1330,19 +1351,20 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                       setSelectedDates(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
                     } else {
                       setSelectedDate(dateObj);
-                      setShowModal(true);
                       setTimeError('');
                     }
                   }}
                   className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${disabled
-                      ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 opacity-60 cursor-not-allowed'
+                      ? 'bg-slate-100/60 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 opacity-50 cursor-not-allowed grayscale-[0.3]'
                       : isSelectionMode && selectedDates.includes(day)
                         ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
-                        : hasSlots
-                          ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
-                          : isToday
-                            ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
-                            : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                        : isSelected
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 shadow-md ring-2 ring-blue-400/20'
+                          : hasSlots
+                            ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
+                            : isToday
+                              ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
+                              : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                 >
                   <div className="flex justify-between items-start">
@@ -1405,7 +1427,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Your currently configured booking availabilities</p>
             </div>
             <span className="text-xs bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green px-2.5 py-1 rounded-full font-bold">
-              {slots.length} Active Slot{slots.length !== 1 ? 's' : ''}
+              {activeSlotsForSelectedDate.length} Active Slot{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -1414,12 +1436,28 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
               <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-green rounded-full animate-spin" />
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Fetching slots data...</p>
             </div>
-          ) : slots.length === 0 ? (
-            <EmptyState title="No slots" description="Create slots to accept bookings" icon={<CalendarDays className="w-6 h-6 text-slate-400" />} />
+          ) : activeSlotsForSelectedDate.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                <CalendarDays className="w-8 h-8" />
+              </div>
+              <div className="text-center">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No slots for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[250px]">You haven't created any slots for this date yet.</p>
+              </div>
+              {selectedDate && selectedDate >= today && (
+                <Button 
+                  onClick={() => { setShowModal(true); setTimeError(''); }}
+                  className="mt-2 bg-brand-green hover:bg-[#005e3f] text-white font-bold shadow-sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Create Slot
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col gap-6 max-h-[700px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               {vendorServices.map((svc: any) => {
-                const serviceSlots = slots.filter(s => s.service_type === svc.service);
+                const serviceSlots = activeSlotsForSelectedDate.filter(s => s.service_type === svc.service);
                 if (serviceSlots.length === 0) return null;
                 return (
                   <div key={svc.service} className="p-5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800/60 shadow-sm space-y-4">

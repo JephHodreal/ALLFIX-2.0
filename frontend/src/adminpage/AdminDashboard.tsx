@@ -2427,8 +2427,11 @@ function CalendarPage() {
   const [slots, setSlots] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const fetchAllData = useCallback(async () => {
@@ -2499,6 +2502,7 @@ function CalendarPage() {
   // Get active slots for the clicked date
   const selectedDateStr = selectedDate ? formatLocalYYYYMMDD(selectedDate) : '';
   const activeSlotsForSelectedDate = slots.filter(s => s.slot_date === selectedDateStr);
+  const isSelectedPast = selectedDate ? selectedDate < today : false;
 
   return (
     <div className="space-y-6">
@@ -2584,6 +2588,8 @@ function CalendarPage() {
               const totalAvailable = getTotalAvailableForDate(day);
               const hasSlots = dateSlots.length > 0;
 
+              const isSelected = selectedDate && dateObj.getTime() === selectedDate.getTime();
+
               return (
                 <motion.div
                   key={`day-${day}`}
@@ -2591,16 +2597,17 @@ function CalendarPage() {
                   whileTap={{ scale: 0.97 }}
                   onClick={() => {
                     setSelectedDate(dateObj);
-                    setShowModal(true);
                   }}
                   className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${
-                    isPastDate
-                      ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 opacity-60'
-                      : hasSlots
-                        ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
-                        : isToday
-                          ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
-                          : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                    isSelected
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 shadow-md ring-2 ring-blue-400/20'
+                      : isPastDate
+                        ? 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 opacity-60'
+                        : hasSlots
+                          ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green/50 border-2 shadow-sm hover:bg-brand-green/20'
+                          : isToday
+                            ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
+                            : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -2650,8 +2657,12 @@ function CalendarPage() {
             <ClipboardList className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active System Slots</h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Real-time occupancy and capacity metrics</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              {isSelectedPast ? 'Historical Slot Data' : 'Active System Slots'}
+            </h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              {isSelectedPast ? 'Past occupancy and capacity metrics' : 'Real-time occupancy and capacity metrics'}
+            </p>
           </div>
         </div>
 
@@ -2660,11 +2671,15 @@ function CalendarPage() {
             <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-green rounded-full animate-spin" />
             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Fetching slot details...</p>
           </div>
-        ) : slots.length === 0 ? (
-          <EmptyState title="No active slots" description="Vendors have not configured any slots yet." icon={<CalendarDays className="w-6 h-6 text-slate-400" />} />
+        ) : activeSlotsForSelectedDate.length === 0 ? (
+          <EmptyState 
+            title={`No active slots registered for ${selectedDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`}
+            description="Platform capacity is currently 0." 
+            icon={<CalendarDays className="w-6 h-6 text-slate-400" />} 
+          />
         ) : (
           <div className="flex flex-col gap-4 max-h-[700px] overflow-y-auto pr-1">
-            {slots.map((s, i) => {
+            {activeSlotsForSelectedDate.map((s, i) => {
               const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
               const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
               const safeAvail = Math.max(0, avail);
@@ -2673,8 +2688,23 @@ function CalendarPage() {
               const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
               const vName = getVendorName(s.vendor_id);
 
+              let badgeClass = '';
+              let badgeText = '';
+
+              if (isSelectedPast) {
+                badgeClass = 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/40 dark:border-slate-700';
+                badgeText = booked > 0 ? `${booked}/${safeTotal} Filled` : `${safeAvail}/${safeTotal} Unfilled (Expired)`;
+              } else {
+                badgeClass = booked >= safeTotal 
+                  ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40' 
+                  : booked > 0
+                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40'
+                    : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40';
+                badgeText = `${booked}/${safeTotal} Booked`;
+              }
+
               return (
-                <div key={i} className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+                <div key={i} className={`p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col justify-between hover:shadow-sm transition-all duration-200 ${isSelectedPast ? 'opacity-75 grayscale-[0.2]' : ''}`}>
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
                       <span className="text-xs bg-brand-navy/10 text-brand-navy dark:bg-brand-green/20 dark:text-brand-green px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wider">{vName}</span>
@@ -2684,14 +2714,8 @@ function CalendarPage() {
                         <span>{s.slot_date} at {s.time_from} - {s.time_to}</span>
                       </div>
                     </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
-                      booked >= safeTotal 
-                        ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40' 
-                        : booked > 0
-                          ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40'
-                          : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40'
-                    }`}>
-                      {booked}/{safeTotal} Booked
+                    <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${badgeClass}`}>
+                      {badgeText}
                     </span>
                   </div>
 
@@ -2699,11 +2723,13 @@ function CalendarPage() {
                     <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          percentBooked >= 100 
-                            ? 'bg-rose-500' 
-                            : percentBooked >= 50 
-                              ? 'bg-amber-500' 
-                              : 'bg-emerald-500'
+                          isSelectedPast
+                            ? 'bg-slate-400 dark:bg-slate-600'
+                            : percentBooked >= 100 
+                              ? 'bg-rose-500' 
+                              : percentBooked >= 50 
+                                ? 'bg-amber-500' 
+                                : 'bg-emerald-500'
                         }`}
                         style={{ width: `${percentBooked}%` }}
                       />
@@ -2718,109 +2744,7 @@ function CalendarPage() {
         </div>
       </div>
 
-      {/* Date Details Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="w-full max-w-lg"
-            >
-              <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl overflow-hidden">
-                <div className="p-6 space-y-5">
-                  <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-brand-navy/10 flex items-center justify-center text-brand-navy">
-                        <CalendarDays className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white">Vendor Slots</h3>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">For {selectedDate?.toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowModal(false)}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                    {activeSlotsForSelectedDate.length === 0 ? (
-                      <div className="text-center py-10 space-y-3">
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No slots registered for this date.</p>
-                      </div>
-                    ) : (
-                      activeSlotsForSelectedDate.map((s, idx) => {
-                        const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
-                        const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
-                        const safeAvail = Math.max(0, avail);
-                        const safeTotal = Math.max(0, total);
-                        const booked = safeTotal - safeAvail;
-                        const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
-                        const vName = getVendorName(s.vendor_id);
-
-                        return (
-                          <div key={idx} className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="space-y-1">
-                                <span className="text-xs bg-brand-navy/10 text-brand-navy dark:bg-brand-green/20 dark:text-brand-green px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wider">{vName}</span>
-                                <h4 className="text-sm font-black text-slate-800 dark:text-slate-200">{s.service_type} - {s.sub_service || 'General'}</h4>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-bold">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                  <span>{s.time_from} - {s.time_to}</span>
-                                </div>
-                              </div>
-                              <span className={`text-xs px-2.5 py-1 rounded-lg font-black shrink-0 ${
-                                booked >= safeTotal 
-                                  ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40' 
-                                  : booked > 0
-                                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40'
-                                    : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40'
-                              }`}>
-                                {booked}/{safeTotal} Booked
-                              </span>
-                            </div>
-
-                            <div className="mt-3.5">
-                              <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    percentBooked >= 100 
-                                      ? 'bg-rose-500' 
-                                      : percentBooked >= 50 
-                                        ? 'bg-amber-500' 
-                                        : 'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${percentBooked}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button 
-                      variant="ghost" 
-                      className="px-6 font-bold" 
-                      onClick={() => setShowModal(false)}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Date Details Modal Removed as Sidebar handles it now */}
     </div>
   );
 }
