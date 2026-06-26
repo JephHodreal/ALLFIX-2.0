@@ -85,6 +85,13 @@ public class BookingService {
         updates.put("status", "confirmed");
         updates.put("payment_confirmed", true);
         firestoreService.update("bookings", bookingId, updates);
+        try {
+            Map<String, Object> chatUpdates = new HashMap<>();
+            chatUpdates.put("status", "completed");
+            firestoreService.update("chat_threads", bookingId, chatUpdates);
+        } catch (Exception e) {
+            System.err.println("BookingService: Failed to update chat thread status: " + e.getMessage());
+        }
 
         // Deduct vendor slot
         handleSlotDecrementForBooking(bookingId);
@@ -467,6 +474,13 @@ public class BookingService {
         }
         
         firestoreService.update("bookings", bookingId, bookingUpdates);
+        try {
+            Map<String, Object> chatUpdates = new HashMap<>();
+            chatUpdates.put("status", "cancelled");
+            firestoreService.update("chat_threads", bookingId, chatUpdates);
+        } catch (Exception e) {
+            System.err.println("BookingService: Failed to update chat thread status: " + e.getMessage());
+        }
 
         // Restore slot back to vendor slots
         try {

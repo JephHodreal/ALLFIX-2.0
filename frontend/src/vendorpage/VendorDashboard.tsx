@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -371,9 +371,9 @@ function VendorBookings() {
       }
       let pServices = p.services;
       if (typeof pServices === 'string') {
-        try { pServices = JSON.parse(pServices); } catch(e) { pServices = []; }
+        try { pServices = JSON.parse(pServices); } catch (e) { pServices = []; }
       }
-      
+
       // Just in case it's an object, wrap it
       if (pServices && !Array.isArray(pServices) && typeof pServices === 'object') {
         pServices = [pServices];
@@ -384,10 +384,10 @@ function VendorBookings() {
         matched = pServices.some((svc: any) => {
           const svcName = normalize(typeof svc === 'string' ? svc : (svc.service || ''));
           const subs = Array.isArray(svc?.sub_services) ? svc.sub_services.map((s: string) => normalize(s)) : [];
-          
+
           const matchesMain = (bSubNorm && svcName === bSubNorm) || (bTypeNorm && svcName === bTypeNorm);
           const matchesSub = (bSubNorm && subs.includes(bSubNorm)) || (bTypeNorm && subs.includes(bTypeNorm));
-          
+
           return matchesMain || matchesSub;
         });
       }
@@ -824,7 +824,7 @@ function VendorBookings() {
             )}
           </Card>
         )}
-        
+
         <ConfirmModal
           isOpen={showCancelConfirm}
           onClose={() => setShowCancelConfirm(false)}
@@ -903,8 +903,8 @@ function VendorBookings() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
-                ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
           >
             {tab.label}
@@ -914,34 +914,34 @@ function VendorBookings() {
 
       <DataTable
         columns={[
-        { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
-        { key: 'customer', label: 'Customer Name', render: (item: any) => <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.customer_name || '—'}</span> },
-        { key: 'service_type', label: 'Service', sortable: true },
-        { key: 'schedule', label: 'Time/Schedule', render: (item: any) => <div className="text-xs whitespace-nowrap"><div className="font-medium text-slate-700 dark:text-slate-300">{item.scheduled_date}</div><div className="text-slate-500 font-bold">{item.scheduled_time}</div></div> },
-        { key: 'location', label: 'Location', render: (item: any) => <span className="truncate max-w-[150px] block" title={item.address || item.service_address || '—'}>{item.address || item.service_address || '—'}</span> },
-        { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
-        {
-          key: 'actions',
-          label: 'Actions',
-          render: (item: any) => (
-            <Button
-              size="sm"
-              className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
-              onClick={(e: any) => {
-                e.stopPropagation();
-                setSelectedBooking(item);
-              }}
-              icon={<Eye className="w-4 h-4" />}
-            >
-              View Details
-            </Button>
-          )
-        },
-      ]}
-      data={filteredBookings}
-      loading={loading}
-      searchPlaceholder="Search bookings..."
-    />
+          { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
+          { key: 'customer', label: 'Customer Name', render: (item: any) => <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.customer_name || '—'}</span> },
+          { key: 'service_type', label: 'Service', sortable: true },
+          { key: 'schedule', label: 'Time/Schedule', render: (item: any) => <div className="text-xs whitespace-nowrap"><div className="font-medium text-slate-700 dark:text-slate-300">{item.scheduled_date}</div><div className="text-slate-500 font-bold">{item.scheduled_time}</div></div> },
+          { key: 'location', label: 'Location', render: (item: any) => <span className="truncate max-w-[150px] block" title={item.address || item.service_address || '—'}>{item.address || item.service_address || '—'}</span> },
+          { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
+          {
+            key: 'actions',
+            label: 'Actions',
+            render: (item: any) => (
+              <Button
+                size="sm"
+                className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
+                onClick={(e: any) => {
+                  e.stopPropagation();
+                  setSelectedBooking(item);
+                }}
+                icon={<Eye className="w-4 h-4" />}
+              >
+                View Details
+              </Button>
+            )
+          },
+        ]}
+        data={filteredBookings}
+        loading={loading}
+        searchPlaceholder="Search bookings..."
+      />
       <ConfirmComponent />
     </div>
   );
@@ -965,13 +965,13 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [selectedDates, setSelectedDates] = useState<number[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
-  
+
   const [showConfirmAddSlot, setShowConfirmAddSlot] = useState(false);
-  
+
   const [showEditSlotModal, setShowEditSlotModal] = useState(false);
   const [editSlot, setEditSlot] = useState<any>(null);
 
-  const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string, type: 'info'|'warning'|'danger'|'success'}>({
+  const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean, title: string, message: string, type: 'info' | 'warning' | 'danger' | 'success' }>({
     isOpen: false, title: '', message: '', type: 'info'
   });
 
@@ -1164,7 +1164,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       const oldTotal = parseInt(originalSlot.total_slots || 0);
       const oldAvailable = parseInt(originalSlot.available_slots || 0);
       const newTotal = parseInt(editSlot.total_slots || 5);
-      
+
       const diff = newTotal - oldTotal;
       const newAvailable = Math.max(0, oldAvailable + diff);
 
@@ -1172,7 +1172,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         total_slots: newTotal,
         available_slots: newAvailable
       });
-      
+
       await fetchSlotsAndBookings();
       setShowEditSlotModal(false);
       setEditSlot(null);
@@ -1203,361 +1203,356 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 space-y-6">
           {/* Calendar Card */}
-      <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green text-xl font-bold shadow-sm shadow-brand-green/10">
-                <CalendarDays className="w-6 h-6 animate-pulse" />
-              </div>
-              <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{monthName}</h2>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Manage and view your service slot capacity.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80 flex-wrap justify-end">
-              {!isSelectionMode && (
-                <button
-                  onClick={() => {
-                    setShowModal(true);
-                    setTimeError('');
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap flex items-center gap-1 mr-2"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Create Slot
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setIsSelectionMode(!isSelectionMode);
-                  if (isSelectionMode) setSelectedDates([]);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all duration-200 ${isSelectionMode
-                    ? 'bg-brand-navy text-white shadow-sm'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                {isSelectionMode ? 'Cancel Select' : 'Select Multiple'}
-              </button>
-              {isSelectionMode && selectedDates.length > 0 && (
-                <div className="flex items-center gap-2">
+          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green text-xl font-bold shadow-sm shadow-brand-green/10">
+                    <CalendarDays className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{monthName}</h2>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Manage and view your service slot capacity.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80 flex-wrap justify-end">
+                  {!isSelectionMode && (
+                    <button
+                      onClick={() => {
+                        setShowModal(true);
+                        setTimeError('');
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap flex items-center gap-1 mr-2"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Create Slot
+                    </button>
+                  )}
                   <button
                     onClick={() => {
-                      setShowModal(true);
-                      setTimeError('');
+                      setIsSelectionMode(!isSelectionMode);
+                      if (isSelectionMode) setSelectedDates([]);
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all duration-200 ${isSelectionMode
+                      ? 'bg-brand-navy text-white shadow-sm'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
                   >
-                    Add
+                    {isSelectionMode ? 'Cancel Select' : 'Select Multiple'}
                   </button>
-                  <button
-                    onClick={async () => {
-                      if (!confirm(`Are you sure you want to delete all slots for the ${selectedDates.length} selected days?`)) return;
-                      try {
-                        const dateStrings = selectedDates.map(day => formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)));
-                        const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
-                        
-                        if (slotsToDelete.length === 0) {
-                          setAlertConfig({ isOpen: true, title: 'Error', message: 'No slots found on the selected dates.', type: 'warning' });
-                          return;
-                        }
-                        
-                        for (const slot of slotsToDelete) {
-                          await api.delete(`/api/slots/${slot.id}`);
-                        }
-                        await fetchSlotsAndBookings();
-                        setSelectedDates([]);
-                        setIsSelectionMode(false);
-                      } catch (err) {
-                        setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete some or all slots', type: 'danger' });
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-sm transition-all whitespace-nowrap"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-              {(!isSelectionMode || selectedDates.length === 0) && (
-                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
-              )}
-              <button
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
-                title="Previous Month"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setCurrentMonth(new Date())}
-                className="px-3 py-1.5 rounded-lg text-xs font-black hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
-                title="Next Month"
-              >
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                  {isSelectionMode && selectedDates.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setShowModal(true);
+                          setTimeError('');
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-sm transition-all whitespace-nowrap"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Are you sure you want to delete all slots for the ${selectedDates.length} selected days?`)) return;
+                          try {
+                            const dateStrings = selectedDates.map(day => formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)));
+                            const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
 
-          {/* Day headers */}
-          <div className="grid grid-cols-7 gap-2.5 mb-3">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => {
-              const isWeekend = index === 0 || index === 6;
-              return (
-                <div
-                  key={d}
-                  className={`text-center text-[10px] font-black uppercase tracking-wider py-2 rounded-lg ${isWeekend
-                      ? 'text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-slate-900/10'
-                      : 'text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'
-                    }`}
-                >
-                  {d}
-                </div>
-              );
-            })}
-          </div>
+                            if (slotsToDelete.length === 0) {
+                              setAlertConfig({ isOpen: true, title: 'Error', message: 'No slots found on the selected dates.', type: 'warning' });
+                              return;
+                            }
 
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-2.5">
-            {days.map((day, i) => {
-              if (!day) {
-                return (
-                  <div
-                    key={`empty-${i}`}
-                    className="aspect-square bg-transparent rounded-2xl border border-transparent"
-                  />
-                );
-              }
-
-              const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-              const disabled = isDateDisabled(day);
-              const isToday = dateObj.toDateString() === today.toDateString();
-              const dateSlots = getSlotsForDate(day);
-              const totalAvailable = getTotalAvailableForDate(day);
-              const hasSlots = dateSlots.length > 0;
-
-              const isSelected = selectedDate && dateObj.getTime() === selectedDate.getTime() && !isSelectionMode;
-
-              return (
-                <motion.div
-                  key={`day-${day}`}
-                  whileHover={!disabled ? { scale: 1.03, y: -2 } : {}}
-                  whileTap={!disabled ? { scale: 0.97 } : {}}
-                  onClick={() => {
-                    if (disabled) return;
-                    if (isSelectionMode) {
-                      setSelectedDates(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
-                    } else {
-                      setSelectedDate(dateObj);
-                      setTimeError('');
-                    }
-                  }}
-                  className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${disabled
-                      ? 'bg-slate-100/60 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 opacity-50 cursor-not-allowed grayscale-[0.3]'
-                      : isSelectionMode && selectedDates.includes(day)
-                        ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
-                        : isSelected
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 shadow-md ring-2 ring-blue-400/20'
-                          : hasSlots
-                            ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
-                            : isToday
-                              ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
-                              : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className={`text-sm font-black ${
-                      isToday && !disabled
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : disabled
-                          ? 'text-slate-400 dark:text-slate-600'
-                          : (isSelectionMode && selectedDates.includes(day)) 
-                            ? 'text-white' 
-                            : 'text-slate-800 dark:text-white'
-                    }`}>
-                      {day}
-                    </span>
-                    {isToday && !disabled && !hasSlots && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse mt-1.5 mr-1" />
-                    )}
-                  </div>
-
-                  {hasSlots && (
-                    <div className="mt-auto flex flex-col gap-0.5 overflow-hidden">
-                      <div className={`text-[10px] font-black rounded-md px-1 py-0.5 mb-0.5 inline-block w-fit max-w-full truncate ${
-                        disabled 
-                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-500' 
-                          : 'bg-brand-green/20 dark:bg-brand-green/30 text-brand-green dark:text-brand-green'
-                      }`}>
-                        {totalAvailable} avail
-                      </div>
-                      {dateSlots.slice(0, 2).map((s, idx) => (
-                        <div key={idx} className={`text-[9px] font-bold rounded px-1.5 py-0.5 truncate ${
-                          disabled ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-400' : 'bg-brand-green/10 dark:bg-brand-green/20 text-brand-green/90'
-                        }`} title={`${s.time_from} - ${s.time_to}`}>
-                          {s.time_from} - {s.time_to}
-                        </div>
-                      ))}
-                      {dateSlots.length > 2 && (
-                        <div className={`text-[9px] font-bold px-1 ${
-                          disabled ? 'text-slate-400' : 'text-brand-green/80'
-                        }`}>
-                          +{dateSlots.length - 2} more
-                        </div>
-                      )}
+                            for (const slot of slotsToDelete) {
+                              await api.delete(`/api/slots/${slot.id}`);
+                            }
+                            await fetchSlotsAndBookings();
+                            setSelectedDates([]);
+                            setIsSelectionMode(false);
+                          } catch (err) {
+                            setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete some or all slots', type: 'danger' });
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-sm transition-all whitespace-nowrap"
+                      >
+                        Delete
+                      </button>
                     </div>
                   )}
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </Card>
+                  {(!isSelectionMode || selectedDates.length === 0) && (
+                    <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+                  )}
+                  <button
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                    className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+                    title="Previous Month"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentMonth(new Date())}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                    className="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
+                    title="Next Month"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 gap-2.5 mb-3">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => {
+                  const isWeekend = index === 0 || index === 6;
+                  return (
+                    <div
+                      key={d}
+                      className={`text-center text-[10px] font-black uppercase tracking-wider py-2 rounded-lg ${isWeekend
+                        ? 'text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-slate-900/10'
+                        : 'text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/30'
+                        }`}
+                    >
+                      {d}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-2.5">
+                {days.map((day, i) => {
+                  if (!day) {
+                    return (
+                      <div
+                        key={`empty-${i}`}
+                        className="aspect-square bg-transparent rounded-2xl border border-transparent"
+                      />
+                    );
+                  }
+
+                  const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                  const disabled = isDateDisabled(day);
+                  const isToday = dateObj.toDateString() === today.toDateString();
+                  const dateSlots = getSlotsForDate(day);
+                  const totalAvailable = getTotalAvailableForDate(day);
+                  const hasSlots = dateSlots.length > 0;
+
+                  const isSelected = selectedDate && dateObj.getTime() === selectedDate.getTime() && !isSelectionMode;
+
+                  return (
+                    <motion.div
+                      key={`day-${day}`}
+                      whileHover={!disabled ? { scale: 1.03, y: -2 } : {}}
+                      whileTap={!disabled ? { scale: 0.97 } : {}}
+                      onClick={() => {
+                        if (disabled) return;
+                        if (isSelectionMode) {
+                          setSelectedDates(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+                        } else {
+                          setSelectedDate(dateObj);
+                          setTimeError('');
+                        }
+                      }}
+                      className={`aspect-square p-2.5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all border relative overflow-hidden select-none ${disabled
+                        ? 'bg-slate-100/60 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 opacity-50 cursor-not-allowed grayscale-[0.3]'
+                        : isSelectionMode && selectedDates.includes(day)
+                          ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
+                          : isSelected
+                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 shadow-md ring-2 ring-blue-400/20'
+                            : hasSlots
+                              ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
+                              : isToday
+                                ? 'bg-white dark:bg-slate-950 border-blue-200 dark:border-blue-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/60 shadow-sm'
+                                : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className={`text-sm font-black ${isToday && !disabled
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : disabled
+                              ? 'text-slate-400 dark:text-slate-600'
+                              : (isSelectionMode && selectedDates.includes(day))
+                                ? 'text-white'
+                                : 'text-slate-800 dark:text-white'
+                          }`}>
+                          {day}
+                        </span>
+                        {isToday && !disabled && !hasSlots && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse mt-1.5 mr-1" />
+                        )}
+                      </div>
+
+                      {hasSlots && (
+                        <div className="mt-auto flex flex-col gap-0.5 overflow-hidden">
+                          <div className={`text-[10px] font-black rounded-md px-1 py-0.5 mb-0.5 inline-block w-fit max-w-full truncate ${disabled
+                              ? 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              : 'bg-brand-green/20 dark:bg-brand-green/30 text-brand-green dark:text-brand-green'
+                            }`}>
+                            {totalAvailable} avail
+                          </div>
+                          {dateSlots.slice(0, 2).map((s, idx) => (
+                            <div key={idx} className={`text-[9px] font-bold rounded px-1.5 py-0.5 truncate ${disabled ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-400' : 'bg-brand-green/10 dark:bg-brand-green/20 text-brand-green/90'
+                              }`} title={`${s.time_from} - ${s.time_to}`}>
+                              {s.time_from} - {s.time_to}
+                            </div>
+                          ))}
+                          {dateSlots.length > 2 && (
+                            <div className={`text-[9px] font-bold px-1 ${disabled ? 'text-slate-400' : 'text-brand-green/80'
+                              }`}>
+                              +{dateSlots.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
 
         </div>
         <div className="space-y-6">
           {/* Active slots grouped by service/sub-service */}
           <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active Slots List</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Your currently configured booking availabilities</p>
-            </div>
-            <span className="text-xs bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green px-2.5 py-1 rounded-full font-bold">
-              {activeSlotsForSelectedDate.length} Active Slot{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="py-12 flex flex-col items-center justify-center space-y-3">
-              <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-green rounded-full animate-spin" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Fetching slots data...</p>
-            </div>
-          ) : activeSlotsForSelectedDate.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                <CalendarDays className="w-8 h-8" />
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active Slots List</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Your currently configured booking availabilities</p>
+                </div>
+                <span className="text-xs bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green px-2.5 py-1 rounded-full font-bold">
+                  {activeSlotsForSelectedDate.length} Active Slot{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <div className="text-center">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No slots for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[250px]">You haven't created any slots for this date yet.</p>
-              </div>
-              {selectedDate && selectedDate >= today && (
-                <Button 
-                  onClick={() => { setShowModal(true); setTimeError(''); }}
-                  className="mt-2 bg-brand-green hover:bg-[#005e3f] text-white font-bold shadow-sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Create Slot
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-6 max-h-[700px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-              {vendorServices.map((svc: any) => {
-                const serviceSlots = activeSlotsForSelectedDate.filter(s => s.service_type === svc.service);
-                if (serviceSlots.length === 0) return null;
-                return (
-                  <div key={svc.service} className="p-5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800/60 shadow-sm space-y-4">
-                    <div className="flex items-center gap-2 border-b pb-3 border-slate-200/40 dark:border-slate-800/40">
-                      <div className="w-2.5 h-6 rounded bg-brand-green" />
-                      <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">{svc.service}</h4>
-                    </div>
 
-                    <div className="space-y-4">
-                      {svc.sub_services.map((sub: any) => {
-                        const subSlots = serviceSlots.filter(s => s.sub_service === sub);
-                        if (subSlots.length === 0) return null;
-                        return (
-                          <div key={sub} className="space-y-2">
-                            <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1">{sub}</h5>
-                            <div className="flex flex-col gap-3">
-                              {subSlots.map((s, i) => {
-                                const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
-                                const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
-                                const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
-                                const safeTotal = Math.max(0, total);
-                                const booked = safeTotal - safeAvail;
-                                const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
+              {loading ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                  <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-green rounded-full animate-spin" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Fetching slots data...</p>
+                </div>
+              ) : activeSlotsForSelectedDate.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                    <CalendarDays className="w-8 h-8" />
+                  </div>
+                  <div className="text-center">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No slots for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[250px]">You haven't created any slots for this date yet.</p>
+                  </div>
+                  {selectedDate && selectedDate >= today && (
+                    <Button
+                      onClick={() => { setShowModal(true); setTimeError(''); }}
+                      className="mt-2 bg-brand-green hover:bg-[#005e3f] text-white font-bold shadow-sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Create Slot
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6 max-h-[700px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                  {vendorServices.map((svc: any) => {
+                    const serviceSlots = activeSlotsForSelectedDate.filter(s => s.service_type === svc.service);
+                    if (serviceSlots.length === 0) return null;
+                    return (
+                      <div key={svc.service} className="p-5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800/60 shadow-sm space-y-4">
+                        <div className="flex items-center gap-2 border-b pb-3 border-slate-200/40 dark:border-slate-800/40">
+                          <div className="w-2.5 h-6 rounded bg-brand-green" />
+                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">{svc.service}</h4>
+                        </div>
 
-                                return (
-                                  <div key={i} className="p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 group">
-                                    <div className="flex justify-between items-start gap-4">
-                                      <div className="space-y-1">
-                                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover:text-brand-green transition-colors">{s.slot_date}</span>
-                                        {s.time_from && s.time_to && (
-                                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            <span>{s.time_from} - {s.time_to}</span>
+                        <div className="space-y-4">
+                          {svc.sub_services.map((sub: any) => {
+                            const subSlots = serviceSlots.filter(s => s.sub_service === sub);
+                            if (subSlots.length === 0) return null;
+                            return (
+                              <div key={sub} className="space-y-2">
+                                <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1">{sub}</h5>
+                                <div className="flex flex-col gap-3">
+                                  {subSlots.map((s, i) => {
+                                    const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+                                    const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
+                                    const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
+                                    const safeTotal = Math.max(0, total);
+                                    const booked = safeTotal - safeAvail;
+                                    const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
+
+                                    return (
+                                      <div key={i} className="p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 group">
+                                        <div className="flex justify-between items-start gap-4">
+                                          <div className="space-y-1">
+                                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover:text-brand-green transition-colors">{s.slot_date}</span>
+                                            {s.time_from && s.time_to && (
+                                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                <span>{s.time_from} - {s.time_to}</span>
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${
-                                          booked >= safeTotal 
-                                            ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40' 
-                                            : booked > 0
-                                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800/40'
-                                              : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
-                                        }`}>
-                                          {booked >= safeTotal ? 'Fully Booked' : 'Active'} • {booked}/{safeTotal} Booked
-                                        </span>
-                                        <div className="flex items-center">
-                                          <button
-                                            onClick={() => {
-                                              setEditSlot({ ...s });
-                                              setShowEditSlotModal(true);
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"
-                                            title="Edit capacity"
-                                          >
-                                            <Edit className="w-4 h-4" />
-                                          </button>
-                                          <button
-                                            onClick={() => handleDeleteSlot(s.id)}
-                                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
-                                            title="Delete slot"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
+                                          <div className="flex items-center gap-2">
+                                            <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${booked >= safeTotal
+                                                ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
+                                                : booked > 0
+                                                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800/40'
+                                                  : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
+                                              }`}>
+                                              {booked >= safeTotal ? 'Fully Booked' : 'Active'} • {booked}/{safeTotal} Booked
+                                            </span>
+                                            <div className="flex items-center">
+                                              <button
+                                                onClick={() => {
+                                                  setEditSlot({ ...s });
+                                                  setShowEditSlotModal(true);
+                                                }}
+                                                className="p-1.5 text-slate-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"
+                                                title="Edit capacity"
+                                              >
+                                                <Edit className="w-4 h-4" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteSlot(s.id)}
+                                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                                                title="Delete slot"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Sleek thin progress bar to represent booked slots visually */}
+                                        <div className="mt-3 space-y-1">
+                                          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full transition-all duration-500 ${percentBooked >= 100
+                                                ? 'bg-rose-500'
+                                                : percentBooked >= 50
+                                                  ? 'bg-amber-500'
+                                                  : 'bg-emerald-500'
+                                                }`}
+                                              style={{ width: `${percentBooked}%` }}
+                                            />
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-
-                                    {/* Sleek thin progress bar to represent booked slots visually */}
-                                    <div className="mt-3 space-y-1">
-                                      <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                        <div
-                                          className={`h-full rounded-full transition-all duration-500 ${percentBooked >= 100
-                                              ? 'bg-rose-500'
-                                              : percentBooked >= 50
-                                                ? 'bg-amber-500'
-                                                : 'bg-emerald-500'
-                                            }`}
-                                          style={{ width: `${percentBooked}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </Card>
+          </Card>
         </div>
       </div>
 
@@ -2271,13 +2266,13 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                           className="w-full flex items-center justify-between input-base !py-2.5 bg-white dark:bg-slate-900/50"
                         >
                           <span className={selectedServices.some(s => s.sub_services.length > 0) ? "text-slate-900 dark:text-white font-medium" : "text-slate-400"}>
-                            {selectedServices.some(s => s.sub_services.length > 0) 
-                              ? `${selectedServices.reduce((acc, s) => acc + s.sub_services.length, 0)} specialization(s) selected` 
+                            {selectedServices.some(s => s.sub_services.length > 0)
+                              ? `${selectedServices.reduce((acc, s) => acc + s.sub_services.length, 0)} specialization(s) selected`
                               : 'Select specializations...'}
                           </span>
                           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${specDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
-                        
+
                         {specDropdownOpen && (
                           <div className="absolute z-10 w-full mt-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-xl max-h-60 overflow-y-auto">
                             {vendorServices.length === 0 ? (
@@ -2314,10 +2309,10 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
                           </div>
                         )}
                       </div>
-                      
+
                       {selectedServices.some(s => s.sub_services.length > 0) && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {selectedServices.map(s => 
+                          {selectedServices.map(s =>
                             s.sub_services.map(sub => (
                               <div key={`${s.service}-${sub}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand-green/10 border border-brand-green/20 text-xs font-medium text-brand-green">
                                 {sub}
@@ -2976,10 +2971,10 @@ function SubServiceDetailModal({ isOpen, onClose, service, subServiceName, dbSer
                         </div>
                         <div className="flex-shrink-0">
                           <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${req.status === 'approved'
-                              ? 'badge-completed'
-                              : req.status === 'rejected'
-                                ? 'badge-cancelled'
-                                : 'badge-pending'
+                            ? 'badge-completed'
+                            : req.status === 'rejected'
+                              ? 'badge-cancelled'
+                              : 'badge-pending'
                             }`}>
                             {req.status}
                           </span>
@@ -3288,13 +3283,13 @@ function ProposeSubServiceModal({ isOpen, onClose, dbServices, onSubmitted }: {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sub Service Name *</label>
-                <input 
+                <input
                   list="sub-service-choices"
-                  value={form.name} 
+                  value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="input-base text-sm" 
-                  placeholder="e.g. Deep Cleaning" 
-                  disabled={submitting} 
+                  className="input-base text-sm"
+                  placeholder="e.g. Deep Cleaning"
+                  disabled={submitting}
                 />
                 <datalist id="sub-service-choices">
                   {dbServices.find(s => (s.id || s.name) === form.serviceId)?.subServices?.map((sub: any) => (
@@ -3415,8 +3410,8 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
         <button
           onClick={() => setActiveTab('offered')}
           className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${activeTab === 'offered'
-              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+            : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
         >
           My Offered Services
@@ -3424,8 +3419,8 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
         <button
           onClick={() => setActiveTab('proposals')}
           className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${activeTab === 'proposals'
-              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+            : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
         >
           Proposals & Request History
@@ -3542,10 +3537,10 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
                   {
                     key: 'status', label: 'Status', render: (item: any) => (
                       <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${item.status === 'approved'
-                          ? 'badge-completed'
-                          : item.status === 'rejected'
-                            ? 'badge-cancelled'
-                            : 'badge-pending'
+                        ? 'badge-completed'
+                        : item.status === 'rejected'
+                          ? 'badge-cancelled'
+                          : 'badge-pending'
                         }`}>
                         {item.status}
                       </span>
@@ -3609,10 +3604,15 @@ function VendorServices({ dbServices, loadingDb, refreshServices }: { dbServices
 // ─── Vendor Messages Tab ────────────────────────────────────────────────────────
 import { useChatThreads, useChatMessages } from '../hooks/useChat';
 import { isExpired } from '../utils/dateHelper';
+import { useBookings } from '../hooks/useBookings';
+
 
 function VendorMessages() {
+  const navigate = useNavigate();
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'customers'|'team'>('customers');
+  const { bookings } = useBookings(profile?.id, 'vendor');
+  const [activeTab, setActiveTab] = useState<'customers' | 'team'>('customers');
   const { threads: customerThreads, loading: threadsLoading } = useChatThreads([user?.uid, profile?.id], 'vendor');
   const [selectedThread, setSelectedThread] = useState<any>(null);
   const [personnels, setPersonnels] = useState<any[]>([]);
@@ -3621,13 +3621,16 @@ function VendorMessages() {
     if (profile?.id) {
       api.get(`/api/personnel?vendor_id=${profile.id}`)
         .then(r => setPersonnels(r.data || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [profile]);
 
   const { messages, sendMessage } = useChatMessages(selectedThread?.id || null);
   const [inputText, setInputText] = useState('');
-  
+
+  const activeBooking = bookings?.find((b: any) => b.id === selectedThread?.booking_id);
+  const threadStatus = activeBooking?.status || selectedThread?.status;
+
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
     try {
@@ -3637,10 +3640,10 @@ function VendorMessages() {
       console.error(e);
     }
   };
-  
+
   // Team threads are the same booking threads but for communicating with the assigned personnel
   const actualCustomerThreads = customerThreads.filter(t => !t.id.startsWith('hq_'));
-  
+
   // Merge existing HQ threads with virtual threads for all personnel
   const teamThreads = personnels.map(p => {
     const threadId = `hq_${p.id}_${profile?.id}`;
@@ -3656,39 +3659,28 @@ function VendorMessages() {
   });
 
   return (
-    <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">Messages</h2>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage customer communications and team dispatch.</p>
-        </div>
-      </div>
+    <div className="space-y-3 h-[calc(100vh-120px)] flex flex-col">
+      <AdminPageHeader
+        title="Messages"
+        subtitle="Manage customer communications and team dispatch."
+        icon={<MessageSquare />}
+      />
 
       <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex min-h-0">
         {/* Left Pane (30%) */}
         <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
           <div className="flex border-b border-slate-200 dark:border-slate-800">
-            <button 
+            <button
               onClick={() => { setActiveTab('customers'); setSelectedThread(null); }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${activeTab === 'customers' ? 'border-b-2 border-brand-green text-brand-green bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               Customers
-              {actualCustomerThreads.length > 0 && (
-                <span className="bg-brand-green text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                  {actualCustomerThreads.length}
-                </span>
-              )}
             </button>
-            <button 
+            <button
               onClick={() => { setActiveTab('team'); setSelectedThread(null); }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${activeTab === 'team' ? 'border-b-2 border-brand-green text-brand-green bg-white dark:bg-slate-900' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               My Team
-              {teamThreads.length > 0 && (
-                <span className="bg-slate-200 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full">
-                  {teamThreads.length}
-                </span>
-              )}
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -3701,24 +3693,40 @@ function VendorMessages() {
                 <div key={t.id} onClick={() => setSelectedThread(t)} className={`p-4 rounded-none cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-brand-green/5 dark:bg-brand-green/10 border-l-4 border-brand-green' : 'bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}>
                   {activeTab === 'customers' ? (
                     <>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
                         {t.status === 'archived' && <span className="w-2 h-2 rounded-full bg-slate-300" title="Archived" />}
                       </div>
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.customer_name || 'Customer'}</h4>
-                      <p className="text-xs text-slate-500">{t.service_type || 'Service'}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {t.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.customer_name || 'Customer'}</h4>
+                          <p className="text-xs text-slate-500 truncate">{t.service_type || 'Service'}</p>
+                        </div>
+                      </div>
                     </>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-                        <User className="w-4 h-4 text-slate-500" />
+                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {t.personnel_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'T'}
                       </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.personnel_name}</h4>
-                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Online
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.personnel_name}</h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-slate-500 flex-shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Online
+                          </div>
+                          <span className="text-slate-300 dark:text-slate-700">•</span>
+                          <span className="text-[9px] font-semibold text-brand-green uppercase tracking-wider truncate">
+                            {(() => {
+                              const tech = personnels.find((p: any) => p.id === t.technician_id);
+                              return tech?.services?.map((s: any) => (s.sub_services || []).join(', ')).filter(Boolean).join(', ') || 'Staff';
+                            })()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -3735,55 +3743,127 @@ function VendorMessages() {
               {activeTab === 'customers' ? (
                 <>
                   <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.customer_name || 'Customer'}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">{selectedThread.service_type}</span>
-                        <span className="text-xs font-bold text-brand-green">{selectedThread.booking_id}</span>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm">
+                        {selectedThread.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.customer_name || 'Customer'}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{selectedThread.service_type}</span>
+                          <span className="text-xs font-bold text-brand-green">{selectedThread.booking_id}</span>
+                        </div>
                       </div>
                     </div>
-                    <Button variant="outline" className="text-xs font-bold border-slate-200 dark:border-slate-800">
+                    <Button variant="outline" onClick={() => navigate('/vendor/bookings', { state: { bookingId: selectedThread.booking_id } })} className="text-xs font-bold border-slate-200 dark:border-slate-800">
                       View Booking Details
                     </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {messages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender_role === 'system' || msg.sender_role === 'technician' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
-                        {msg.sender_role === 'system' ? (
-                          <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
-                            {msg.text}
-                          </span>
-                        ) : msg.sender_role === 'technician' ? (
-                          <div className="max-w-[60%] rounded-xl px-4 py-2 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-sm">
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              Technician
+                    {messages.map((msg, index) => {
+                      const currentMsgDate = msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)) : new Date();
+                      
+                      let showDateSeparator = false;
+                      let dateLabel = '';
+                      
+                      if (index === 0) {
+                        showDateSeparator = true;
+                      } else {
+                        const prevMsg = messages[index - 1];
+                        const prevMsgDate = prevMsg.created_at ? (typeof prevMsg.created_at.toDate === 'function' ? prevMsg.created_at.toDate() : new Date(prevMsg.created_at)) : new Date();
+                        
+                        showDateSeparator = currentMsgDate.toDateString() !== prevMsgDate.toDateString();
+                      }
+                      
+                      if (showDateSeparator) {
+                        const today = new Date();
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        
+                        if (currentMsgDate.toDateString() === today.toDateString()) {
+                          dateLabel = 'Today';
+                        } else if (currentMsgDate.toDateString() === yesterday.toDateString()) {
+                          dateLabel = 'Yesterday';
+                        } else {
+                          dateLabel = currentMsgDate.toLocaleDateString('en-US', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            year: '2-digit',
+                            weekday: 'long'
+                          });
+                        }
+                      }
+
+                      return (
+                        <div key={msg.id} className="flex flex-col">
+                          {showDateSeparator && (
+                            <div className="flex justify-center mb-4 mt-2">
+                              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                                {dateLabel}
+                              </span>
                             </div>
-                            <p className="text-sm text-center">{msg.text}</p>
-                          </div>
-                        ) : (
-                          <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
-                            {msg.sender_id !== user?.uid && (
-                              <div className="text-[10px] font-bold text-slate-400 mb-1">
-                                {selectedThread.customer_name}
+                          )}
+                          <div className={`flex ${msg.sender_role === 'system' || msg.sender_role === 'technician' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                            {msg.sender_role === 'system' ? (
+                              <span className="text-xs bg-brand-green/10 text-brand-green px-4 py-2.5 rounded-2xl font-bold text-center max-w-[80%] leading-relaxed">
+                                {msg.text
+                                  .replace(/Booking confirmed! You are now connected with .* for your/, `🎉 New Booking Confirmed! You are now connected with ${selectedThread.customer_name || 'the customer'}. Please review their`)
+                                  .replace('Feel free to share details or photos of your issue below.', 'Coordinate any preliminary details or requirements with the customer here before dispatching your team.')
+                                }
+                              </span>
+                            ) : msg.sender_role === 'technician' ? (
+                              <div className="flex flex-col max-w-[60%] items-center">
+                                <div className="w-full rounded-2xl px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white shadow-sm">
+                                  <div className="text-[10px] font-bold text-slate-300 mb-1 flex items-center justify-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    {(() => {
+                                      const tech = personnels.find((p: any) => p.id === msg.sender_id) || personnels.find((p: any) => p.id === activeBooking?.personnel_id) || personnels.find((p: any) => p.id === selectedThread?.technician_id);
+                                      return tech ? `${tech.first_name} ${tech.last_name}` : selectedThread?.personnel_name || 'Technician';
+                                    })()}
+                                  </div>
+                                  <p className="text-sm text-center">{msg.text}</p>
+                                </div>
+                                <div className="text-[9px] text-slate-400 mt-1 text-center w-full">
+                                  {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:50 PM'}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col max-w-[70%]">
+                                <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
+                                  <p className="text-sm">{msg.text}</p>
+                                  {msg.sender_id === user?.uid && (
+                                    <div className="text-[9px] text-[#005e3f] opacity-80 text-right mt-1 flex justify-end items-center gap-0.5">
+                                      {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
+                                      ✓✓
+                                    </div>
+                                  )}
+                                </div>
+                                {msg.sender_id !== user?.uid && (
+                                  <div className="text-[9px] text-slate-400 mt-1 text-center">
+                                    {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:50 PM'}
+                                  </div>
+                                )}
                               </div>
                             )}
-                            <p className="text-sm">{msg.text}</p>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {(selectedThread.status === 'archived' || isExpired(selectedThread.updated_at)) ? (
-                    <div className="p-4 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
-                      Booking archived. This conversation is read-only.
+                  {(threadStatus === 'archived' || threadStatus === 'completed' || threadStatus === 'cancelled' || isExpired(selectedThread.updated_at)) ? (
+                    <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <span className="text-sm font-medium">This booking is completed. This chat is now closed.</span>
+                      </div>
+                      <Button variant="outline" onClick={() => navigate('/vendor/support')} className="text-xs font-semibold border-slate-200 dark:border-slate-700">Contact Support</Button>
                     </div>
                   ) : (
                     <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Type a message..." 
+                        <input
+                          type="text"
+                          placeholder="Type a message..."
                           className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 text-slate-800 dark:text-white"
                           value={inputText}
                           onChange={(e) => setInputText(e.target.value)}
@@ -3803,36 +3883,94 @@ function VendorMessages() {
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {messages.filter(m => m.is_logistics).map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
-                        {msg.sender_role === 'system' ? (
-                          <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
-                            {msg.text}
-                          </span>
-                        ) : (
-                          <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-navy text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
-                            {msg.sender_id !== user?.uid && (
-                              <div className="text-[10px] font-bold text-slate-400 mb-1">
-                                {selectedThread.personnel_name || 'Personnel'}
+                    {messages.filter(m => m.is_logistics).map((msg, index, filteredArray) => {
+                      const currentMsgDate = msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)) : new Date();
+                      
+                      let showDateSeparator = false;
+                      let dateLabel = '';
+                      
+                      if (index === 0) {
+                        showDateSeparator = true;
+                      } else {
+                        const prevMsg = filteredArray[index - 1];
+                        const prevMsgDate = prevMsg.created_at ? (typeof prevMsg.created_at.toDate === 'function' ? prevMsg.created_at.toDate() : new Date(prevMsg.created_at)) : new Date();
+                        
+                        showDateSeparator = currentMsgDate.toDateString() !== prevMsgDate.toDateString();
+                      }
+                      
+                      if (showDateSeparator) {
+                        const today = new Date();
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        
+                        if (currentMsgDate.toDateString() === today.toDateString()) {
+                          dateLabel = 'Today';
+                        } else if (currentMsgDate.toDateString() === yesterday.toDateString()) {
+                          dateLabel = 'Yesterday';
+                        } else {
+                          dateLabel = currentMsgDate.toLocaleDateString('en-US', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            year: '2-digit',
+                            weekday: 'long'
+                          });
+                        }
+                      }
+
+                      return (
+                        <div key={msg.id} className="flex flex-col">
+                          {showDateSeparator && (
+                            <div className="flex justify-center mb-4 mt-2">
+                              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                                {dateLabel}
+                              </span>
+                            </div>
+                          )}
+                          <div className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                            {msg.sender_role === 'system' ? (
+                              <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
+                                {msg.text}
+                              </span>
+                            ) : (
+                              <div className="flex flex-col max-w-[70%]">
+                                <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-800 dark:bg-slate-700 text-white rounded-bl-none'}`}>
+                                  {msg.sender_id !== user?.uid && (
+                                    <div className="text-[10px] font-bold text-slate-300 mb-1 flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      {selectedThread.personnel_name || 'Personnel'}
+                                    </div>
+                                  )}
+                                  <p className="text-sm">{msg.text}</p>
+                                  {msg.sender_id === user?.uid && (
+                                    <div className="text-[9px] text-[#005e3f] opacity-80 text-right mt-1 flex justify-end items-center gap-0.5">
+                                      {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
+                                      ✓✓
+                                    </div>
+                                  )}
+                                </div>
+                                {msg.sender_id !== user?.uid && (
+                                  <div className="text-[9px] text-slate-400 mt-1 text-left px-2">
+                                    {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:50 PM'}
+                                  </div>
+                                )}
                               </div>
                             )}
-                            <p className="text-sm">{msg.text}</p>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Message team member..." 
-                        className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy/20 text-slate-800 dark:text-white" 
+                      <input
+                        type="text"
+                        placeholder="Message team member..."
+                        className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy/20 text-slate-800 dark:text-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                       />
-                      <Button onClick={handleSend} className="bg-brand-navy hover:bg-slate-800 text-white rounded-xl">Send</Button>
+                      <Button onClick={handleSend} disabled={!inputText.trim()} className={`rounded-xl text-white transition-colors ${inputText.trim() ? 'bg-brand-green hover:bg-[#005e3f]' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}>Send</Button>
                     </div>
                   </div>
                 </>
@@ -3849,6 +3987,7 @@ function VendorMessages() {
           )}
         </div>
       </div>
+      <ConfirmComponent />
     </div>
   );
 }
@@ -3858,10 +3997,10 @@ function VendorProfile() {
   const { profile, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { confirm: showAlert, ConfirmComponent } = useConfirm();
-  
+
   const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
-  
+
   const [isEditingOps, setIsEditingOps] = useState(false);
   const [opsData, setOpsData] = useState({
     contact_person: '',
@@ -3999,7 +4138,7 @@ function VendorProfile() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-2 items-stretch flex-1 pb-2">
         {/* ─── LEFT COLUMN ─── */}
         <div className="xl:col-span-4 flex flex-col gap-2">
-<Card className="flex flex-col items-center justify-center text-center p-2.5">
+          <Card className="flex flex-col items-center justify-center text-center p-2.5">
             <div className="relative group mb-4">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                 {avatarUrl ? (
@@ -4051,7 +4190,7 @@ function VendorProfile() {
               )}
             </div>
           </Card>
-<Card className="flex flex-col p-2.5 flex-1">
+          <Card className="flex flex-col p-2.5 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">Headquarters & Operations</h2>
               {!isEditingOps && <EditButton onClick={() => setIsEditingOps(true)} />}
@@ -4083,9 +4222,9 @@ function VendorProfile() {
                   <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase mb-1">Approved Service Categories</p>
                   <div className="flex flex-wrap gap-1.5">
                     {((profile as any).services || []).length > 0 ? ((profile as any).services || []).map((s: any, idx: number) => (
-                       <span key={idx} className="px-2.5 py-1 bg-brand-navy/5 text-brand-navy dark:bg-brand-green/10 dark:text-brand-green font-bold text-[10px] rounded-lg border border-brand-navy/10 dark:border-brand-green/20">{s.service}</span>
+                      <span key={idx} className="px-2.5 py-1 bg-brand-navy/5 text-brand-navy dark:bg-brand-green/10 dark:text-brand-green font-bold text-[10px] rounded-lg border border-brand-navy/10 dark:border-brand-green/20">{s.service}</span>
                     )) : (
-                       <span className="text-xs font-medium text-slate-500 italic">No services approved yet.</span>
+                      <span className="text-xs font-medium text-slate-500 italic">No services approved yet.</span>
                     )}
                   </div>
                 </div>
@@ -4128,7 +4267,7 @@ function VendorProfile() {
         </div>
         {/* ─── RIGHT COLUMN ─── */}
         <div className="xl:col-span-8 flex flex-col gap-2">
-<Card className="flex flex-col p-2.5 flex-1">
+          <Card className="flex flex-col p-2.5 flex-1">
             <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white mb-2">Compliance & Permits</h2>
             <div className="flex flex-col gap-2">
               {[
@@ -4137,123 +4276,123 @@ function VendorProfile() {
                 { key: 'professional_license_url', label: 'Professional License' },
                 { key: 'proof_of_insurance_url', label: 'Proof of Insurance' }
               ].map(doc => {
-                 const url = (profile as any)[doc.key];
-                 return (
-                   <div key={doc.key} className="flex items-center justify-between p-2 border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                     <div className="flex items-center gap-3">
-                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${url ? 'bg-brand-green/10 text-brand-green' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'}`}>
-                         <FileText className="w-4 h-4" />
-                       </div>
-                       <div className="flex flex-col">
-                         <p className="text-xs font-bold text-slate-900 dark:text-white">{doc.label}</p>
-                         <div className="flex items-center gap-1 mt-0.5">
-                           {url ? (
-                             <>
-                               <Check className="w-3 h-3 text-brand-green" />
-                               <span className="text-[10px] font-semibold text-brand-green">Uploaded</span>
-                             </>
-                           ) : (
-                             <>
-                               <AlertCircle className="w-3 h-3 text-slate-400" />
-                               <span className="text-[10px] font-semibold text-slate-500">Missing</span>
-                             </>
-                           )}
-                         </div>
-                       </div>
-                     </div>
-                     <div className="flex items-center gap-2">
-                       {url ? (
-                         <>
-                           <a href={url} target="_blank" rel="noreferrer" className="px-2 py-1 text-[10px] font-bold text-brand-navy dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                             View
-                           </a>
-                           <label className="cursor-pointer px-2 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                             Update
-                             <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, doc.key, doc.label)} />
-                           </label>
-                         </>
-                       ) : (
-                         <label className="cursor-pointer px-3 py-1 text-[10px] font-bold text-white bg-brand-navy dark:bg-brand-green rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1">
-                           {uploadingDoc === doc.key ? 'Uploading...' : 'Upload'}
-                           <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, doc.key, doc.label)} />
-                         </label>
-                       )}
-                     </div>
-                   </div>
-                 );
+                const url = (profile as any)[doc.key];
+                return (
+                  <div key={doc.key} className="flex items-center justify-between p-2 border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${url ? 'bg-brand-green/10 text-brand-green' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'}`}>
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">{doc.label}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {url ? (
+                            <>
+                              <Check className="w-3 h-3 text-brand-green" />
+                              <span className="text-[10px] font-semibold text-brand-green">Uploaded</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-3 h-3 text-slate-400" />
+                              <span className="text-[10px] font-semibold text-slate-500">Missing</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {url ? (
+                        <>
+                          <a href={url} target="_blank" rel="noreferrer" className="px-2 py-1 text-[10px] font-bold text-brand-navy dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            View
+                          </a>
+                          <label className="cursor-pointer px-2 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                            Update
+                            <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, doc.key, doc.label)} />
+                          </label>
+                        </>
+                      ) : (
+                        <label className="cursor-pointer px-3 py-1 text-[10px] font-bold text-white bg-brand-navy dark:bg-brand-green rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1">
+                          {uploadingDoc === doc.key ? 'Uploading...' : 'Upload'}
+                          <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleDocumentUpload(e, doc.key, doc.label)} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                );
               })}
             </div>
             <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 mt-2 text-center">Uploading a new document will replace the existing one and notify Admin for verification.</p>
           </Card>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
-<Card className="flex flex-col p-2.5 flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">Payout Methods</h2>
-              {!isEditingPayout && <EditButton onClick={() => setIsEditingPayout(true)} />}
-            </div>
-            {!isEditingPayout ? (
-              <div className="flex-1 flex flex-col justify-center">
-                {((profile as any).account_number && (profile as any).bank_name) ? (
-                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-2.5 rounded-xl shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-20"><CreditCard className="w-16 h-16 text-white" /></div>
-                    <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1">Bank Name</p>
-                    <p className="text-base font-bold text-white mb-2">{(profile as any).bank_name}</p>
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Account Number</p>
-                        <p className="text-xs font-mono text-slate-200">**** **** {((profile as any).account_number || '').slice(-4)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Account Name</p>
-                        <p className="text-xs font-medium text-slate-200">{(profile as any).account_name}</p>
+            <Card className="flex flex-col p-2.5 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">Payout Methods</h2>
+                {!isEditingPayout && <EditButton onClick={() => setIsEditingPayout(true)} />}
+              </div>
+              {!isEditingPayout ? (
+                <div className="flex-1 flex flex-col justify-center">
+                  {((profile as any).account_number && (profile as any).bank_name) ? (
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-2.5 rounded-xl shadow-lg relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-20"><CreditCard className="w-16 h-16 text-white" /></div>
+                      <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1">Bank Name</p>
+                      <p className="text-base font-bold text-white mb-2">{(profile as any).bank_name}</p>
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Account Number</p>
+                          <p className="text-xs font-mono text-slate-200">**** **** {((profile as any).account_number || '').slice(-4)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Account Name</p>
+                          <p className="text-xs font-medium text-slate-200">{(profile as any).account_name}</p>
+                        </div>
                       </div>
                     </div>
+                  ) : (
+                    <div className="space-y-2 flex flex-col justify-center items-center text-center py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                      <CreditCard className="w-8 h-8 text-slate-400 dark:text-slate-500 mb-2 opacity-50" />
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">No payout method linked.</p>
+                      <button onClick={() => setIsEditingPayout(true)} className={`${btnGhost} mt-4`}>Add Bank Account</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSavePayout} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Bank Name (e.g., BDO, GCash, Maya)</label>
+                    <input required type="text" value={payoutData.bank_name} onChange={(e) => setPayoutData({ ...payoutData, bank_name: e.target.value })} className={inputClass} />
                   </div>
-                ) : (
-                  <div className="space-y-2 flex flex-col justify-center items-center text-center py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                    <CreditCard className="w-8 h-8 text-slate-400 dark:text-slate-500 mb-2 opacity-50" />
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">No payout method linked.</p>
-                    <button onClick={() => setIsEditingPayout(true)} className={`${btnGhost} mt-4`}>Add Bank Account</button>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Account Name</label>
+                    <input required type="text" value={payoutData.account_name} onChange={(e) => setPayoutData({ ...payoutData, account_name: e.target.value })} className={inputClass} />
                   </div>
-                )}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Account Number</label>
+                    <input required type="text" value={payoutData.account_number} onChange={(e) => setPayoutData({ ...payoutData, account_number: e.target.value })} className={inputClass} />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button type="button" onClick={() => setIsEditingPayout(false)} className={btnGhost}>Cancel</button>
+                    <button type="submit" className={btnSuccess}>Save Account</button>
+                  </div>
+                </form>
+              )}
+            </Card>
+            <Card className="flex flex-col p-2.5 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">Information Security</h2>
+                <EditButton onClick={() => showAlert({ title: 'Information Security', message: 'Contact Admin to change business email or reset password.', type: 'info', hideCancel: true })} />
               </div>
-            ) : (
-              <form onSubmit={handleSavePayout} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Bank Name (e.g., BDO, GCash, Maya)</label>
-                  <input required type="text" value={payoutData.bank_name} onChange={(e) => setPayoutData({ ...payoutData, bank_name: e.target.value })} className={inputClass} />
+              <div className="grid grid-cols-1 gap-y-2">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Business Email</p>
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white">{profile.email}</p>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Account Name</label>
-                  <input required type="text" value={payoutData.account_name} onChange={(e) => setPayoutData({ ...payoutData, account_name: e.target.value })} className={inputClass} />
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Password</p>
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white">••••••••••••</p>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Account Number</label>
-                  <input required type="text" value={payoutData.account_number} onChange={(e) => setPayoutData({ ...payoutData, account_number: e.target.value })} className={inputClass} />
-                </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => setIsEditingPayout(false)} className={btnGhost}>Cancel</button>
-                  <button type="submit" className={btnSuccess}>Save Account</button>
-                </div>
-              </form>
-            )}
-          </Card>
-<Card className="flex flex-col p-2.5 flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">Information Security</h2>
-              <EditButton onClick={() => showAlert({ title: 'Information Security', message: 'Contact Admin to change business email or reset password.', type: 'info', hideCancel: true })} />
-            </div>
-            <div className="grid grid-cols-1 gap-y-2">
-              <div className="flex flex-col">
-                <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Business Email</p>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">{profile.email}</p>
               </div>
-              <div className="flex flex-col">
-                <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Password</p>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">••••••••••••</p>
-              </div>
-            </div>
-          </Card>
+            </Card>
           </div>
         </div>
       </div>
@@ -4312,7 +4451,7 @@ function VendorSupport() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Issue Type</label>
-                <select value={ticketForm.issueType} onChange={e => setTicketForm({...ticketForm, issueType: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm">
+                <select value={ticketForm.issueType} onChange={e => setTicketForm({ ...ticketForm, issueType: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm">
                   <option value="Dispute Payout">Dispute Payout</option>
                   <option value="Appeal Cancellation Penalty">Appeal Cancellation Penalty</option>
                   <option value="Report Fraudulent User">Report Fraudulent User</option>
@@ -4321,11 +4460,11 @@ function VendorSupport() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Booking ID (Optional)</label>
-                <input type="text" placeholder="e.g. BK-000010" value={ticketForm.bookingId} onChange={e => setTicketForm({...ticketForm, bookingId: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm" />
+                <input type="text" placeholder="e.g. BK-000010" value={ticketForm.bookingId} onChange={e => setTicketForm({ ...ticketForm, bookingId: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Message Details</label>
-                <textarea rows={4} placeholder="Describe the issue in detail..." value={ticketForm.message} onChange={e => setTicketForm({...ticketForm, message: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
+                <textarea rows={4} placeholder="Describe the issue in detail..." value={ticketForm.message} onChange={e => setTicketForm({ ...ticketForm, message: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
               </div>
             </div>
             <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
