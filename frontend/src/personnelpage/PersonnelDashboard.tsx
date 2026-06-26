@@ -486,26 +486,241 @@ function PersonnelBookings() {
   );
 }
 
+// ─── Personnel Profile Tab ───────────────────────────────────────────────────────
 function PersonnelProfile() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
+  
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  
+  // Local state placeholders for features not yet in the DB
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactData, setContactData] = useState({ phone: '' });
+  
+  const [isEditingSafety, setIsEditingSafety] = useState(false);
+  const [safetyData, setSafetyData] = useState({ eName: '', eRel: '', ePhone: '' });
+  const [savedSafetyData, setSavedSafetyData] = useState({ eName: 'Maria Cruz', eRel: 'Spouse', ePhone: '0917-000-0000' });
+
+  useEffect(() => {
+    if (profile) {
+      setAvatarUrl((profile as any).avatar_url || '');
+      setContactData({ phone: (profile as any).phone || '' });
+    }
+  }, [profile]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarUrl(URL.createObjectURL(file));
+      setSelectedAvatar(file);
+    }
+  };
+
+  const handleSaveAvatar = async () => {
+    if (!selectedAvatar) return;
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const res = await api.post('/api/upload/image', {
+          imageBase64: reader.result,
+          filename: selectedAvatar.name,
+        });
+        await api.put(`/api/personnel/${profile?.id}`, { avatar_url: res.data.url });
+        showAlert({ title: 'Success', message: 'Professional photo updated!', type: 'success', hideCancel: true });
+        setSelectedAvatar(null);
+        await refreshProfile();
+      };
+      reader.readAsDataURL(selectedAvatar);
+    } catch (err) {
+      showAlert({ title: 'Error', message: 'Failed to upload photo.', type: 'danger', hideCancel: true });
+    }
+  };
+
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put(`/api/personnel/${profile?.id}`, { phone: contactData.phone });
+      setIsEditingContact(false);
+      await refreshProfile();
+    } catch (err) {
+      showAlert({ title: 'Error', message: 'Failed to save contact number.', type: 'danger', hideCancel: true });
+    }
+  };
+
+  const handleSaveSafety = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavedSafetyData(safetyData);
+    setIsEditingSafety(false);
+  };
+
   if (!profile) return <EmptyState title="Profile not loaded" />;
+
+  const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
+  const btnSuccess = `${btnBase} text-white bg-brand-green hover:bg-[#005e3f] focus:ring-brand-green dark:bg-brand-green dark:hover:bg-[#005e3f]`;
+  const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
+  const inputClass = "w-full mt-1.5 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:focus:border-white dark:focus:ring-white transition-all shadow-sm";
+
+  const EditButton = ({ onClick }: { onClick: () => void }) => (
+    <button onClick={onClick} className={btnGhost}>
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+      Edit
+    </button>
+  );
+
   return (
-    <Card>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">My Profile</h2>
-      <div className="grid sm:grid-cols-2 gap-4">
-        {[
-          ['First Name', profile.first_name],
-          ['Last Name', profile.last_name],
-          ['Email', profile.email],
-          ['Phone', (profile as any).phone || '—'],
-        ].map(([label, val]) => (
-          <div key={label as string}>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-            <p className="text-sm font-medium text-slate-900 dark:text-white">{val as string}</p>
-          </div>
-        ))}
+    <div className="space-y-3 h-full flex flex-col">
+      {/* Missing AdminPageHeader import so I will just use standard DOM headers or recreate */}
+      <div className="mb-4">
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <User className="w-6 h-6 text-brand-navy" /> My Profile
+        </h1>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage your identity, service specialties, and emergency contacts.</p>
       </div>
-    </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
+        {/* ─── LEFT COLUMN ─── */}
+        <div className="lg:col-span-1 flex flex-col gap-3">
+          <Card className="flex flex-col items-center justify-center text-center p-4">
+            <div className="relative group mb-4">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Professional Photo" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-10 h-10 text-slate-400" />
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer focus:outline-none"
+              >
+                <span className="text-xs font-semibold px-2 text-center">Change Photo</span>
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleAvatarChange} className="hidden" accept="image/*" />
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words w-full">
+              {profile.first_name} {profile.last_name}
+            </h2>
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate w-full mb-3">
+              {profile.email}
+            </p>
+            <div className="w-full flex flex-col gap-2">
+              {!selectedAvatar ? (
+                <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>Upload Photo</button>
+              ) : (
+                <div className="flex gap-2 w-full">
+                  <button onClick={() => { setAvatarUrl((profile as any).avatar_url || ''); setSelectedAvatar(null); }} className={`${btnGhost} flex-1`}>Cancel</button>
+                  <button onClick={handleSaveAvatar} className={`${btnSuccess} flex-1`}>Save</button>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-4 flex flex-col flex-1">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Account Security</h2>
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Password</span>
+                  <span className="text-xs text-slate-500">••••••••••••</span>
+                </div>
+                <EditButton onClick={() => showAlert({ title: 'Account Security', message: 'Password reset functionality to be integrated.', type: 'info', hideCancel: true })} />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ─── RIGHT COLUMN ─── */}
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          {/* Logistics Card */}
+          <Card className="flex flex-col p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">Field Contact Info</h2>
+              {!isEditingContact && <EditButton onClick={() => setIsEditingContact(true)} />}
+            </div>
+            {!isEditingContact ? (
+              <div className="flex flex-col py-1">
+                <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Mobile Number (For Customers)</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{(profile as any).phone || '—'}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveContact} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Mobile Number</label>
+                  <input type="text" value={contactData.phone} onChange={(e) => setContactData({ ...contactData, phone: e.target.value })} className={inputClass} autoFocus />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setIsEditingContact(false)} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnSuccess}>Save Changes</button>
+                </div>
+              </form>
+            )}
+          </Card>
+
+          {/* Capabilities Card */}
+          <Card className="flex flex-col p-4">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Service Specialties</h2>
+            <div className="flex flex-wrap gap-2">
+               <span className="px-3 py-1.5 bg-brand-navy/10 text-brand-navy font-bold text-xs rounded-lg border border-brand-navy/20">Desktop Repair</span>
+               <span className="px-3 py-1.5 bg-brand-navy/10 text-brand-navy font-bold text-xs rounded-lg border border-brand-navy/20">Printer Setup</span>
+               <span className="px-3 py-1.5 bg-slate-100 text-slate-500 font-bold text-xs rounded-lg border border-slate-200 border-dashed hover:bg-slate-200 cursor-pointer transition-colors flex items-center gap-1">+ Add Specialty</span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">These tags help your Vendor Manager assign you to the correct jobs.</p>
+          </Card>
+
+          {/* Safety Card */}
+          <Card className="flex flex-col p-4 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                 <AlertCircle className="w-4 h-4" /> Emergency Contact
+              </h2>
+              {!isEditingSafety && <EditButton onClick={() => { setIsEditingSafety(true); setSafetyData(savedSafetyData); }} />}
+            </div>
+            {!isEditingSafety ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-4">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Name</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{savedSafetyData.eName || '—'}</p>
+                </div>
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Relationship</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{savedSafetyData.eRel || '—'}</p>
+                </div>
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Phone Number</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{savedSafetyData.ePhone || '—'}</p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveSafety} className="space-y-3 bg-rose-50/50 dark:bg-rose-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Name</label>
+                    <input type="text" value={safetyData.eName} onChange={(e) => setSafetyData({ ...safetyData, eName: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Relationship</label>
+                    <input type="text" value={safetyData.eRel} onChange={(e) => setSafetyData({ ...safetyData, eRel: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
+                    <input type="text" value={safetyData.ePhone} onChange={(e) => setSafetyData({ ...safetyData, ePhone: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setIsEditingSafety(false)} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnSuccess}>Save Changes</button>
+                </div>
+              </form>
+            )}
+          </Card>
+        </div>
+      </div>
+      <ConfirmComponent />
+    </div>
   );
 }
 

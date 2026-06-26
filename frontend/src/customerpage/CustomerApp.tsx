@@ -12,6 +12,7 @@ import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../hooks/useConfirm';
 import api from '../services/apiService';
 import { updateEmail } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -2112,11 +2113,28 @@ function CartTab({ cart, setCart, onCheckout }: CartTabProps) {
   );
 }
 
+interface CustomerAddress {
+  id?: string;
+  uid?: string;
+  user_id: string;
+  label: string;
+  address_line: string;
+  city: string;
+  barangay: string;
+  is_default: boolean;
+}
+
 // ─── Profile Tab ────────────────────────────────────────────────────────────
 function ProfileTab() {
   const { profile, refreshProfile } = useAuth();
 
   // ─── State Management ───
+  const [addresses, setAddresses] = React.useState<CustomerAddress[]>([]);
+  const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
+  const [editingAddress, setEditingAddress] = React.useState<CustomerAddress | null>(null);
+  const [addressData, setAddressData] = React.useState({
+    label: '', address_line: '', city: '', barangay: '', is_default: false
+  });
   const [isEditingProfile, setIsEditingProfile] = React.useState(false);
   const [isEditingEmail, setIsEditingEmail] = React.useState(false);
   const [isEditingPassword, setIsEditingPassword] = React.useState(false);
@@ -2131,6 +2149,7 @@ function ProfileTab() {
   const [avatarUrl, setAvatarUrl] = React.useState('');
   const [selectedAvatar, setSelectedAvatar] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
 
   const syncData = React.useCallback(() => {
     if (profile) {
@@ -2148,9 +2167,21 @@ function ProfileTab() {
     }
   }, [profile]);
 
+  const fetchAddresses = React.useCallback(async () => {
+    if (profile?.id) {
+      try {
+        const res = await api.get(`/api/addresses/customer/${profile.id}`);
+        setAddresses(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch addresses", err);
+      }
+    }
+  }, [profile?.id]);
+
   React.useEffect(() => {
     syncData();
-  }, [syncData]);
+    fetchAddresses();
+  }, [syncData, fetchAddresses]);
 
   if (!profile) return <EmptyState title="Profile not loaded" />;
 
@@ -2172,12 +2203,12 @@ function ProfileTab() {
     e.preventDefault();
     try {
       await api.put(`/api/customers/${profile?.id}`, formData);
-      alert("Profile updated successfully!");
+      showAlert({ title: 'Notice', message: "Profile updated successfully!", type: 'info', hideCancel: true });
       setIsEditingProfile(false);
       await refreshProfile();
     } catch (err) {
       console.error("Failed to update profile", err);
-      alert("Failed to update profile");
+      showAlert({ title: 'Notice', message: "Failed to update profile", type: 'info', hideCancel: true });
     }
   };
 
@@ -2187,29 +2218,29 @@ function ProfileTab() {
     try {
       await updateEmail(auth.currentUser, emailData);
       await api.put(`/api/customers/${profile?.id}`, { email: emailData });
-      alert("Email updated successfully!");
+      showAlert({ title: 'Notice', message: "Email updated successfully!", type: 'info', hideCancel: true });
       setIsEditingEmail(false);
       await refreshProfile();
     } catch (err: any) {
       console.error("Failed to update email", err);
-      alert(err.message || "Failed to update email. You may need to log out and log back in to verify your identity.");
+      showAlert({ title: 'Error', message: err.message || "Failed to update email. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
     }
   };
 
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("Passwords do not match!");
+      showAlert({ title: 'Notice', message: "Passwords do not match!", type: 'info', hideCancel: true });
       return;
     }
     try {
       await changePassword(passwordData.newPassword);
-      alert("Password updated successfully!");
+      showAlert({ title: 'Notice', message: "Password updated successfully!", type: 'info', hideCancel: true });
       setIsEditingPassword(false);
       setPasswordData({ newPassword: '', confirmPassword: '' });
     } catch (err: any) {
       console.error("Failed to update password", err);
-      alert(err.message || "Failed to update password. You may need to log out and log back in to verify your identity.");
+      showAlert({ title: 'Error', message: err.message || "Failed to update password. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
     }
   };
 
@@ -2234,20 +2265,100 @@ function ProfileTab() {
         });
         const url = res.data.url;
         await api.put(`/api/customers/${profile?.id}`, { avatar_url: url });
-        alert("Avatar updated successfully!");
+        showAlert({ title: 'Notice', message: "Avatar updated successfully!", type: 'info', hideCancel: true });
         setSelectedAvatar(null);
         await refreshProfile();
       };
       reader.readAsDataURL(selectedAvatar);
     } catch (err) {
       console.error("Failed to upload avatar", err);
-      alert("Failed to upload avatar");
+      showAlert({ title: 'Notice', message: "Failed to upload avatar", type: 'info', hideCancel: true });
     }
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile?.id) return;
+
+    try {
+      if (editingAddress) {
+        const id = editingAddress.id || editingAddress.uid;
+        await api.put(`/api/addresses/${id}`, {
+          ...addressData,
+          user_id: profile.id
+        });
+        if (addressData.is_default && !editingAddress.is_default) {
+          await api.put(`/api/addresses/${id}/set-default`, {});
+          refreshProfile();
+        }
+      } else {
+        if (addresses.length >= 3) {
+           showAlert({ title: 'Notice', message: "Maximum of 3 addresses allowed.", type: 'info', hideCancel: true });
+           return;
+        }
+        await api.post(`/api/addresses`, {
+          ...addressData,
+          user_id: profile.id
+        });
+        refreshProfile();
+      }
+      setIsAddressModalOpen(false);
+      fetchAddresses();
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to save address", type: 'danger', hideCancel: true });
+    }
+  };
+
+  const handleDeleteAddress = async (id: string | undefined) => {
+    if (!id) return;
+    if (!window.confirm("Delete this address?")) return;
+    try {
+      await api.delete(`/api/addresses/${id}`);
+      fetchAddresses();
+      refreshProfile();
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to delete address", type: 'danger', hideCancel: true });
+    }
+  };
+
+  const handleSetDefaultAddress = async (id: string | undefined) => {
+    if (!id) return;
+    try {
+      await api.put(`/api/addresses/${id}/set-default`, {});
+      fetchAddresses();
+      refreshProfile();
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to set default address", type: 'danger', hideCancel: true });
+    }
+  };
+
+  const openAddressModal = (address?: CustomerAddress) => {
+    if (address) {
+      setEditingAddress(address);
+      setAddressData({
+        label: address.label || '',
+        address_line: address.address_line || '',
+        city: address.city || '',
+        barangay: address.barangay || '',
+        is_default: address.is_default || false
+      });
+    } else {
+      if (addresses.length >= 3) {
+        showAlert({ title: 'Notice', message: "Maximum of 3 addresses allowed.", type: 'info', hideCancel: true });
+        return;
+      }
+      setEditingAddress(null);
+      setAddressData({
+        label: '', address_line: '', city: '', barangay: '', is_default: addresses.length === 0
+      });
+    }
+    setIsAddressModalOpen(true);
   };
 
   // ─── Uniform Styles ───
   const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
   const btnPrimary = `${btnBase} text-white bg-slate-900 hover:bg-slate-800 focus:ring-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100`;
+  const btnSuccess = `${btnBase} text-white bg-brand-green hover:bg-[#005e3f] focus:ring-brand-green dark:bg-brand-green dark:hover:bg-[#005e3f]`;
   const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
   const inputClass = "w-full mt-1.5 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:focus:border-white dark:focus:ring-white transition-all shadow-sm";
 
@@ -2261,7 +2372,7 @@ function ProfileTab() {
   );
 
   return (
-    <div className="space-y-2 h-full flex flex-col">
+    <div className="space-y-3 h-full flex flex-col">
       <AdminPageHeader
         title="My Profile"
         subtitle="Manage your personal information and account security settings."
@@ -2270,11 +2381,12 @@ function ProfileTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
 
-        {/* ─── TOP LEFT: Profile Photo ──────────────────────────────────────── */}
-        <div className="lg:col-span-1 flex flex-col">
-          <Card className="h-full flex flex-col items-center justify-center text-center p-4">
-            <div className="relative group mb-3">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+        {/* ─── LEFT COLUMN ──────────────────────────────────────── */}
+        <div className="lg:col-span-1 flex flex-col gap-3">
+          {/* Profile Photo Card */}
+          <Card className="flex flex-col items-center justify-center text-center p-4">
+            <div className="relative group mb-4">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -2304,11 +2416,11 @@ function ProfileTab() {
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words w-full">
               {profile.first_name} {profile.last_name}
             </h2>
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate w-full">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate w-full mb-3">
               {profile.email}
             </p>
 
-            <div className="mt-3 w-full flex flex-col gap-2 animate-in fade-in duration-200">
+            <div className="w-full flex flex-col gap-2 animate-in fade-in duration-200">
               {!selectedAvatar ? (
                 <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
                   <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
@@ -2319,120 +2431,22 @@ function ProfileTab() {
                   <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} w-full`}>
                     Cancel
                   </button>
-                  <button onClick={handleSaveAvatar} className={`${btnPrimary} w-full`}>
+                  <button onClick={handleSaveAvatar} className={`${btnSuccess} w-full`}>
                     Save Changes
                   </button>
                 </div>
               )}
             </div>
           </Card>
-        </div>
 
-        {/* ─── TOP RIGHT: General Information ─────────────────────────────── */}
-        <div className="lg:col-span-2 flex flex-col">
-          <Card className="h-full flex flex-col justify-between p-4">
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
-                {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
-              </div>
-
-              {!isEditingProfile ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in duration-200">
-                  {[
-                    ['First Name', profile.first_name], ['Last Name', profile.last_name],
-                    ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
-                    ['Barangay', (profile as any).barangay || '—'],
-                  ].map(([label, val]) => (
-                    <div key={label as string} className={`flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
-                      <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">{label}</p>
-                      <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white break-words">{val as string}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <form onSubmit={handleSaveProfile} className="space-y-5 animate-in fade-in duration-200 bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">First Name</label>
-                      <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className={inputClass} autoFocus />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Last Name</label>
-                      <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
-                      <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
-                      <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className={inputClass} />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
-                      <input type="text" value={formData.barangay} onChange={(e) => setFormData({ ...formData, barangay: e.target.value })} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => cancelEdit('profile')} className={btnGhost}>Cancel</button>
-                    <button type="submit" className={btnPrimary}>Save</button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* ─── BOTTOM LEFT: Bank Details ───────────────────────────────── */}
-        <div className="lg:col-span-1 flex flex-col">
-          <Card className="h-full p-4 flex flex-col">
-            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Bank Details</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
-              <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 sm:col-span-2">
-                <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Payment Method</p>
-                <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white capitalize">{(profile as any).paymentMethod || (profile as any).payment_method || 'None setup'}</p>
-              </div>
-              {((profile as any).paymentMethod === 'bank' || (profile as any).payment_method === 'bank') ? (
-                <>
-                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800 sm:col-span-2">
-                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Bank Name</p>
-                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">{(profile as any).bankName || (profile as any).bank_name || '—'}</p>
-                  </div>
-                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
-                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Account Name</p>
-                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).accountName || (profile as any).account_name || '—'}</p>
-                  </div>
-                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
-                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Account No.</p>
-                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).accountNumber || (profile as any).account_number ? '••••' + String((profile as any).accountNumber || (profile as any).account_number).slice(-4) : '—'}</p>
-                  </div>
-                </>
-              ) : ((profile as any).paymentMethod === 'ewallet' || (profile as any).payment_method === 'ewallet') ? (
-                <>
-                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
-                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">E-Wallet Type</p>
-                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white capitalize">{(profile as any).ewalletType || (profile as any).ewallet_type || '—'}</p>
-                  </div>
-                  <div className="flex flex-col p-2.5 bg-slate-50 rounded-xl dark:bg-slate-800/50 border border-transparent dark:border-slate-800">
-                    <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400 mb-0.5">Mobile No.</p>
-                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{(profile as any).ewalletNumber || (profile as any).ewallet_number || '—'}</p>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </Card>
-        </div>
-
-        {/* ─── BOTTOM RIGHT: Account Security ───────────────────────────────── */}
-        <div className="lg:col-span-2 flex flex-col">
-          <Card className="h-full p-4 flex flex-col">
+          {/* Account Security Card */}
+          <Card className="p-4 flex flex-col flex-1">
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Account Security</h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Email Block */}
               {!isEditingEmail ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Email Address</span>
                     <span className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">{profile.email}</span>
@@ -2444,17 +2458,17 @@ function ProfileTab() {
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Email Address</label>
                   <input type="email" value={emailData} onChange={(e) => setEmailData(e.target.value)} className={inputClass} autoFocus />
                   <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
-                    <button type="button" onClick={() => cancelEdit('email')} className={btnGhost}>Cancel</button>
-                    <button type="submit" className={btnPrimary}>Update</button>
+                     <button type="button" onClick={() => cancelEdit('email')} className={btnGhost}>Cancel</button>
+                    <button type="submit" className={btnSuccess}>Save Changes</button>
                   </div>
                 </form>
               )}
 
-              <hr className="border-slate-200 dark:border-slate-800" />
+              <hr className="border-slate-100 dark:border-slate-800" />
 
               {/* Password Block */}
               {!isEditingPassword ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
                   <div className="flex flex-col flex-1">
                     <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
                     <span className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">••••••••••••</span>
@@ -2463,7 +2477,7 @@ function ProfileTab() {
                 </div>
               ) : (
                 <form onSubmit={handleSavePassword} className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl animate-in fade-in duration-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Password</label>
                       <input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className={inputClass} autoFocus />
@@ -2475,7 +2489,7 @@ function ProfileTab() {
                   </div>
                   <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
                     <button type="button" onClick={() => cancelEdit('password')} className={btnGhost}>Cancel</button>
-                    <button type="submit" className={btnPrimary}>Update</button>
+                    <button type="submit" className={btnSuccess}>Save Changes</button>
                   </div>
                 </form>
               )}
@@ -2483,7 +2497,170 @@ function ProfileTab() {
           </Card>
         </div>
 
+        {/* ─── RIGHT COLUMN ──────────────────────────────────────── */}
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          
+          {/* General Information Card */}
+          <Card className="flex flex-col p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">General Information</h2>
+              {!isEditingProfile && <EditButton onClick={() => setIsEditingProfile(true)} />}
+            </div>
+
+            {!isEditingProfile ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 animate-in fade-in duration-200">
+                {[
+                  ['First Name', profile.first_name], ['Last Name', profile.last_name],
+                  ['Phone', (profile as any).phone || '—'], ['City', (profile as any).city || '—'],
+                  ['Barangay', (profile as any).barangay || '—'],
+                ].map(([label, val]) => (
+                  <div key={label as string} className={`flex flex-col py-1 ${label === 'Barangay' ? 'sm:col-span-2' : ''}`}>
+                    <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">{label}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{val as string}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProfile} className="space-y-3 animate-in fade-in duration-200 bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">First Name</label>
+                    <input type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className={inputClass} autoFocus />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Last Name</label>
+                    <input type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
+                    <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
+                    <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className={inputClass} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
+                    <input type="text" value={formData.barangay} onChange={(e) => setFormData({ ...formData, barangay: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => cancelEdit('profile')} className={btnGhost}>Cancel</button>
+                  <button type="submit" className={btnSuccess}>Save Changes</button>
+                </div>
+              </form>
+            )}
+          </Card>
+
+          {/* Saved Addresses / Address Book */}
+          <Card className="flex flex-col p-4 flex-1 relative">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">Saved Addresses</h2>
+              {addresses.length < 3 && (
+                <button onClick={() => openAddressModal()} className={btnGhost}>
+                  <Plus className="w-4 h-4 shrink-0" />
+                  Add New Address
+                </button>
+              )}
+            </div>
+            
+            <div className="space-y-3">
+              {addresses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <MapPin className="w-8 h-8 mb-2 text-slate-400 dark:text-slate-500 opacity-50" />
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">No addresses saved yet.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Add a default location for faster booking.</p>
+                </div>
+              ) : (
+                addresses.map((addr, idx) => (
+                  <div key={addr.id || addr.uid || idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 transition-shadow hover:shadow-sm group">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                          <MapPin className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">{addr.label}</span>
+                            {addr.is_default && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-brand-green/10 text-brand-green uppercase tracking-wider">Default</span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                            {addr.address_line}<br />
+                            {addr.barangay && `${addr.barangay}, `}{addr.city}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                        {!addr.is_default && (
+                          <button onClick={() => handleSetDefaultAddress(addr.id || addr.uid)} className="text-slate-400 hover:text-brand-green transition-colors p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Set as Default">
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => openAddressModal(addr)} className="text-slate-400 hover:text-brand-green transition-colors p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Edit">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteAddress(addr.id || addr.uid)} className="text-slate-400 hover:text-rose-500 transition-colors p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
+        </div>
       </div>
+
+      {isAddressModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                {editingAddress ? 'Edit Address' : 'Add New Address'}
+              </h3>
+              <button onClick={() => setIsAddressModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveAddress} className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Label (e.g. Home, Work)</label>
+                <input required type="text" value={addressData.label} onChange={(e) => setAddressData({...addressData, label: e.target.value})} className={inputClass} autoFocus />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Address Line (Street, Unit, Bldg)</label>
+                <input required type="text" value={addressData.address_line} onChange={(e) => setAddressData({...addressData, address_line: e.target.value})} className={inputClass} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Barangay</label>
+                  <input required type="text" value={addressData.barangay} onChange={(e) => setAddressData({...addressData, barangay: e.target.value})} className={inputClass} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">City</label>
+                  <input required type="text" value={addressData.city} onChange={(e) => setAddressData({...addressData, city: e.target.value})} className={inputClass} />
+                </div>
+              </div>
+              {!addressData.is_default && (
+                <div className="flex items-center gap-2 pt-2 cursor-pointer" onClick={() => setAddressData({...addressData, is_default: !addressData.is_default})}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${addressData.is_default ? 'bg-brand-green border-brand-green' : 'border-slate-300 dark:border-slate-600'}`}>
+                    {addressData.is_default && <Check className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Set as default address</span>
+                </div>
+              )}
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsAddressModalOpen(false)} className={`${btnGhost} flex-1`}>Cancel</button>
+                <button type="submit" className={`${btnSuccess} flex-1`}>Save Address</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

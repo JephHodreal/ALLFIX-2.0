@@ -16,6 +16,7 @@ import { EditModal } from '../components/shared/EditModal';
 import { VENDOR_SERVICES } from '../constants/services';
 import { servicesData, WORK_TYPES_MAPPING } from '../constants/servicesData';
 import api from '../services/apiService';
+import { useAuth } from '../context/AuthContext';
 import AddServiceWizard from './AddServiceWizard';
 import AreaServiceManager from './AreaServiceManager';
 import { useTheme } from '../context/ThemeContext';
@@ -6771,6 +6772,112 @@ function PaymentsPage() {
   );
 }
 
+// ─── Admin Profile Tab ──────────────────────────────────────────────────────────
+function AdminProfileTab() {
+  const { profile } = useAuth();
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
+  
+  const [is2FAEnabled, setIs2FAEnabled] = useState(true);
+
+  if (!profile) return <EmptyState title="Profile not loaded" />;
+
+  const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
+  const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
+
+  const EditButton = ({ onClick }: { onClick: () => void }) => (
+    <button onClick={onClick} className={btnGhost}>
+      <Edit className="w-4 h-4 shrink-0" /> Edit
+    </button>
+  );
+
+  return (
+    <div className="space-y-3 h-full flex flex-col">
+      <AdminPageHeader
+        title="Admin Profile"
+        subtitle="Manage your administrative credentials, 2FA security, and access controls."
+        icon={<ShieldCheck />}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
+        {/* ─── LEFT COLUMN ─── */}
+        <div className="lg:col-span-1 flex flex-col gap-3">
+          <Card className="flex flex-col items-center justify-center text-center p-4">
+            <div className="relative group mb-4">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden bg-brand-navy dark:bg-slate-700 flex items-center justify-center">
+                <ShieldCheck className="w-12 h-12 text-white opacity-80" />
+              </div>
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words w-full">
+              {profile.first_name} {profile.last_name}
+            </h2>
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate w-full mb-3">
+              {profile.email}
+            </p>
+            <div className="w-full">
+               <span className="inline-block px-3 py-1 bg-brand-navy/10 text-brand-navy font-bold text-xs rounded-full border border-brand-navy/20 dark:bg-brand-navy dark:text-white dark:border-brand-navy/50">
+                 Platform Administrator
+               </span>
+            </div>
+          </Card>
+
+          <Card className="p-4 flex flex-col flex-1">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Account Security</h2>
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Password</span>
+                  <span className="text-xs text-slate-500">••••••••••••</span>
+                </div>
+                <EditButton onClick={() => showAlert({ title: 'Account Security', message: 'Password reset functionality to be integrated.', type: 'info', hideCancel: true })} />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ─── RIGHT COLUMN ─── */}
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          {/* 2FA Security Card */}
+          <Card className="flex flex-col p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-brand-green dark:text-emerald-400 flex items-center gap-2">
+                 <Lock className="w-4 h-4" /> Two-Factor Authentication
+              </h2>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-5 border-2 border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+               <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Authenticator App</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">Use an authenticator app (like Google Authenticator or Authy) to generate one time security codes.</p>
+               </div>
+               <div className="flex items-center gap-3">
+                 <span className={`text-xs font-bold ${is2FAEnabled ? 'text-brand-green' : 'text-slate-400'}`}>
+                   {is2FAEnabled ? 'ENABLED' : 'DISABLED'}
+                 </span>
+                 <button 
+                    onClick={() => setIs2FAEnabled(!is2FAEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${is2FAEnabled ? 'bg-brand-green' : 'bg-slate-300 dark:bg-slate-600'}`}
+                 >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${is2FAEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                 </button>
+               </div>
+            </div>
+          </Card>
+
+          {/* Access Level Card */}
+          <Card className="flex flex-col p-4 flex-1">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white mb-3">Permission Tier</h2>
+            <div className="space-y-3 flex-1 flex flex-col justify-center items-center text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <ShieldCheck className="w-10 h-10 text-brand-navy dark:text-slate-500 mb-2" />
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">Super Admin Access</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">You have unrestricted read/write access to all platform modules, including Escrow Payouts, Vendor Approvals, and System Configurations.</p>
+            </div>
+          </Card>
+        </div>
+      </div>
+      <ConfirmComponent />
+    </div>
+  );
+}
+
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [collapsed, setCollapsed] = useState(true);
@@ -6785,6 +6892,7 @@ export default function AdminDashboard() {
             {/* Overview */}
             <Route path="calendar" element={<CalendarPage />} />
             {/* Communications */}
+            <Route path="profile" element={<AdminProfileTab />} />
             <Route path="support" element={<SupportTab />} />
             <Route path="reviews" element={<ReviewsPage />} />
             {/* People */}

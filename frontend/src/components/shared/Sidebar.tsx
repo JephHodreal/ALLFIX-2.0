@@ -7,7 +7,7 @@ import {
   CreditCard, RefreshCcw, LogOut, PanelLeftClose, PanelLeftOpen,
   Home, Wrench, UserCog, Building2, User,
   History, ArrowRightLeft, Ticket, Tag, UserCheck, Wallet, MessageSquare,
-  Bell, HelpCircle, ChevronDown, MapPin, Image, TrendingUp, LifeBuoy
+  Bell, HelpCircle, ChevronDown, MapPin, Image, TrendingUp, LifeBuoy, ShieldCheck
 } from 'lucide-react';
 import { logoutUser } from '../../services/firebaseService';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -55,8 +55,9 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       ],
     },
     {
-      title: 'Communications & Support',
+      title: 'Account & Support',
       items: [
+        { label: 'Admin Profile', path: '/admin/profile', icon: <ShieldCheck className="w-5 h-5" /> },
         { label: 'Support Desk', path: '/admin/support', icon: <LifeBuoy className="w-5 h-5" /> },
         { label: 'Notifications', path: '/admin/notifications', icon: <Bell className="w-5 h-5" /> },
         { label: 'Reviews', path: '/admin/reviews', icon: <Star className="w-5 h-5" /> },
@@ -114,6 +115,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
     {
       title: 'Account & Support',
       items: [
+        { label: 'Company Profile', path: '/vendor/profile', icon: <Building2 className="w-5 h-5" /> },
         { label: 'Notifications', path: '/vendor/notifications', icon: <Bell className="w-5 h-5" /> },
         { label: 'Get Help/Support', path: '/vendor/support', icon: <HelpCircle className="w-5 h-5" /> },
       ],
