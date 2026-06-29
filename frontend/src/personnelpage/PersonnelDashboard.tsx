@@ -37,7 +37,7 @@ function PersonnelChatModal({
   const handleSend = async () => {
     if (!inputText.trim()) return;
     try {
-      await sendMessage(profile.id, 'technician', inputText, true);
+      await sendMessage(profile.id, 'technician', inputText, true, (profile as any)?.avatar_url);
       setInputText('');
     } catch (e) {
       console.error(e);
@@ -78,23 +78,34 @@ function PersonnelChatModal({
                     {msg.text}
                   </span>
                 ) : (
-                  <div className="flex flex-col gap-1 items-end">
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.sender_id === profile.id ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'} ${msg.delivery_status === 'sending' ? 'opacity-70' : ''}`}>
-                      {msg.sender_id !== profile.id && (
-                        <div className="text-[10px] font-bold text-slate-400 mb-1">
-                          {msg.sender_role === 'vendor' ? 'Vendor Manager' : booking.customer_name}
-                        </div>
+                  <div className={`flex items-end gap-2 max-w-[80%] ${msg.sender_id === profile.id ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                      {msg.sender_avatar ? (
+                        <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                          {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
+                        </span>
                       )}
-                      <p className="text-sm">{msg.text}</p>
                     </div>
-                    {msg.sender_id === profile.id && msg.delivery_status === 'sending' && (
-                      <span className="text-[10px] text-slate-400">Sending...</span>
-                    )}
-                    {msg.sender_id === profile.id && msg.delivery_status === 'failed' && (
-                      <button onClick={() => retryMessage(msg)} className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Tap to retry
-                      </button>
-                    )}
+                    <div className={`flex flex-col gap-1 ${msg.sender_id === profile.id ? 'items-end' : 'items-start'}`}>
+                      <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === profile.id ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'} ${msg.delivery_status === 'sending' ? 'opacity-70' : ''}`}>
+                        {msg.sender_id !== profile.id && (
+                          <div className="text-[10px] font-bold text-slate-400 mb-1">
+                            {msg.sender_role === 'vendor' ? 'Vendor Manager' : booking.customer_name}
+                          </div>
+                        )}
+                        <p className="text-sm">{msg.text}</p>
+                      </div>
+                      {msg.sender_id === profile.id && msg.delivery_status === 'sending' && (
+                        <span className="text-[10px] text-slate-400">Sending...</span>
+                      )}
+                      {msg.sender_id === profile.id && msg.delivery_status === 'failed' && (
+                        <button onClick={() => retryMessage(msg)} className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Tap to retry
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

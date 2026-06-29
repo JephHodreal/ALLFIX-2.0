@@ -10,6 +10,7 @@ export interface ChatMessage {
   created_at: any;
   is_logistics?: boolean;
   delivery_status?: 'sending' | 'failed';
+  sender_avatar?: string;
 }
 
 export interface ChatThread {
@@ -23,6 +24,9 @@ export interface ChatThread {
   status: 'active' | 'archived';
   updated_at: any;
   personnel_name?: string; // For hq_ threads
+  vendor_avatar?: string;
+  customer_avatar?: string;
+  technician_avatar?: string;
 }
 
 export function useChatThreads(participants: (string | undefined)[], role: 'customer' | 'vendor' | 'technician') {
@@ -110,7 +114,7 @@ export function useChatMessages(threadId: string | null) {
     return () => unsubscribe();
   }, [threadId]);
 
-  const sendMessage = async (senderId: string, senderRole: 'customer' | 'vendor' | 'technician' | 'system', text: string, isLogistics = false) => {
+  const sendMessage = async (senderId: string, senderRole: 'customer' | 'vendor' | 'technician' | 'system', text: string, isLogistics = false, senderAvatar?: string) => {
     if (!threadId || !text.trim()) return;
     
     const tempId = 'temp_' + Date.now() + Math.random().toString(36).substr(2, 9);
@@ -121,7 +125,8 @@ export function useChatMessages(threadId: string | null) {
       text: text.trim(),
       created_at: new Date(),
       is_logistics: isLogistics,
-      delivery_status: 'sending'
+      delivery_status: 'sending',
+      sender_avatar: senderAvatar
     };
     
     setOptimisticMessages(prev => [...prev, optMsg]);
@@ -134,7 +139,8 @@ export function useChatMessages(threadId: string | null) {
         sender_id: senderId,
         sender_role: senderRole,
         text: text.trim(),
-        is_logistics: isLogistics
+        is_logistics: isLogistics,
+        sender_avatar: senderAvatar
       });
       // On success, the firestore listener will pick it up and our reconciliation will remove the optimistic one
       // But we can also proactively clear it here if it's still 'sending'
@@ -148,7 +154,7 @@ export function useChatMessages(threadId: string | null) {
   const retryMessage = async (msg: ChatMessage) => {
     // Remove the failed one and try sending again
     setOptimisticMessages(prev => prev.filter(m => m.id !== msg.id));
-    await sendMessage(msg.sender_id, msg.sender_role, msg.text, msg.is_logistics);
+    await sendMessage(msg.sender_id, msg.sender_role, msg.text, msg.is_logistics, msg.sender_avatar);
   };
 
   const messages = [...firestoreMessages, ...optimisticMessages];

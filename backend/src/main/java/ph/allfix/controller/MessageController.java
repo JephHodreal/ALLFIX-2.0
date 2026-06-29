@@ -27,6 +27,7 @@ public class MessageController {
             String senderId = (String) body.get("sender_id");
             String text = (String) body.get("text");
             Boolean isLogistics = (Boolean) body.get("is_logistics");
+            String senderAvatar = (String) body.get("sender_avatar");
             if (isLogistics == null) isLogistics = false;
 
             if (threadId == null || text == null || senderId == null) {
@@ -73,6 +74,22 @@ public class MessageController {
             msgData.put("text", text.trim());
             msgData.put("created_at", FieldValue.serverTimestamp());
             msgData.put("is_logistics", isLogistics);
+
+            if (senderAvatar != null && !senderAvatar.trim().isEmpty()) {
+                msgData.put("sender_avatar", senderAvatar);
+            } else {
+                String collectionName = "";
+                if ("customer".equalsIgnoreCase(senderRole)) collectionName = "customers";
+                else if ("vendor".equalsIgnoreCase(senderRole)) collectionName = "vendors";
+                else if ("technician".equalsIgnoreCase(senderRole)) collectionName = "personnel";
+
+                if (!collectionName.isEmpty()) {
+                    Map<String, Object> senderUser = firestoreService.getById(collectionName, senderId);
+                    if (senderUser != null && senderUser.get("avatar_url") != null) {
+                        msgData.put("sender_avatar", senderUser.get("avatar_url"));
+                    }
+                }
+            }
 
             DocumentReference msgRef = db.collection("chat_threads").document(threadId).collection("messages").document();
             msgData.put("id", msgRef.getId());

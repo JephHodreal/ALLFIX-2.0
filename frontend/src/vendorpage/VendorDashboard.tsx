@@ -24,7 +24,7 @@ import { LayoutDashboard } from 'lucide-react';
  * Filters the vendor's profile services list against active database services.
  * Keeps only services and subservices that exist in the database, matching exact database casing.
  */
-export function getFilteredVendorServices(vendorServices: any[], dbServices: any[]): any[] {
+function getFilteredVendorServices(vendorServices: any[], dbServices: any[]): any[] {
   if (!dbServices || dbServices.length === 0) return [];
 
   return vendorServices
@@ -3634,7 +3634,7 @@ function VendorMessages() {
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
     try {
-      await sendMessage(user.uid, 'vendor', inputText, activeTab === 'team');
+      await sendMessage(user.uid, 'vendor', inputText, activeTab === 'team', (profile as any)?.avatar_url);
       setInputText('');
     } catch (e) {
       console.error(e);
@@ -3648,13 +3648,16 @@ function VendorMessages() {
   const teamThreads = personnels.map(p => {
     const threadId = `hq_${p.id}_${profile?.id}`;
     const existing = customerThreads.find(t => t.id === threadId);
-    if (existing) return existing;
+    if (existing) {
+      return { ...existing, technician_avatar: p.avatar_url || existing.technician_avatar };
+    }
     return {
       id: threadId,
       personnel_name: `${p.first_name} ${p.last_name}`,
       vendor_id: profile?.id,
       technician_id: p.id,
-      status: 'active'
+      status: 'active',
+      technician_avatar: p.avatar_url
     };
   });
 
@@ -3698,8 +3701,12 @@ function VendorMessages() {
                         {t.status === 'archived' && <span className="w-2 h-2 rounded-full bg-slate-300" title="Archived" />}
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                          {t.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'}
+                        <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                          {t.customer_avatar ? (
+                            <img src={t.customer_avatar} alt="avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            t.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.customer_name || 'Customer'}</h4>
@@ -3709,8 +3716,12 @@ function VendorMessages() {
                     </>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {t.personnel_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'T'}
+                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                        {t.technician_avatar ? (
+                          <img src={t.technician_avatar} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          t.personnel_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'T'
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.personnel_name}</h4>
@@ -3743,9 +3754,13 @@ function VendorMessages() {
               {activeTab === 'customers' ? (
                 <>
                   <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm">
-                        {selectedThread.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                        {selectedThread.customer_avatar ? (
+                          <img src={selectedThread.customer_avatar} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          selectedThread.customer_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'C'
+                        )}
                       </div>
                       <div>
                         <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.customer_name || 'Customer'}</h3>
@@ -3828,21 +3843,32 @@ function VendorMessages() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex flex-col max-w-[70%]">
-                                <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'}`}>
-                                  <p className="text-sm">{msg.text}</p>
-                                  {msg.sender_id === user?.uid && (
-                                    <div className="text-[9px] text-[#005e3f] opacity-80 text-right mt-1 flex justify-end items-center gap-0.5">
-                                      {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
-                                      ✓✓
+                              <div className={`flex items-end gap-2 max-w-[70%] ${msg.sender_id === user?.uid ? 'flex-row-reverse' : 'flex-row'}`}>
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                                  {msg.sender_avatar ? (
+                                    <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                      {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'HQ'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`flex flex-col ${msg.sender_id === user?.uid ? 'items-end' : 'items-start'}`}>
+                                  <div className={`rounded-2xl px-4 py-2 shadow-sm ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-100 dark:border-slate-700 rounded-bl-none'}`}>
+                                    <p className="text-sm leading-relaxed">{msg.text}</p>
+                                    {msg.sender_id === user?.uid && (
+                                      <div className="text-[9px] text-white/80 text-right mt-1 flex justify-end items-center gap-0.5">
+                                        {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
+                                        ✓✓
+                                      </div>
+                                    )}
+                                  </div>
+                                  {msg.sender_id !== user?.uid && (
+                                    <div className="text-[9px] text-slate-400 mt-1">
+                                      {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:50 PM'}
                                     </div>
                                   )}
                                 </div>
-                                {msg.sender_id !== user?.uid && (
-                                  <div className="text-[9px] text-slate-400 mt-1 text-center">
-                                    {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:50 PM'}
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
@@ -3877,9 +3903,18 @@ function VendorMessages() {
               ) : (
                 <>
                   <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.personnel_name}</h3>
-                      <p className="text-xs font-semibold text-slate-500 mt-1">Internal Team Channel</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                        {selectedThread.technician_avatar ? (
+                          <img src={selectedThread.technician_avatar} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          selectedThread.personnel_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'T'
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedThread.personnel_name}</h3>
+                        <p className="text-xs font-semibold text-slate-500 mt-1">Internal Team Channel</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">

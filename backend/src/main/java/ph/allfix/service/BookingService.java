@@ -110,6 +110,7 @@ public class BookingService {
         try {
             String vendorName = "Your Provider";
             String vendorAuthUid = vendorId;
+            String vendorAvatarUrl = null;
             if (vendorId != null && !vendorId.trim().isEmpty()) {
                 Map<String, Object> vendor = firestoreService.getById("vendors", vendorId);
                 if (vendor != null) {
@@ -118,6 +119,9 @@ public class BookingService {
                     }
                     if (vendor.get("auth_uid") != null) {
                         vendorAuthUid = (String) vendor.get("auth_uid");
+                    }
+                    if (vendor.get("avatar_url") != null) {
+                        vendorAvatarUrl = (String) vendor.get("avatar_url");
                     }
                 }
             }
@@ -140,6 +144,17 @@ public class BookingService {
             chatThread.put("customer_name", booking.get("customer_name"));
             chatThread.put("vendor_name", vendorName);
             chatThread.put("updated_at", new Date());
+            
+            if (vendorAvatarUrl != null) {
+                chatThread.put("vendor_avatar", vendorAvatarUrl);
+            }
+            if (customerId != null && !customerId.trim().isEmpty()) {
+                Map<String, Object> customer = firestoreService.getById("customers", customerId);
+                if (customer != null && customer.get("avatar_url") != null) {
+                    chatThread.put("customer_avatar", customer.get("avatar_url"));
+                }
+            }
+            
             firestoreService.createWithId("chat_threads", bookingId, chatThread);
 
             // 2. Inject System Welcome Message
@@ -148,6 +163,9 @@ public class BookingService {
             sysMsg.put("sender_role", "system");
             sysMsg.put("text", "Booking confirmed! You are now connected with " + vendorName + " for your " + serviceType + " on " + schedDate + " at " + schedTime + ". Feel free to share details or photos of your issue below.");
             sysMsg.put("is_logistics", false);
+            if (vendorAvatarUrl != null) {
+                sysMsg.put("sender_avatar", vendorAvatarUrl);
+            }
             firestoreService.create("chat_threads/" + bookingId + "/messages", sysMsg);
             System.out.println("BookingService: Successfully created chat thread " + bookingId);
         } catch (Exception e) {
@@ -175,6 +193,9 @@ public class BookingService {
             Map<String, Object> chatUpdates = new HashMap<>();
             chatUpdates.put("technician_id", personnelId);
             chatUpdates.put("personnel_name", personnelName);
+            if (personnel != null && personnel.get("avatar_url") != null) {
+                chatUpdates.put("technician_avatar", personnel.get("avatar_url"));
+            }
             firestoreService.update("chat_threads", bookingId, chatUpdates);
         } catch (Exception e) {
             System.err.println("BookingService: Failed to update chat thread with personnel details: " + e.getMessage());

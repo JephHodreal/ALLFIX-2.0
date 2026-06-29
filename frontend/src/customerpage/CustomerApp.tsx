@@ -1136,13 +1136,24 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                                 }`}
                             >
                               <div className="flex justify-between items-start gap-2">
-                                <div className="space-y-1">
-                                  <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'text-slate-900 dark:text-white'}`}>
-                                    {v.company_name || v.name || v.username}
-                                  </p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    {v.city || 'Location not specified'}
-                                  </p>
+                                <div className="flex items-center gap-3">
+                                  {v.avatar_url ? (
+                                    <img src={v.avatar_url} alt="Vendor Logo" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-slate-200 dark:border-slate-700 bg-white" />
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700">
+                                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                                        {(v.company_name || v.name || v.username || 'V').charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="space-y-0.5">
+                                    <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'text-slate-900 dark:text-white'}`}>
+                                      {v.company_name || v.name || v.username}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                      {v.city || 'Location not specified'}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${isSelected ? 'border-slate-900 bg-slate-900 dark:border-white dark:bg-white' : 'border-slate-300 dark:border-slate-600'
                                   }`}>
@@ -4024,7 +4035,7 @@ function CustomerMessages() {
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
     try {
-      await sendMessage(user.uid, 'customer', inputText, activeChannel === 'personnel');
+      await sendMessage(user.uid, 'customer', inputText, activeChannel === 'personnel', (profile as any)?.avatar_url);
       setInputText('');
     } catch (e) {
       console.error(e);
@@ -4053,11 +4064,22 @@ function CustomerMessages() {
             ) : (
               threads.map(t => (
                 <div key={t.id} onClick={() => { setSelectedThread(t); setActiveChannel('vendor'); }} className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-white dark:bg-slate-800 border-brand-navy shadow-md ring-1 ring-brand-navy/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.vendor_name || 'Vendor'}</h4>
-                  <p className="text-xs text-slate-500">{t.service_type || 'Service'}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                      {t.vendor_avatar ? (
+                        <img src={t.vendor_avatar} alt="Vendor Logo" className="w-full h-full object-cover bg-white" />
+                      ) : (
+                        t.vendor_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || 'V'
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.vendor_name || 'Vendor'}</h4>
+                      <p className="text-xs text-slate-500 truncate">{t.service_type || 'Service'}</p>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -4070,14 +4092,31 @@ function CustomerMessages() {
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm">
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-white">
-                    {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
-                  </h3>
-                  <p className="text-xs text-slate-500 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Online
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                    {activeChannel === 'vendor' ? (
+                      selectedThread.vendor_avatar ? (
+                        <img src={selectedThread.vendor_avatar} alt="Vendor" className="w-full h-full object-cover bg-white" />
+                      ) : (
+                        (selectedThread.vendor_name || 'Vendor').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+                      )
+                    ) : (
+                      selectedThread.technician_avatar ? (
+                        <img src={selectedThread.technician_avatar} alt="Personnel" className="w-full h-full object-cover" />
+                      ) : (
+                        (selectedThread.personnel_name || 'Assigned Personnel').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+                      )
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 dark:text-white">
+                      {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
+                    </h3>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Online
+                    </p>
+                  </div>
                 </div>
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
                   <button
@@ -4117,16 +4156,27 @@ function CustomerMessages() {
                     .map(msg => {
                     const isMe = msg.sender_id === user?.uid;
                     return (
-                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
-                          isMe 
-                            ? 'bg-brand-navy text-white rounded-tr-none' 
-                            : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
-                        }`}>
-                          <p>{msg.text}</p>
-                          <span className={`text-[10px] mt-1 block ${isMe ? 'text-slate-300' : 'text-slate-400'}`}>
-                            {msg.created_at?.toDate ? msg.created_at.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                          </span>
+                      <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                          {msg.sender_avatar ? (
+                            <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
+                            isMe 
+                              ? 'bg-brand-navy text-white rounded-tr-none' 
+                              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
+                          }`}>
+                            <p>{msg.text}</p>
+                            <span className={`text-[10px] mt-1 block text-right ${isMe ? 'text-slate-300' : 'text-slate-400'}`}>
+                              {msg.created_at?.toDate ? msg.created_at.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
