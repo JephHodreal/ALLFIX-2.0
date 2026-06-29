@@ -15,7 +15,7 @@ import { UserRole } from '../../context/AuthContext';
 
 interface SidebarItem { label: string; path: string; icon: React.ReactNode; end?: boolean; }
 interface SidebarSection { title?: string; items: SidebarItem[]; }
-interface SidebarProps { role: UserRole; collapsed: boolean; onToggle: () => void; }
+interface SidebarProps { role: UserRole; collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void; }
 
 const menuSections: Record<UserRole, SidebarSection[]> = {
   admin: [
@@ -465,7 +465,7 @@ function SidebarSectionGroup({
 }
 
 // ─── Main Sidebar ───
-export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ role, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const navigate = useNavigate();
   const sections = menuSections[role] || [];
 
@@ -511,13 +511,29 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
 
   return (
     <>
-      {/* ── Desktop Sidebar ── */}
+      {/* ── Mobile Overlay Backdrop ── */}
+      <AnimatePresence>
+        {role !== 'admin' && mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onMobileClose}
+            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Desktop/Mobile Sidebar ── */}
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 72 : 280 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`fixed left-0 top-0 h-screen bg-brand-navy dark:bg-[#020617] border-r border-white/10 dark:border-[#1E293B] z-40 hidden md:flex flex-col transition-colors duration-300 ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'
-          }`}
+        className={`fixed left-0 top-0 h-screen bg-brand-navy dark:bg-[#020617] border-r border-white/10 dark:border-[#1E293B] z-50 flex flex-col transition-transform duration-300 ${
+          role === 'admin'
+            ? 'hidden md:flex'
+            : `${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`
+        } ${collapsed ? 'overflow-visible' : 'overflow-hidden md:overflow-visible'}`}
       >
         {/* Header */}
         <div className="h-20 flex items-center justify-between px-3.5 border-b border-white/10 flex-shrink-0 overflow-visible relative">
@@ -562,40 +578,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         </div>
       </motion.aside>
 
-      {/* ── Mobile Bottom Tab Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-brand-navy/95 dark:bg-[#020617]/95 backdrop-blur-md border-t border-white/10 z-40 flex items-center justify-around px-2 pb-safe md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.2)] transition-colors duration-300">
-        {mobileTabs.map((tab) => (
-          <NavLink
-            key={tab.path}
-            to={tab.path}
-            end={tab.end}
-            className={({ isActive }) => `
-              flex flex-col items-center justify-center flex-1 h-full py-1 gap-1 relative group select-none transition-all duration-150 active:scale-95
-              ${isActive ? 'text-white font-bold' : 'text-slate-400'}
-            `}
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`transition-transform duration-200 ${isActive ? 'text-brand-green scale-110' : 'group-hover:scale-105'
-                    }`}
-                >
-                  {tab.icon}
-                </span>
-                <span className="text-[10px] tracking-tight font-bold transition-colors">
-                  {tab.label}
-                </span>
-                {isActive && (
-                  <motion.div
-                    layoutId="activeMobileTabIndicator"
-                    className="absolute top-0 left-4 right-4 h-[3px] rounded-b-md bg-brand-green"
-                  />
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
+
     </>
   );
 }

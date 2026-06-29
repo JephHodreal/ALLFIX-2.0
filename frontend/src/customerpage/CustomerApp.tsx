@@ -4321,6 +4321,7 @@ function CustomerSupport() {
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function CustomerApp() {
   const [collapsed, setCollapsed] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [cart, setCart] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('booking_cart');
@@ -4347,10 +4348,10 @@ export default function CustomerApp() {
 
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
-      <Sidebar role="customer" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-      <div className={`transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-[260px]'}`}>
-        <Header />
-        <main className="p-6">
+      <Sidebar role="customer" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <div className={`transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'}`}>
+        <Header onMenuToggle={() => setMobileOpen(true)} />
+        <main className="p-4 md:p-6">
           <Routes>
             <Route index element={<CustomerHome />} />
             <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />

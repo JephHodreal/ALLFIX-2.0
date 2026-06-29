@@ -4549,6 +4549,7 @@ function VendorSupport() {
 
 export default function VendorDashboard() {
   const [collapsed, setCollapsed] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [dbServices, setDbServices] = useState<any[]>([]);
   const [loadingDb, setLoadingDb] = useState(true);
 
@@ -4570,9 +4571,9 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
-      <Sidebar role="vendor" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-      <div className={`transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-[260px]'}`}>
-        <Header />
+      <Sidebar role="vendor" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <div className={`transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'}`}>
+        <Header onMenuToggle={() => setMobileOpen(true)} />
         <main className="p-3 lg:p-4">
           <Routes>
             <Route index element={<VendorHome />} />
