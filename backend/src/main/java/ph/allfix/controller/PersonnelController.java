@@ -62,6 +62,23 @@ public class PersonnelController {
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
         firestoreService.update("personnel", id, body);
+        
+        // If avatar_url was updated, sync to bookings
+        if (body.containsKey("avatar_url")) {
+            String avatarUrl = (String) body.get("avatar_url");
+            try {
+                List<Map<String, Object>> activeBookings = firestoreService.getWhere("bookings", "personnel_id", id);
+                for (Map<String, Object> booking : activeBookings) {
+                    String status = (String) booking.get("status");
+                    if (status != null && !status.equals("completed") && !status.equals("cancelled") && !status.equals("archived")) {
+                        firestoreService.updateField("bookings", (String) booking.get("id"), "personnel_avatar", avatarUrl);
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Failed to sync personnel avatar to bookings for personnel {}", id, e);
+            }
+        }
+
         return ResponseEntity.ok(Map.of("message", "Updated"));
     }
 

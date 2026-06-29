@@ -2255,25 +2255,33 @@ function ProfileTab() {
 
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) return;
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        const res = await api.post('/api/upload/image', {
-          imageBase64: base64data,
-          filename: selectedAvatar.name,
-        });
-        const url = res.data.url;
-        await api.put(`/api/customers/${profile?.id}`, { avatar_url: url });
-        showAlert({ title: 'Notice', message: "Avatar updated successfully!", type: 'info', hideCancel: true });
-        setSelectedAvatar(null);
-        await refreshProfile();
-      };
-      reader.readAsDataURL(selectedAvatar);
-    } catch (err) {
-      console.error("Failed to upload avatar", err);
-      showAlert({ title: 'Notice', message: "Failed to upload avatar", type: 'info', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Photo Upload',
+      message: 'Are you sure you want to update your profile photo?',
+      type: 'info',
+      confirmText: 'Yes, Upload',
+      onConfirm: () => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const base64data = reader.result;
+            const res = await api.post('/api/upload/image', {
+              image: base64data,
+              folder: 'customer/avatar',
+            });
+            const url = res.data.url;
+            await api.put(`/api/customers/${profile?.id}`, { avatar_url: url });
+            showAlert({ title: 'Success', message: 'Avatar updated successfully!', type: 'success', hideCancel: true });
+            setSelectedAvatar(null);
+            await refreshProfile();
+          } catch (err) {
+            console.error("Failed to upload avatar", err);
+            showAlert({ title: 'Error', message: 'Failed to upload avatar', type: 'danger', hideCancel: true });
+          }
+        };
+        reader.readAsDataURL(selectedAvatar);
+      }
+    });
   };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
@@ -2356,7 +2364,7 @@ function ProfileTab() {
   };
 
   // ─── Uniform Styles ───
-  const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
+  const btnBase = "inline-flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
   const btnPrimary = `${btnBase} text-white bg-slate-900 hover:bg-slate-800 focus:ring-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100`;
   const btnSuccess = `${btnBase} text-white bg-brand-green hover:bg-[#005e3f] focus:ring-brand-green dark:bg-brand-green dark:hover:bg-[#005e3f]`;
   const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
@@ -2420,19 +2428,18 @@ function ProfileTab() {
               {profile.email}
             </p>
 
-            <div className="w-full flex flex-col gap-2 animate-in fade-in duration-200">
+            <div className="w-full flex flex-col gap-2">
               {!selectedAvatar ? (
                 <button onClick={() => fileInputRef.current?.click()} className={`${btnGhost} w-full`}>
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   Upload Photo
                 </button>
               ) : (
-                <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-3 w-full">
-                  <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} w-full`}>
+                <div className="flex gap-2 w-full">
+                  <button onClick={() => cancelEdit('avatar')} className={`${btnGhost} flex-1`}>
                     Cancel
                   </button>
-                  <button onClick={handleSaveAvatar} className={`${btnSuccess} w-full`}>
-                    Save Changes
+                  <button onClick={handleSaveAvatar} className={`${btnSuccess} flex-1`}>
+                    Save
                   </button>
                 </div>
               )}
@@ -2661,6 +2668,7 @@ function ProfileTab() {
           </div>
         </div>
       )}
+      <ConfirmComponent />
     </div>
   );
 }

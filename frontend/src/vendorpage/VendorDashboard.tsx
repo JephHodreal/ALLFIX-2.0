@@ -4049,69 +4049,101 @@ function VendorProfile() {
 
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) return;
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const res = await api.post('/api/upload/image', {
-          image: reader.result,
-          folder: 'vendors/avatar'
-        });
-        await api.put(`/api/vendors/${profile?.id}`, { avatar_url: res.data.url });
-        showAlert({ title: 'Success', message: 'Company logo updated!', type: 'success', hideCancel: true });
-        setSelectedAvatar(null);
-        await refreshProfile();
-      };
-      reader.readAsDataURL(selectedAvatar);
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to upload logo.', type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Photo Upload',
+      message: 'Are you sure you want to update your company logo?',
+      type: 'info',
+      confirmText: 'Yes, Upload',
+      onConfirm: () => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const res = await api.post('/api/upload/image', {
+              image: reader.result,
+              folder: 'vendors/avatar'
+            });
+            await api.put(`/api/vendors/${profile?.id}`, { avatar_url: res.data.url });
+            showAlert({ title: 'Success', message: 'Company logo updated!', type: 'success', hideCancel: true });
+            setSelectedAvatar(null);
+            await refreshProfile();
+          } catch (err) {
+            showAlert({ title: 'Error', message: 'Failed to upload logo.', type: 'danger', hideCancel: true });
+          }
+        };
+        reader.readAsDataURL(selectedAvatar);
+      }
+    });
   };
 
-  const handleSaveOps = async (e: React.FormEvent) => {
+  const handleSaveOps = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await api.put(`/api/vendors/${profile?.id}`, opsData);
-      setIsEditingOps(false);
-      await refreshProfile();
-      showAlert({ title: 'Success', message: 'Operations details updated.', type: 'success', hideCancel: true });
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to save operations details.', type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Update',
+      message: 'Are you sure you want to update your operations details?',
+      type: 'info',
+      confirmText: 'Yes, Update',
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/vendors/${profile?.id}`, opsData);
+          setIsEditingOps(false);
+          await refreshProfile();
+          showAlert({ title: 'Success', message: 'Operations details updated.', type: 'success', hideCancel: true });
+        } catch (err) {
+          showAlert({ title: 'Error', message: 'Failed to save operations details.', type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
-  const handleSavePayout = async (e: React.FormEvent) => {
+  const handleSavePayout = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await api.put(`/api/vendors/${profile?.id}`, payoutData);
-      setIsEditingPayout(false);
-      await refreshProfile();
-      showAlert({ title: 'Success', message: 'Payout details updated.', type: 'success', hideCancel: true });
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to save payout details.', type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Update',
+      message: 'Are you sure you want to update your payout details?',
+      type: 'info',
+      confirmText: 'Yes, Update',
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/vendors/${profile?.id}`, payoutData);
+          setIsEditingPayout(false);
+          await refreshProfile();
+          showAlert({ title: 'Success', message: 'Payout details updated.', type: 'success', hideCancel: true });
+        } catch (err) {
+          showAlert({ title: 'Error', message: 'Failed to save payout details.', type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, title: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingDoc(fieldName);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const res = await api.post('/api/upload/image', {
-          image: reader.result,
-          folder: 'vendors/documents'
-        });
-        await api.put(`/api/vendors/${profile?.id}`, { [fieldName]: res.data.url });
-        await refreshProfile();
-        showAlert({ title: 'Success', message: `${title} updated successfully. Awaiting Admin verification.`, type: 'info', hideCancel: true });
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      showAlert({ title: 'Error', message: `Failed to upload ${title}.`, type: 'danger', hideCancel: true });
-    } finally {
-      setUploadingDoc(null);
-    }
+    showAlert({
+      title: 'Confirm Document Upload',
+      message: `Are you sure you want to upload the ${title} document?`,
+      type: 'info',
+      confirmText: 'Yes, Upload',
+      onConfirm: () => {
+        setUploadingDoc(fieldName);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const res = await api.post('/api/upload/image', {
+              image: reader.result,
+              folder: 'vendors/documents'
+            });
+            await api.put(`/api/vendors/${profile?.id}`, { [fieldName]: res.data.url });
+            await refreshProfile();
+            showAlert({ title: 'Success', message: `${title} updated successfully. Awaiting Admin verification.`, type: 'info', hideCancel: true });
+          } catch (err) {
+            showAlert({ title: 'Error', message: `Failed to upload ${title}.`, type: 'danger', hideCancel: true });
+          } finally {
+            setUploadingDoc(null);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
   };
 
   if (!profile) return <EmptyState title="Profile not loaded" />;

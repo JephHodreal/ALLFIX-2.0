@@ -180,10 +180,30 @@ function PersonnelHome() {
 
 function PersonnelBookings() {
   const { profile } = useAuth();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [activeChat, setActiveChat] = useState<'hq' | 'customer' | null>(null);
+
+  const handleUpdateStatus = (newStatus: string, label: string) => {
+    confirm({
+      title: `Confirm ${label}`,
+      message: `Are you sure you want to mark this booking as ${label}?`,
+      type: 'info',
+      confirmText: `Yes, ${label}`,
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/bookings/${selectedBooking.id}`, { status: newStatus });
+          const updated = await api.get(`/api/bookings/${selectedBooking.id}`);
+          setSelectedBooking(updated.data);
+          setBookings(bookings.map((b: any) => b.id === selectedBooking.id ? updated.data : b));
+        } catch (err) {
+          confirm({ title: 'Error', message: 'Failed to update booking status.', type: 'danger', hideCancel: true, confirmText: 'Okay' });
+        }
+      }
+    });
+  };
 
   useEffect(() => {
     if (profile?.id) {
@@ -404,11 +424,55 @@ function PersonnelBookings() {
           )}
         </Card>
 
+        {/* ── Status Action Sheet ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
+          {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'assigned') && (
+            <button
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold transition-all shadow-sm active:scale-95"
+              onClick={() => handleUpdateStatus('dispatched', 'Dispatched')}
+            >
+              Start Job (Dispatched)
+            </button>
+          )}
+          {selectedBooking.status === 'dispatched' && (
+            <button
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all shadow-sm active:scale-95"
+              onClick={() => handleUpdateStatus('in-transit', 'In Transit')}
+            >
+              In Transit
+            </button>
+          )}
+          {selectedBooking.status === 'in-transit' && (
+            <button
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all shadow-sm active:scale-95"
+              onClick={() => handleUpdateStatus('in_progress', 'In Progress')}
+            >
+              Arrived / In Progress
+            </button>
+          )}
+          {selectedBooking.status === 'in_progress' && (
+            <button
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
+              onClick={() => handleUpdateStatus('completed', 'Completed')}
+            >
+              <ClipboardList className="w-5 h-5" /> Complete Job
+            </button>
+          )}
+        </div>
+
         {/* ── Communication Action Sheet ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <button
             className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-navy hover:bg-slate-800 text-white font-bold transition-all shadow-sm active:scale-95"
-            onClick={() => setActiveChat('hq')}
+            onClick={() => {
+              confirm({
+                title: 'Message HQ',
+                message: 'Are you sure you want to open a chat with HQ?',
+                type: 'info',
+                confirmText: 'Yes',
+                onConfirm: () => setActiveChat('hq')
+              });
+            }}
           >
             <Building2 className="w-5 h-5" /> Message HQ
           </button>
@@ -417,7 +481,15 @@ function PersonnelBookings() {
           {(selectedBooking.status === 'dispatched' || selectedBooking.status === 'in-transit' || selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned') && (
             <button
               className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => setActiveChat('customer')}
+              onClick={() => {
+                confirm({
+                  title: 'Message Customer',
+                  message: 'Are you sure you want to message the customer directly?',
+                  type: 'info',
+                  confirmText: 'Yes',
+                  onConfirm: () => setActiveChat('customer')
+                });
+              }}
             >
               <MessageSquare className="w-5 h-5" /> Message Customer
             </button>
@@ -431,6 +503,7 @@ function PersonnelBookings() {
           booking={selectedBooking}
           profile={profile}
         />
+        <ConfirmComponent />
       </div>
     );
   }
@@ -520,44 +593,71 @@ function PersonnelProfile() {
 
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) return;
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const res = await api.post('/api/upload/image', {
-          imageBase64: reader.result,
-          filename: selectedAvatar.name,
-        });
-        await api.put(`/api/personnel/${profile?.id}`, { avatar_url: res.data.url });
-        showAlert({ title: 'Success', message: 'Professional photo updated!', type: 'success', hideCancel: true });
-        setSelectedAvatar(null);
-        await refreshProfile();
-      };
-      reader.readAsDataURL(selectedAvatar);
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to upload photo.', type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Photo Upload',
+      message: 'Are you sure you want to update your professional photo?',
+      type: 'info',
+      confirmText: 'Yes, Upload',
+      onConfirm: () => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const res = await api.post('/api/upload/image', {
+              image: reader.result,
+              folder: 'personnel/avatar'
+            });
+            await api.put(`/api/personnel/${profile?.id}`, { avatar_url: res.data.url });
+            showAlert({ title: 'Success', message: 'Professional photo updated!', type: 'success', hideCancel: true });
+            setSelectedAvatar(null);
+            await refreshProfile();
+          } catch (err) {
+            console.error("Failed to upload photo", err);
+            showAlert({ title: 'Error', message: 'Failed to upload photo.', type: 'danger', hideCancel: true });
+          }
+        };
+        reader.readAsDataURL(selectedAvatar);
+      }
+    });
   };
 
-  const handleSaveContact = async (e: React.FormEvent) => {
+  const handleSaveContact = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await api.put(`/api/personnel/${profile?.id}`, { phone: contactData.phone });
-      setIsEditingContact(false);
-      await refreshProfile();
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to save contact number.', type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Confirm Update',
+      message: 'Are you sure you want to update your mobile number?',
+      type: 'info',
+      confirmText: 'Yes, Update',
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/personnel/${profile?.id}`, { phone: contactData.phone });
+          setIsEditingContact(false);
+          await refreshProfile();
+          showAlert({ title: 'Success', message: 'Contact number updated!', type: 'success', hideCancel: true });
+        } catch (err) {
+          showAlert({ title: 'Error', message: 'Failed to save contact number.', type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleSaveSafety = (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSafetyData(safetyData);
-    setIsEditingSafety(false);
+    showAlert({
+      title: 'Confirm Update',
+      message: 'Are you sure you want to save this emergency contact?',
+      type: 'info',
+      confirmText: 'Yes, Save',
+      onConfirm: () => {
+        setSavedSafetyData(safetyData);
+        setIsEditingSafety(false);
+        showAlert({ title: 'Success', message: 'Emergency contact updated!', type: 'success', hideCancel: true });
+      }
+    });
   };
 
   if (!profile) return <EmptyState title="Profile not loaded" />;
 
-  const btnBase = "inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
+  const btnBase = "inline-flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto";
   const btnSuccess = `${btnBase} text-white bg-brand-green hover:bg-[#005e3f] focus:ring-brand-green dark:bg-brand-green dark:hover:bg-[#005e3f]`;
   const btnGhost = `${btnBase} text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:ring-slate-900 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700`;
   const inputClass = "w-full mt-1.5 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:focus:border-white dark:focus:ring-white transition-all shadow-sm";
@@ -730,32 +830,40 @@ function PersonnelSupport() {
   const [showBugModal, setShowBugModal] = useState(false);
   const [bugForm, setBugForm] = useState({ description: '' });
 
-  const handleSubmit = async () => {
-    try {
-      await api.post('/api/support', {
-        role: 'personnel',
-        issue_type: 'App Bug Report',
-        message: bugForm.description,
-        priority: 'medium'
-      });
-      confirm({
-        title: 'Success',
-        message: 'Bug reported successfully. Thank you for helping us improve!',
-        type: 'success',
-        hideCancel: true,
-        confirmText: 'Okay'
-      });
-      setShowBugModal(false);
-      setBugForm({ description: '' });
-    } catch (err) {
-      confirm({
-        title: 'Error',
-        message: 'Failed to report bug.',
-        type: 'danger',
-        hideCancel: true,
-        confirmText: 'Okay'
-      });
-    }
+  const handleSubmit = () => {
+    confirm({
+      title: 'Submit Bug Report',
+      message: 'Are you sure you want to submit this bug report?',
+      type: 'info',
+      confirmText: 'Yes, Submit',
+      onConfirm: async () => {
+        try {
+          await api.post('/api/support', {
+            role: 'personnel',
+            issue_type: 'App Bug Report',
+            message: bugForm.description,
+            priority: 'medium'
+          });
+          confirm({
+            title: 'Success',
+            message: 'Bug reported successfully. Thank you for helping us improve!',
+            type: 'success',
+            hideCancel: true,
+            confirmText: 'Okay'
+          });
+          setShowBugModal(false);
+          setBugForm({ description: '' });
+        } catch (err) {
+          confirm({
+            title: 'Error',
+            message: 'Failed to report bug.',
+            type: 'danger',
+            hideCancel: true,
+            confirmText: 'Okay'
+          });
+        }
+      }
+    });
   };
 
   return (
