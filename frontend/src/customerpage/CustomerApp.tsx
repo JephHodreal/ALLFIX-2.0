@@ -1469,6 +1469,12 @@ function MyBookingsTab() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState('');
 
+  // Add-on Payment flow state
+  const [showAddonPaymentModal, setShowAddonPaymentModal] = useState<string | null>(null);
+  const [addonPaymentMethod, setAddonPaymentMethod] = useState('');
+  const [addonReferenceNumber, setAddonReferenceNumber] = useState('');
+  const [addonPaymentSubmitting, setAddonPaymentSubmitting] = useState(false);
+
   const fetchBookings = () => {
     if (profile?.id) {
       setLoading(true);
@@ -1538,6 +1544,31 @@ function MyBookingsTab() {
       setRefundError(err.response?.data?.message || 'Failed to submit refund request. Please try again.');
     } finally {
       setRefundSubmitting(false);
+    }
+  };
+
+  const handlePayAddon = async (addonId: string) => {
+    if (!addonPaymentMethod || !addonReferenceNumber.trim()) return;
+    setAddonPaymentSubmitting(true);
+    try {
+      await api.patch(`/api/bookings/${selectedBooking.id}/addons/${addonId}/pay`, {
+        payment_method: addonPaymentMethod,
+        reference_number: addonReferenceNumber
+      });
+      // Refresh
+      fetchBookings();
+      if (!profile?.id) return;
+      const r = await api.get(`/api/bookings/customer/${profile.id}`);
+      const updatedBooking = (r.data || []).find((b: any) => b.id === selectedBooking.id);
+      if (updatedBooking) setSelectedBooking(updatedBooking);
+      
+      setShowAddonPaymentModal(null);
+      setAddonPaymentMethod('');
+      setAddonReferenceNumber('');
+    } catch (err: any) {
+      console.error('Failed to submit addon payment', err);
+    } finally {
+      setAddonPaymentSubmitting(false);
     }
   };
 
@@ -1696,6 +1727,38 @@ function MyBookingsTab() {
               )}
             </div>
           </Card>
+
+          {/* Additional Charges / Add-ons Section */}
+          {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
+            <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+              <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
+                <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-brand-navy" />
+                  Additional Charges
+                </h4>
+              </div>
+              <div className="space-y-3">
+                {selectedBooking.add_ons.map((addon: any) => (
+                  <div key={addon.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold text-slate-900 dark:text-white text-sm">{addon.description}</div>
+                      <div className="font-black text-brand-green">₱{addon.amount}</div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div>
+                        {addon.status === 'pending_approval' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Action Required</span>}
+                        {addon.status === 'pending_verification' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Verifying Payment</span>}
+                        {addon.status === 'confirmed' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md">Confirmed</span>}
+                      </div>
+                      {addon.status === 'pending_approval' && (
+                        <Button size="sm" variant="primary" onClick={() => setShowAddonPaymentModal(addon.id)}>Approve & Pay</Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -1724,6 +1787,50 @@ function MyBookingsTab() {
               setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
             }}
           />
+        )}
+
+        {/* Addon Payment Modal */}
+        {showAddonPaymentModal && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Pay Additional Charge</h3>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
+                  <select
+                    value={addonPaymentMethod}
+                    onChange={(e) => setAddonPaymentMethod(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-navy"
+                  >
+                    <option value="">Select method...</option>
+                    <option value="GCash">GCash</option>
+                    <option value="Maya">Maya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reference Number</label>
+                  <input
+                    type="text"
+                    value={addonReferenceNumber}
+                    onChange={(e) => setAddonReferenceNumber(e.target.value)}
+                    placeholder="Enter reference number"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-navy"
+                  />
+                </div>
+              </div>
+              <div className="flex border-t border-slate-100 dark:border-slate-800">
+                <button onClick={() => setShowAddonPaymentModal(null)} className="flex-1 px-4 py-4 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50">Cancel</button>
+                <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
+                <button
+                  onClick={() => handlePayAddon(showAddonPaymentModal)}
+                  disabled={addonPaymentSubmitting || !addonPaymentMethod || !addonReferenceNumber.trim()}
+                  className="flex-1 px-4 py-4 text-sm font-bold text-brand-navy dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addonPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Cancel Confirmation Dialog */}

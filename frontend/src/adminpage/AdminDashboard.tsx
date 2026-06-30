@@ -1509,6 +1509,9 @@ function BookingsTab() {
   const [showFullRefundConfirm, setShowFullRefundConfirm] = useState(false);
   const [showDenyConfirm, setShowDenyConfirm] = useState(false);
 
+  // Add-on Verification State
+  const [addonToVerify, setAddonToVerify] = useState<string | null>(null);
+
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -1591,6 +1594,21 @@ function BookingsTab() {
       setAlertConfig({ show: true, type: 'success', title: 'Payment Confirmed', message: 'Payment confirmed successfully!' });
     } catch (err: any) {
       setAlertConfig({ show: true, type: 'danger', title: 'Error', message: err.response?.data?.message || 'Failed to confirm payment.' });
+    }
+  };
+
+  const handleVerifyAddon = async (addonId: string) => {
+    try {
+      await api.patch(`/api/bookings/${selectedBooking.id}/addons/${addonId}/verify`);
+      
+      const r = await api.get('/api/bookings');
+      setBookings(r.data);
+      const updatedBooking = r.data.find((b: any) => b.id === selectedBooking.id);
+      if (updatedBooking) setSelectedBooking(updatedBooking);
+      
+      setAlertConfig({ show: true, type: 'success', title: 'Add-on Verified', message: 'Add-on payment verified successfully!' });
+    } catch (err: any) {
+      setAlertConfig({ show: true, type: 'danger', title: 'Error', message: err.response?.data?.message || 'Failed to verify add-on.' });
     }
   };
 
@@ -1832,6 +1850,54 @@ function BookingsTab() {
               )}
             </div>
           </Card>
+
+          {/* Additional Charges / Add-ons Section */}
+          {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
+            <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm md:col-span-2">
+              <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
+                <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-brand-navy dark:text-blue-400" />
+                  Additional Charges / Add-ons
+                </h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedBooking.add_ons.map((addon: any) => (
+                  <div key={addon.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="font-bold text-slate-900 dark:text-white text-sm">{addon.description}</div>
+                      <div className="font-black text-brand-green">₱{addon.amount}</div>
+                    </div>
+                    
+                    <div className="space-y-1.5 text-xs">
+                      {addon.payment_method && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-medium">Method:</span>
+                          <span className="text-slate-900 dark:text-white font-semibold">{addon.payment_method}</span>
+                        </div>
+                      )}
+                      {addon.reference_number && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-medium">Ref No:</span>
+                          <span className="text-slate-900 dark:text-white font-mono font-semibold">{addon.reference_number}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div>
+                        {addon.status === 'pending_approval' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Pending Customer Approval</span>}
+                        {addon.status === 'pending_verification' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Pending Admin Verification</span>}
+                        {addon.status === 'confirmed' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md">Confirmed & Paid</span>}
+                      </div>
+                      {addon.status === 'pending_verification' && (
+                        <Button size="sm" variant="success" onClick={() => setAddonToVerify(addon.id)}>Verify Payment</Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -1986,6 +2052,23 @@ function BookingsTab() {
           message={`Are you sure you want to confirm the payment of ₱${selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'} for Booking ${selectedBooking.id}?`}
           confirmText="Yes, Confirm"
           cancelText="No, Cancel"
+          type="info"
+        />
+
+        {/* Verify Add-on Payment Dialog */}
+        <ConfirmModal
+          isOpen={!!addonToVerify}
+          onClose={() => setAddonToVerify(null)}
+          onConfirm={() => {
+            if (addonToVerify) {
+              handleVerifyAddon(addonToVerify);
+              setAddonToVerify(null);
+            }
+          }}
+          title="Verify Add-on Payment"
+          message="Are you sure you want to verify this additional charge payment? This confirms that the payment has been successfully received."
+          confirmText="Yes, Verify Payment"
+          cancelText="Cancel"
           type="info"
         />
 

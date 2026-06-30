@@ -271,6 +271,118 @@ public class BookingService {
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Completed", "Your booking for \"" + details + "\" has been completed! Please leave a review.");
     }
 
+    public void requestAddon(String bookingId, Map<String, Object> body) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        Map<String, Object> addon = new HashMap<>();
+        addon.put("id", UUID.randomUUID().toString());
+        addon.put("description", body.get("description"));
+        
+        Object p = body.get("amount");
+        if (p instanceof Number) addon.put("amount", ((Number) p).doubleValue());
+        else if (p instanceof String) addon.put("amount", Double.parseDouble((String) p));
+        
+        addon.put("status", "pending_approval");
+        addon.put("created_at", new Date());
+
+        List<Map<String, Object>> addOns = (List<Map<String, Object>>) booking.get("add_ons");
+        if (addOns == null) addOns = new ArrayList<>();
+        addOns.add(addon);
+
+        firestoreService.updateField("bookings", bookingId, "add_ons", addOns);
+
+        String customerId = (String) booking.get("customer_id");
+        if (customerId != null) {
+            notificationService.notify(customerId, "customer", "Additional Charge Requested",
+                "Vendor has requested an additional ₱" + addon.get("amount") + " for '" + addon.get("description") + "'. Please review and approve.");
+        }
+    }
+
+    public void payAddon(String bookingId, String addonId, Map<String, Object> body) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        List<Map<String, Object>> addOns = (List<Map<String, Object>>) booking.get("add_ons");
+        if (addOns == null) throw new RuntimeException("Add-on not found");
+
+        boolean found = false;
+        for (Map<String, Object> addon : addOns) {
+            if (addonId.equals(addon.get("id"))) {
+                addon.put("status", "pending_verification");
+                addon.put("payment_method", body.get("payment_method"));
+                addon.put("reference_number", body.get("reference_number"));
+                addon.put("paid_at", new Date());
+                found = true;
+                
+                try {
+                    List<Map<String, Object>> admins = firestoreService.getAll("admins");
+                    for (Map<String, Object> admin : admins) {
+                        String adminId = (String) admin.get("id");
+                        if (adminId == null) adminId = (String) admin.get("uid");
+                        if (adminId != null) {
+                            notificationService.notify(adminId, "admin", "Add-on Payment Verification",
+                                "Customer has paid ₱" + addon.get("amount") + " for add-on '" + addon.get("description") + "'. Awaiting verification.");
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to notify admins of add-on payment: " + e.getMessage());
+                }
+                break;
+            }
+        }
+
+        if (!found) throw new RuntimeException("Add-on not found");
+        firestoreService.updateField("bookings", bookingId, "add_ons", addOns);
+    }
+
+    public void verifyAddon(String bookingId, String addonId) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        List<Map<String, Object>> addOns = (List<Map<String, Object>>) booking.get("add_ons");
+        if (addOns == null) throw new RuntimeException("Add-on not found");
+
+        boolean found = false;
+        double addonAmount = 0.0;
+        String addonDesc = "";
+        for (Map<String, Object> addon : addOns) {
+            if (addonId.equals(addon.get("id"))) {
+                addon.put("status", "confirmed");
+                addon.put("verified_at", new Date());
+                addonAmount = addon.get("amount") instanceof Number ? ((Number) addon.get("amount")).doubleValue() : Double.parseDouble(addon.get("amount").toString());
+                addonDesc = (String) addon.get("description");
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) throw new RuntimeException("Add-on not found");
+        
+        // Recalculate total_price
+        double currentTotal = booking.get("total_price") != null ? ((Number) booking.get("total_price")).doubleValue() : 
+                               (booking.get("price") != null ? ((Number) booking.get("price")).doubleValue() * ((Number) booking.getOrDefault("quantity", 1)).doubleValue() : 0.0);
+        
+        double newTotal = currentTotal + addonAmount;
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("add_ons", addOns);
+        updates.put("total_price", newTotal);
+        
+        firestoreService.update("bookings", bookingId, updates);
+
+        String vendorId = (String) booking.get("vendor_id");
+        if (vendorId != null) {
+            notificationService.notify(vendorId, "vendor", "Add-on Verified",
+                "Admin has verified the payment of ₱" + addonAmount + " for '" + addonDesc + "'. You may proceed.");
+        }
+        String customerId = (String) booking.get("customer_id");
+        if (customerId != null) {
+            notificationService.notify(customerId, "customer", "Add-on Verified",
+                "Your payment of ₱" + addonAmount + " for '" + addonDesc + "' has been verified.");
+        }
+    }
+
     public void requestCancellation(String bookingId) throws Exception {
         System.out.println("requestCancellation: bookingId=" + bookingId);
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);

@@ -199,11 +199,13 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                                 const bookingId = relatedId || (match ? match[1] : null);
 
                                 if (bookingId) {
-                                  if (messageLower.includes('message')) {
+                                  const isMessageRelated = messageLower.includes('message') || messageLower.includes('chat') || messageLower.includes('assigned');
+                                  if (isMessageRelated) {
                                       if (role === 'personnel') {
                                           navigate(`/${role}/bookings`, { state: { bookingId } });
                                       } else {
-                                          const openChannel = messageLower.includes('personnel') || messageLower.includes('technician') ? 'personnel' : 'vendor';
+                                          // if it mentions personnel/technician, go to personnel channel. Otherwise vendor.
+                                          const openChannel = (messageLower.includes('personnel') || messageLower.includes('technician')) ? 'personnel' : 'vendor';
                                           navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
                                       }
                                   } else {
@@ -223,7 +225,13 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                               {item.message}
                             </p>
                             <div className="mt-1.5 flex items-center gap-2">
-                              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                              {!isRead && (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">RECENTLY</span>
+                                </div>
+                              )}
+                              <span className="text-[11px] font-medium text-[#9CA3AF]">
                                 {(() => {
                                   let time = 0;
                                   const d = item.created_at;
@@ -239,16 +247,8 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                                   if (diff < 86400) return `> ${Math.floor(diff / 3600)}h ago`;
                                   return `${Math.floor(diff / 86400)}d ago`;
                                 })()}
+                                {!isRead && ' · Unread'}
                               </span>
-                              {!isRead && (
-                                <>
-                                  <span className="text-slate-300 dark:text-slate-700">&middot;</span>
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Unread</span>
-                                  </div>
-                                </>
-                              )}
                             </div>
                           </div>
                         </div>

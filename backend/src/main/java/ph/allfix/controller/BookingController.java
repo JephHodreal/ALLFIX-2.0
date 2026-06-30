@@ -73,6 +73,36 @@ public class BookingController {
         return ResponseEntity.ok(Map.of("message", "Personnel assigned"));
     }
 
+    @PostMapping("/{id}/addons")
+    public ResponseEntity<?> requestAddon(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            bookingService.requestAddon(id, body);
+            return ResponseEntity.ok(Map.of("message", "Add-on requested successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}/addons/{addonId}/pay")
+    public ResponseEntity<?> payAddon(@PathVariable String id, @PathVariable String addonId, @RequestBody Map<String, Object> body) {
+        try {
+            bookingService.payAddon(id, addonId, body);
+            return ResponseEntity.ok(Map.of("message", "Add-on payment submitted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}/addons/{addonId}/verify")
+    public ResponseEntity<?> verifyAddon(@PathVariable String id, @PathVariable String addonId) {
+        try {
+            bookingService.verifyAddon(id, addonId);
+            return ResponseEntity.ok(Map.of("message", "Add-on payment verified successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PatchMapping("/{id}/complete")
     public ResponseEntity<?> complete(@PathVariable String id) throws Exception {
         bookingService.completeBooking(id);
