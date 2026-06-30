@@ -49,18 +49,20 @@ function PersonnelChatModal({
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
+    const msgText = inputText;
+    setInputText('');
     try {
-      await sendMessage(profile.id, 'technician', inputText, true, (profile as any)?.avatar_url);
-      setInputText('');
+      await sendMessage(profile.id, 'technician', msgText, true, (profile as any)?.avatar_url);
     } catch (e) {
       console.error(e);
+      setInputText(msgText); // Revert on error
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[600px] max-h-[90vh]">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${type === 'hq' ? 'bg-brand-navy' : 'bg-brand-green'}`}>
               {type === 'hq' ? <Building2 className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
@@ -128,7 +130,9 @@ function PersonnelChatModal({
                           {msg.sender_id === profile.id && (
                             <div className="text-[9px] text-white/80 text-right mt-1 flex justify-end items-center gap-0.5">
                               {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
-                              ✓✓
+                              <span className={msg.is_read ? 'text-blue-200 font-black tracking-tighter text-[11px]' : 'text-slate-300/60 font-bold'}>
+                                {msg.is_read ? '✓✓' : '✓'}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -155,7 +159,7 @@ function PersonnelChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex gap-2">
             <input 
               type="text" 
@@ -163,7 +167,12 @@ function PersonnelChatModal({
               className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20" 
               value={inputText}
               onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
             />
             <Button 
               onClick={handleSend} 
@@ -244,6 +253,8 @@ function PersonnelBookings() {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [activeChat, setActiveChat] = useState<'hq' | 'customer' | null>(null);
+  const [hasConfirmedHq, setHasConfirmedHq] = useState(false);
+  const [hasConfirmedCustomer, setHasConfirmedCustomer] = useState(false);
 
   const handleUpdateStatus = (newStatus: string, label: string) => {
     confirm({
@@ -524,12 +535,19 @@ function PersonnelBookings() {
           <button
             className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-navy hover:bg-slate-800 text-white font-bold transition-all shadow-sm active:scale-95"
             onClick={() => {
+              if (hasConfirmedHq) {
+                setActiveChat('hq');
+                return;
+              }
               confirm({
                 title: 'Message HQ',
                 message: 'Are you sure you want to open a chat with HQ?',
                 type: 'info',
                 confirmText: 'Yes',
-                onConfirm: () => setActiveChat('hq')
+                onConfirm: () => {
+                  setHasConfirmedHq(true);
+                  setActiveChat('hq');
+                }
               });
             }}
           >
@@ -541,12 +559,19 @@ function PersonnelBookings() {
             <button
               className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
               onClick={() => {
+                if (hasConfirmedCustomer) {
+                  setActiveChat('customer');
+                  return;
+                }
                 confirm({
                   title: 'Message Customer',
                   message: 'Are you sure you want to message the customer directly?',
                   type: 'info',
                   confirmText: 'Yes',
-                  onConfirm: () => setActiveChat('customer')
+                  onConfirm: () => {
+                    setHasConfirmedCustomer(true);
+                    setActiveChat('customer');
+                  }
                 });
               }}
             >

@@ -4013,20 +4013,26 @@ function CustomerMessages() {
   
   const showPersonnelTab = selectedBooking?.status === 'dispatched' || selectedBooking?.status === 'in_progress' || selectedBooking?.status === 'in-transit';
 
+  const navigate = useNavigate();
+
   useEffect(() => {
-    if (threads.length > 0 && !initialized) {
-      setInitialized(true);
+    if (threads.length > 0) {
       if (location.state?.bookingId) {
-        const found = threads.find(t => t.id === location.state.bookingId);
+        const found = threads.find(t => t.booking_id === location.state.bookingId || t.id === location.state.bookingId);
         if (found) {
           setSelectedThread(found);
-          if (location.state.openChannel === 'personnel') {
-            setActiveChannel('personnel');
+          if (location.state.openChannel) {
+            setActiveChannel(location.state.openChannel as any);
+            // Clear the openChannel state so it doesn't force tab switching when new messages arrive
+            navigate(location.pathname, { replace: true, state: { ...location.state, openChannel: undefined } });
           }
         }
+      } else if (!initialized) {
+        setInitialized(true);
       }
     }
-  }, [threads, location.state, initialized]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads, location.state, location.key, location.pathname, navigate]);
 
   const isHardLocked = useMemo(() => {
     if (selectedBooking?.status !== 'completed') return false;
@@ -4056,18 +4062,20 @@ function CustomerMessages() {
   }, [messages, activeChannel]);
 
   useEffect(() => {
-    if (activeChannel === 'personnel' && !showPersonnelTab) {
+    if (activeChannel === 'personnel' && selectedBooking && !showPersonnelTab) {
       setActiveChannel('vendor');
     }
-  }, [showPersonnelTab, activeChannel]);
+  }, [showPersonnelTab, activeChannel, selectedBooking]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
+    const msgText = inputText;
+    setInputText('');
     try {
-      await sendMessage(user.uid, 'customer', inputText, activeChannel === 'personnel', (profile as any)?.avatar_url);
-      setInputText('');
+      await sendMessage(user.uid, 'customer', msgText, activeChannel === 'personnel', (profile as any)?.avatar_url);
     } catch (e) {
       console.error(e);
+      setInputText(msgText); // Revert on error
     }
   };
 
@@ -4216,13 +4224,13 @@ function CustomerMessages() {
                     </div>
                   </div>
                 )}
-                {messages.filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics).length === 0 ? (
+                {messages.filter(m => activeChannel === 'personnel' ? (m.is_logistics || m.sender_role === 'technician') : (!m.is_logistics && m.sender_role !== 'technician')).length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-slate-500 text-sm">No messages yet. Send a message to start the conversation.</p>
                   </div>
                 ) : (
                   messages
-                    .filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics)
+                    .filter(m => activeChannel === 'personnel' ? (m.is_logistics || m.sender_role === 'technician') : (!m.is_logistics && m.sender_role !== 'technician'))
                     .map((msg, index, arr) => {
                     const isMe = msg.sender_id === user?.uid;
                     const isSystem = msg.sender_role === 'system';

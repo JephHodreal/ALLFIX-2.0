@@ -3670,11 +3670,13 @@ function VendorMessages() {
 
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
+    const msgText = inputText;
+    setInputText('');
     try {
-      await sendMessage(user.uid, 'vendor', inputText, activeTab === 'team', (profile as any)?.avatar_url);
-      setInputText('');
+      await sendMessage(user.uid, 'vendor', msgText, activeTab === 'team', (profile as any)?.avatar_url);
     } catch (e) {
       console.error(e);
+      setInputText(msgText); // Revert on error
     }
   };
 

@@ -53,15 +53,33 @@ public class MessageController {
 
             // HQ Thread auto-creation
             if (threadId.startsWith("hq_")) {
-                String[] parts = threadId.split("_"); // hq_{technicianId}_{vendorId}
-                if (parts.length == 3) {
+                String rest = threadId.substring(3);
+                String technicianId = null;
+                String vendorId = null;
+                
+                int firstUnderscore = rest.indexOf('_');
+                if (firstUnderscore != -1) {
+                    technicianId = rest.substring(0, firstUnderscore);
+                    vendorId = rest.substring(firstUnderscore + 1);
+                    
+                    // Fallback for legacy ID formats like PER_123
+                    if (technicianId.equals("PER") || technicianId.equals("TECH") || technicianId.equals("VEN") || technicianId.equals("CL")) {
+                        int secondUnderscore = rest.indexOf('_', firstUnderscore + 1);
+                        if (secondUnderscore != -1) {
+                            technicianId = rest.substring(0, secondUnderscore);
+                            vendorId = rest.substring(secondUnderscore + 1);
+                        }
+                    }
+                }
+
+                if (technicianId != null && vendorId != null) {
                     Map<String, Object> hqThread = new HashMap<>();
                     hqThread.put("id", threadId);
-                    hqThread.put("vendor_id", parts[2]);
-                    hqThread.put("technician_id", parts[1]);
+                    hqThread.put("vendor_id", vendorId);
+                    hqThread.put("technician_id", technicianId);
                     
                     // Fetch personnel name
-                    Map<String, Object> tech = firestoreService.getById("personnel", parts[1]);
+                    Map<String, Object> tech = firestoreService.getById("personnel", technicianId);
                     if (tech != null) {
                         hqThread.put("personnel_name", tech.get("first_name") + " " + tech.get("last_name"));
                     }
@@ -99,8 +117,9 @@ public class MessageController {
             msgData.put("id", msgRef.getId());
             msgRef.set(msgData).get();
 
-            // Update thread's updated_at
-            db.collection("chat_threads").document(threadId).update("updated_at", FieldValue.serverTimestamp()).get();
+            // Update thread's updated_at (using merge to avoid NOT_FOUND if document was somehow not created)
+            db.collection("chat_threads").document(threadId)
+                .set(Map.of("updated_at", FieldValue.serverTimestamp()), com.google.cloud.firestore.SetOptions.merge()).get();
 
             // --- Notifications ---
             try {
@@ -110,10 +129,20 @@ public class MessageController {
                 String technicianId = null;
 
                 if (threadId.startsWith("hq_")) {
-                    String[] parts = threadId.split("_");
-                    if (parts.length == 3) {
-                        technicianId = parts[1]; // PER-xxx
-                        vendorId = parts[2];     // VEN-xxx
+                    String rest = threadId.substring(3);
+                    int firstUnderscore = rest.indexOf('_');
+                    if (firstUnderscore != -1) {
+                        technicianId = rest.substring(0, firstUnderscore);
+                        vendorId = rest.substring(firstUnderscore + 1);
+                        
+                        // Fallback for legacy ID formats
+                        if (technicianId.equals("PER") || technicianId.equals("TECH") || technicianId.equals("VEN") || technicianId.equals("CL")) {
+                            int secondUnderscore = rest.indexOf('_', firstUnderscore + 1);
+                            if (secondUnderscore != -1) {
+                                technicianId = rest.substring(0, secondUnderscore);
+                                vendorId = rest.substring(secondUnderscore + 1);
+                            }
+                        }
                     }
                 } else {
                     // Customer thread (threadId is bookingId)
@@ -125,27 +154,44 @@ public class MessageController {
                     }
                 }
 
+                String senderName = "User";
+                if ("customer".equalsIgnoreCase(senderRole)) {
+                    Map<String, Object> customer = customerId != null ? firestoreService.getById("customers", customerId) : null;
+                    if (customer != null && customer.get("first_name") != null) {
+                        senderName = (String) customer.get("first_name");
+                        if (customer.get("last_name") != null) senderName += " " + customer.get("last_name");
+                    } else senderName = "Customer";
+                } else if ("vendor".equalsIgnoreCase(senderRole)) {
+                    Map<String, Object> vendor = vendorId != null ? firestoreService.getById("vendors", vendorId) : null;
+                    if (vendor != null && vendor.get("company_name") != null) senderName = (String) vendor.get("company_name");
+                    else senderName = "Vendor";
+                } else if ("technician".equalsIgnoreCase(senderRole) || "personnel".equalsIgnoreCase(senderRole)) {
+                    Map<String, Object> personnel = technicianId != null ? firestoreService.getById("personnel", technicianId) : null;
+                    if (personnel != null && personnel.get("first_name") != null) {
+                        senderName = (String) personnel.get("first_name");
+                        if (personnel.get("last_name") != null) senderName += " " + personnel.get("last_name");
+                        senderName += " (Technician)";
+                    } else senderName = "Assigned Personnel";
+                }
+
                 String displayId = threadId.startsWith("hq_") ? "HQ Chat" : threadId;
                 String title = "New Message";
-                String notifMessage = "New message received on " + displayId;
+                String actualMsg = (String) msgData.get("text");
 
                 if ("customer".equalsIgnoreCase(senderRole)) {
                     title = "New Message from Customer";
-                    notifMessage = "Customer sent a new message on " + displayId;
-                    if (vendorId != null && !isLogistics) notificationService.notifyMessage(vendorId, "vendor", title, notifMessage, displayId);
-                    if (isLogistics && technicianId != null) notificationService.notifyMessage(technicianId, "personnel", title, notifMessage, displayId);
+                    if (vendorId != null && !isLogistics) notificationService.notifyMessage(vendorId, "vendor", title, displayId, senderName, actualMsg);
+                    if (isLogistics && technicianId != null) notificationService.notifyMessage(technicianId, "personnel", title, displayId, senderName, actualMsg);
                 } else if ("vendor".equalsIgnoreCase(senderRole)) {
                     title = "New Message from Vendor";
-                    notifMessage = "Vendor sent a new message on " + displayId;
-                    if (customerId != null && !isLogistics) notificationService.notifyMessage(customerId, "customer", title, notifMessage, displayId);
-                    if (technicianId != null && isLogistics) notificationService.notifyMessage(technicianId, "personnel", title, notifMessage, displayId);
+                    if (customerId != null && !isLogistics) notificationService.notifyMessage(customerId, "customer", title, displayId, senderName, actualMsg);
+                    if (technicianId != null && isLogistics) notificationService.notifyMessage(technicianId, "personnel", title, displayId, senderName, actualMsg);
                 } else if ("technician".equalsIgnoreCase(senderRole)) {
                     title = "New Message from Personnel";
-                    notifMessage = "Assigned personnel sent a new message on " + displayId;
                     if (vendorId != null && threadId.startsWith("hq_")) {
-                        notificationService.notifyMessage(vendorId, "vendor", title, notifMessage, displayId);
+                        notificationService.notifyMessage(vendorId, "vendor", title, displayId, senderName, actualMsg);
                     } else {
-                        if (customerId != null) notificationService.notifyMessage(customerId, "customer", title, notifMessage, displayId);
+                        if (customerId != null) notificationService.notifyMessage(customerId, "customer", title, displayId, senderName, actualMsg);
                     }
                 }
             } catch (Exception ex) {

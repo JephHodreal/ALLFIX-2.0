@@ -28,18 +28,24 @@ public class NotificationService {
         }
     }
 
-    public void notifyMessage(String userId, String userRole, String title, String message, String displayId) {
+    public void notifyMessage(String userId, String userRole, String title, String displayId, String senderName, String latestMsg) {
         try {
             List<Map<String, Object>> existing = firestoreService.getWhere("notifications", "user_id", userId);
             Map<String, Object> target = null;
             for (Map<String, Object> notif : existing) {
                 Boolean isRead = (Boolean) notif.get("is_read");
                 String notifTitle = (String) notif.get("title");
-                String notifMsg = (String) notif.get("message");
                 
-                if (Boolean.FALSE.equals(isRead) && title.equals(notifTitle) && notifMsg != null && notifMsg.contains(displayId)) {
-                    target = notif;
-                    break;
+                if (Boolean.FALSE.equals(isRead) && title.equals(notifTitle)) {
+                    String relatedId = (String) notif.get("related_id");
+                    String notifMsg = (String) notif.get("message");
+                    if (displayId.equals(relatedId)) {
+                        target = notif;
+                        break;
+                    } else if (relatedId == null && notifMsg != null && notifMsg.contains(displayId)) {
+                        target = notif;
+                        break;
+                    }
                 }
             }
             
@@ -53,24 +59,22 @@ public class NotificationService {
                 }
                 count++;
                 
-                String senderRoleStr = "Vendor";
-                if (title.contains("Customer")) senderRoleStr = "Customer";
-                else if (title.contains("Personnel")) senderRoleStr = "Assigned personnel";
-                
-                String newMsgStr = "You have (" + count + ") new messages from " + senderRoleStr + " on " + displayId;
+                String newMsgStr = "💬 " + senderName + " sent you (" + count + ") new messages regarding booking " + displayId;
                 
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("created_at", new java.util.Date());
                 updates.put("message", newMsgStr);
                 updates.put("msg_count", count);
+                updates.put("related_id", displayId);
                 
                 firestoreService.update("notifications", (String) target.get("id"), updates);
             } else {
-                String senderRoleStr = "Vendor";
-                if (title.contains("Customer")) senderRoleStr = "Customer";
-                else if (title.contains("Personnel")) senderRoleStr = "Assigned personnel";
-                
-                String newMsgStr = "You have (1) new message from " + senderRoleStr + " on " + displayId;
+                String newMsgStr;
+                if (title.contains("Personnel")) {
+                    newMsgStr = "💬 " + senderName + " sent a new message: '" + latestMsg + "'";
+                } else {
+                    newMsgStr = "💬 " + senderName + " sent a new message regarding booking " + displayId;
+                }
 
                 Map<String, Object> notif = new HashMap<>();
                 notif.put("user_id", userId);
@@ -79,6 +83,7 @@ public class NotificationService {
                 notif.put("message", newMsgStr);
                 notif.put("is_read", false);
                 notif.put("msg_count", 1);
+                notif.put("related_id", displayId);
                 notif.put("created_at", new java.util.Date());
                 firestoreService.create("notifications", notif);
             }

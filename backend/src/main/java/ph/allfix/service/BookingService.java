@@ -103,29 +103,29 @@ public class BookingService {
         String schedDate = (String) booking.get("scheduled_date");
         String schedTime = (String) booking.get("scheduled_time");
         String details = "ID: " + bookingId + " - " + serviceType;
-        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "Your booking for " + details + " has been confirmed!");
+        String vendorName = "Your Provider";
+        String vendorAuthUid = vendorId;
+        String vendorAvatarUrl = null;
+        if (vendorId != null && !vendorId.trim().isEmpty()) {
+            Map<String, Object> vendor = firestoreService.getById("vendors", vendorId);
+            if (vendor != null) {
+                if (vendor.get("company_name") != null) {
+                    vendorName = (String) vendor.get("company_name");
+                }
+                if (vendor.get("auth_uid") != null) {
+                    vendorAuthUid = (String) vendor.get("auth_uid");
+                }
+                if (vendor.get("avatar_url") != null) {
+                    vendorAvatarUrl = (String) vendor.get("avatar_url");
+                }
+            }
+        }
+
+        if (customerId != null) notificationService.notify(customerId, "customer", "Booking Confirmed", "📋 Booking Confirmed: " + vendorName + " has accepted your request for " + serviceType + ".");
         if (vendorId != null) notificationService.notify(vendorId, "vendor", "Booking Confirmed", "New confirmed booking for " + details + " assigned to you.");
         
         // --- PHASE 1 REAL-TIME CHAT INIT ---
         try {
-            String vendorName = "Your Provider";
-            String vendorAuthUid = vendorId;
-            String vendorAvatarUrl = null;
-            if (vendorId != null && !vendorId.trim().isEmpty()) {
-                Map<String, Object> vendor = firestoreService.getById("vendors", vendorId);
-                if (vendor != null) {
-                    if (vendor.get("company_name") != null) {
-                        vendorName = (String) vendor.get("company_name");
-                    }
-                    if (vendor.get("auth_uid") != null) {
-                        vendorAuthUid = (String) vendor.get("auth_uid");
-                    }
-                    if (vendor.get("avatar_url") != null) {
-                        vendorAvatarUrl = (String) vendor.get("avatar_url");
-                    }
-                }
-            }
-
             String customerAuthUid = customerId;
             if (customerId != null && !customerId.trim().isEmpty()) {
                 Map<String, Object> customer = firestoreService.getById("customers", customerId);

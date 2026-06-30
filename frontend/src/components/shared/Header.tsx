@@ -194,9 +194,11 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                               if (messageLower.includes('refund')) {
                                 navigate(`/${role}/refunds`);
                               } else {
+                                const relatedId = item.related_id;
                                 const match = item.message.match(/(BK-\d+|HQ Chat)/i);
-                                if (match) {
-                                  const bookingId = match[1];
+                                const bookingId = relatedId || (match ? match[1] : null);
+
+                                if (bookingId) {
                                   if (messageLower.includes('message')) {
                                       if (role === 'personnel') {
                                           navigate(`/${role}/bookings`, { state: { bookingId } });
@@ -220,23 +222,47 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                             <p className={`text-[13px] leading-relaxed break-words pr-2 ${isRead ? 'text-slate-600 dark:text-slate-400 font-medium' : 'text-slate-800 dark:text-slate-100 font-semibold'}`}>
                               {item.message}
                             </p>
-                            {!isRead && (
-                              <div className="mt-1.5 flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Recently</span>
-                              </div>
-                            )}
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                                {(() => {
+                                  let time = 0;
+                                  const d = item.created_at;
+                                  if (!d) return '';
+                                  if (typeof d === 'string') time = new Date(d).getTime();
+                                  else if (d.seconds) time = d.seconds * 1000;
+                                  else if (d._seconds) time = d._seconds * 1000;
+                                  if (!time) return '';
+                                  
+                                  const diff = Math.floor((new Date().getTime() - time) / 1000);
+                                  if (diff < 60) return 'Just now';
+                                  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                                  if (diff < 86400) return `> ${Math.floor(diff / 3600)}h ago`;
+                                  return `${Math.floor(diff / 86400)}d ago`;
+                                })()}
+                              </span>
+                              {!isRead && (
+                                <>
+                                  <span className="text-slate-300 dark:text-slate-700">&middot;</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Unread</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                     );
                   })}
                   </div>
                   {!expanded && sortedNotifications.filter(n => filter === 'all' || !(n.is_read || n.read)).length > 5 && (
-                    <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-center sticky bottom-0">
+                    <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-center sticky bottom-0 mt-2 pt-4">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setExpanded(true);
+                          setShowDropdown(false);
+                          const role = profile?.role?.toLowerCase() || 'customer';
+                          navigate(`/${role}/notifications`, { state: { resetFilter: true } });
                         }}
                         className="text-[13px] font-bold text-brand-navy dark:text-blue-400 hover:underline flex items-center gap-1 transition-all"
                       >

@@ -5,7 +5,7 @@ import api from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import { EmptyState } from '../shared/EmptyState';
 import { AdminPageHeader } from './AdminPageHeader';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 export function NotificationsTab() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -13,6 +13,15 @@ export function NotificationsTab() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.resetFilter) {
+      setCategoryFilter('All');
+      // Clear the state so it doesn't get stuck if they navigate away and back
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const getCategory = (n: any) => {
     const t = (n.type || n.title || '').toLowerCase();
@@ -284,8 +293,9 @@ export function NotificationsTab() {
                     const title = (n.type || n.title || '').toLowerCase();
                     const message = (n.message || '').toLowerCase();
                     
+                    const relatedId = n.related_id;
                     const match = n.message.match(/(BK-\d+|HQ Chat)/i);
-                    const bookingId = match ? match[1] : null;
+                    const bookingId = relatedId || (match ? match[1] : null);
 
                     // Cancellation or Refund -> Refunds tab (Admin/Customer), Bookings tab (Vendor/Personnel)
                     if (title.includes('cancel') || title.includes('refund') || message.includes('cancel') || message.includes('refund')) {
