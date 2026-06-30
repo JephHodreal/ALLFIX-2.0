@@ -289,8 +289,8 @@ function PersonnelBookings() {
   const statusBadge = (status: string) => {
     const cls: Record<string, string> = {
       pending: 'badge-pending',
-      confirmed: 'badge-confirmed',
       in_progress: 'badge-in-progress',
+      job_done: 'badge-in-progress bg-blue-100 text-blue-800',
       completed: 'badge-completed',
       cancelled: 'badge-cancelled',
     };
@@ -523,7 +523,7 @@ function PersonnelBookings() {
           {selectedBooking.status === 'in_progress' && (
             <button
               className="flex items-center justify-center gap-2 p-3 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => handleUpdateStatus('completed', 'Completed')}
+              onClick={() => handleUpdateStatus('job_done', 'Job Done')}
             >
               <ClipboardList className="w-5 h-5" /> Complete Job
             </button>
@@ -609,6 +609,7 @@ function PersonnelBookings() {
               pending: 'badge-pending',
               confirmed: 'badge-confirmed',
               in_progress: 'badge-in-progress',
+              job_done: 'badge-in-progress bg-blue-100 text-blue-800',
               completed: 'badge-completed',
               cancelled: 'badge-cancelled',
             };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
-import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag, ShieldCheck, LifeBuoy, CheckCircle } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
@@ -1552,18 +1552,36 @@ function BookingsTab() {
     reader.readAsDataURL(file);
   };
 
+  const location = useLocation();
+
   useEffect(() => {
     api.get('/api/bookings')
-      .then(r => setBookings(r.data))
+      .then(r => {
+        const fetchedBookings = r.data || [];
+        setBookings(fetchedBookings);
+        
+        if (location.state?.bookingId && fetchedBookings.length > 0) {
+          const b = fetchedBookings.find((bk: any) => bk.id === location.state.bookingId || bk.uid === location.state.bookingId);
+          if (b) {
+            setSelectedBooking(b);
+            if (location.state.openAddon) {
+               // In AdminDashboard, verification is done per addon. 
+               // No specific modal opens automatically by default unless we set it.
+               // We just open the booking details.
+            }
+          }
+        }
+      })
       .catch(() => { })
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.state?.bookingId]);
 
   const statusBadge = (status: string) => {
     const cls: Record<string, string> = {
       pending: 'badge-pending',
       confirmed: 'badge-confirmed',
       in_progress: 'badge-in-progress',
+      job_done: 'badge-in-progress bg-blue-100 text-blue-800',
       completed: 'badge-completed',
       cancellation_requested: 'bg-rose-500/10 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-500/20 font-semibold px-2.5 py-1 rounded-xl text-[11px] tracking-wide'
     };
@@ -1766,7 +1784,7 @@ function BookingsTab() {
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{selectedBooking.price || '0.00'}</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Quantity:</span>
@@ -1790,7 +1808,7 @@ function BookingsTab() {
               )}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
                 <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
-                <span className="col-span-2 text-lg font-black text-brand-green">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+                <span className="col-span-2 text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
@@ -1860,12 +1878,12 @@ function BookingsTab() {
                   Additional Charges / Add-ons
                 </h4>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[320px] overflow-y-auto pr-1">
                 {selectedBooking.add_ons.map((addon: any) => (
                   <div key={addon.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="font-bold text-slate-900 dark:text-white text-sm">{addon.description}</div>
-                      <div className="font-black text-brand-green">₱{addon.amount}</div>
+                      <div className="font-bold text-slate-900 dark:text-white text-sm flex-1">{addon.description}</div>
+                      <div className="font-black text-brand-green w-24 text-right shrink-0">₱{Number(addon.amount).toFixed(2)}</div>
                     </div>
                     
                     <div className="space-y-1.5 text-xs">

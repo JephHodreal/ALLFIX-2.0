@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle } from 'lucide-react';
+import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -235,14 +235,14 @@ function VendorBookings() {
       .map((b: any) => b.personnel_id)
   );
   console.log('[CAVEMAN] activePersonnelIds (busy personnel):', Array.from(activePersonnelIds));
-
   const statusBadge = (status: string) => {
     const cls: Record<string, string> = {
       pending: 'badge-pending',
       confirmed: 'badge-confirmed',
       in_progress: 'badge-in-progress',
+      job_done: 'badge-in-progress bg-blue-100 text-blue-800',
       completed: 'badge-completed',
-      cancelled: 'badge-cancelled'
+      cancelled: 'badge-cancelled',
     };
     return <span className={cls[status] || 'badge'}>{status?.replace('_', ' ')}</span>;
   };
@@ -302,6 +302,20 @@ function VendorBookings() {
       showAlert({ title: 'Error', message: err.response?.data?.message || 'Failed to request add-on.', type: 'danger', hideCancel: true });
     } finally {
       setSubmittingAddon(false);
+    }
+  };
+
+  const handleDeleteAddon = async (addonId: string) => {
+    try {
+      await api.delete(`/api/bookings/${selectedBooking.id}/addons/${addonId}`);
+      if (!profile?.id) return;
+      const r = await api.get(`/api/bookings/vendor/${profile.id}`);
+      setBookings(r.data || []);
+      const updatedBooking = (r.data || []).find((b: any) => b.id === selectedBooking.id);
+      if (updatedBooking) setSelectedBooking(updatedBooking);
+      showAlert({ title: 'Success', message: 'Add-on cancelled successfully.', type: 'success', hideCancel: true });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.response?.data?.message || 'Failed to cancel add-on.', type: 'danger', hideCancel: true });
     }
   };
 
@@ -448,9 +462,9 @@ function VendorBookings() {
       : matchedPersonnel;
 
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto">
         {/* Header with Back button */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -476,9 +490,9 @@ function VendorBookings() {
         {/* Two column layout: Booking Info & Payment Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Booking Info Card */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Service Category:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-bold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
@@ -535,15 +549,15 @@ function VendorBookings() {
           </Card>
 
           {/* Payment Info Card */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
             <div className="flex justify-between items-center border-b pb-2 border-slate-100 dark:border-slate-800">
               <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Payment & Pricing</h4>
             </div>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
                 <div className="col-span-2">
-                  <span className="text-slate-900 dark:text-white font-semibold">₱{selectedBooking.price || '0.00'}</span>
+                  <span className="text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
@@ -569,7 +583,7 @@ function VendorBookings() {
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850 items-center">
                 <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
                 <div className="col-span-2">
-                  <span className="text-lg font-black text-brand-green">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+                  <span className="text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
@@ -594,13 +608,13 @@ function VendorBookings() {
 
             {/* Additional Charges / Add-ons Section */}
             {((selectedBooking.add_ons && selectedBooking.add_ons.length > 0) || (selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned')) && (
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Additional Charges</h4>
                   {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
                     <button
                       onClick={() => setShowAddonModal(true)}
-                      className="text-xs font-bold text-brand-navy hover:text-brand-blue flex items-center gap-1 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 px-2 py-1 rounded transition-colors"
+                      className="text-xs font-bold text-brand-navy dark:text-slate-200 hover:text-brand-blue dark:hover:text-white flex items-center gap-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add Extra Service / Parts
                     </button>
@@ -608,22 +622,34 @@ function VendorBookings() {
                 </div>
                 
                 {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                     {selectedBooking.add_ons.map((addon: any) => (
-                      <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-sm">
-                        <div className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                          {addon.description} <span className="font-bold text-slate-900 dark:text-white">₱{addon.amount}</span>
+                      <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-sm gap-3">
+                        <div className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 pr-2">
+                          {addon.description}
                         </div>
-                        <div className="mt-2 sm:mt-0 flex-shrink-0">
-                          {addon.status === 'pending_approval' && (
-                            <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Pending Cust. Approval</span>
-                          )}
-                          {addon.status === 'pending_verification' && (
-                            <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Pending Admin Verif.</span>
-                          )}
-                          {addon.status === 'confirmed' && (
-                            <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md">Confirmed</span>
-                          )}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="font-bold text-slate-900 dark:text-white shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {addon.status === 'pending_approval' && (
+                              <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md whitespace-nowrap">Pending Cust. Approval</span>
+                            )}
+                            {addon.status === 'pending_verification' && (
+                              <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md whitespace-nowrap">Pending Admin Verif.</span>
+                            )}
+                            {addon.status === 'confirmed' && (
+                              <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md whitespace-nowrap">Confirmed</span>
+                            )}
+                            {addon.status === 'pending_approval' && (
+                              <button
+                                onClick={() => handleDeleteAddon(addon.id)}
+                                className="text-slate-400 hover:text-red-500 transition-colors p-1 -mr-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                title="Cancel Request"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -666,7 +692,7 @@ function VendorBookings() {
 
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && !showAssignPersonnelModal && (
-          <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
+          <div className="flex flex-wrap gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80 mt-2">
             {selectedBooking.status === 'confirmed' && (
               <Button
                 variant="outline"
@@ -690,14 +716,19 @@ function VendorBookings() {
                 Assign Personnel
               </Button>
             )}
-            {selectedBooking.status === 'in_progress' && (
+            {(selectedBooking.status === 'in_progress' || selectedBooking.status === 'job_done') && (
               <Button
                 variant="outline"
-                className="flex-grow sm:flex-1 py-3 text-sm font-bold rounded-xl border-2 !border-emerald-500 !text-emerald-600 !bg-transparent hover:!bg-emerald-50 dark:hover:!bg-emerald-950/30 min-w-[150px] transition-colors shadow-none flex items-center justify-center gap-2"
+                disabled={selectedBooking.status === 'in_progress'}
+                className={`flex-grow sm:flex-1 py-3 text-sm font-bold rounded-xl border-2 min-w-[150px] transition-colors shadow-none flex items-center justify-center gap-2 ${
+                  selectedBooking.status === 'job_done'
+                    ? '!border-emerald-500 !text-emerald-600 !bg-transparent hover:!bg-emerald-50 dark:hover:!bg-emerald-950/30 cursor-pointer'
+                    : 'border-slate-300 text-slate-400 bg-slate-50 dark:border-slate-700 dark:text-slate-500 dark:bg-slate-900 cursor-not-allowed opacity-60'
+                }`}
                 onClick={() => setShowCompleteConfirm(true)}
               >
-                <AlertCircle className="w-4 h-4" />
-                Mark as Completed (Override)
+                {selectedBooking.status === 'job_done' ? <AlertCircle className="w-4 h-4" /> : <ClipboardList className="w-4 h-4" />}
+                {selectedBooking.status === 'job_done' ? 'Confirm Completion' : 'Waiting for Personnel to Complete'}
               </Button>
             )}
           </div>
@@ -1004,7 +1035,7 @@ function VendorBookings() {
                     type="text"
                     value={addonDescription}
                     onChange={(e) => setAddonDescription(e.target.value)}
-                    placeholder="e.g. Replacement Motherboard"
+                    placeholder="Enter the part name or additional service..."
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-navy/50 focus:border-brand-navy transition-all text-sm"
                   />
                 </div>
@@ -1016,27 +1047,29 @@ function VendorBookings() {
                       type="number"
                       value={addonAmount}
                       onChange={(e) => setAddonAmount(e.target.value)}
-                      placeholder="4500"
+                      placeholder="0.00"
                       className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-navy/50 focus:border-brand-navy transition-all text-sm font-semibold"
                     />
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                  This will send a request to the customer. They must explicitly approve and pay for this additional charge through the app before it is confirmed.
-                </p>
+                <div className="flex items-start gap-2.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    This will send a request to the customer. They must explicitly approve and pay for this additional charge through the app before it is confirmed.
+                  </p>
+                </div>
               </div>
               <div className="flex border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => setShowAddonModal(false)}
-                  className="flex-1 px-4 py-4 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="flex-1 px-4 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-transparent transition-colors"
                 >
                   Cancel
                 </button>
-                <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
                 <button
                   onClick={() => setShowAddonConfirm(true)}
                   disabled={submittingAddon || !addonDescription.trim() || !addonAmount}
-                  className="flex-1 px-4 py-4 text-sm font-bold text-brand-navy dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-4 text-sm font-bold text-white bg-brand-green hover:bg-[#1da04f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingAddon ? 'Submitting...' : 'Request Add-on'}
                 </button>

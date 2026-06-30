@@ -197,9 +197,9 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                                 const relatedId = item.related_id;
                                 const match = item.message.match(/(BK-\d+|HQ Chat)/i);
                                 const bookingId = relatedId || (match ? match[1] : null);
-
                                 if (bookingId) {
                                   const isMessageRelated = messageLower.includes('message') || messageLower.includes('chat') || messageLower.includes('assigned');
+                                  const isAddonRelated = messageLower.includes('additional') || messageLower.includes('add-on') || messageLower.includes('extra') || messageLower.includes('charge');
                                   if (isMessageRelated) {
                                       if (role === 'personnel') {
                                           navigate(`/${role}/bookings`, { state: { bookingId } });
@@ -209,7 +209,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                                           navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
                                       }
                                   } else {
-                                      navigate(`/${role}/bookings`, { state: { bookingId } });
+                                      navigate(`/${role}/bookings`, { state: { bookingId, openAddon: isAddonRelated } });
                                   }
                                 } else {
                                   navigate(`/${role}/notifications`);

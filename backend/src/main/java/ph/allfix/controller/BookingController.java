@@ -83,6 +83,16 @@ public class BookingController {
         }
     }
 
+    @DeleteMapping("/{id}/addons/{addonId}")
+    public ResponseEntity<?> deleteAddon(@PathVariable String id, @PathVariable String addonId) {
+        try {
+            bookingService.deleteAddon(id, addonId);
+            return ResponseEntity.ok(Map.of("message", "Add-on cancelled successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PatchMapping("/{id}/addons/{addonId}/pay")
     public ResponseEntity<?> payAddon(@PathVariable String id, @PathVariable String addonId, @RequestBody Map<String, Object> body) {
         try {

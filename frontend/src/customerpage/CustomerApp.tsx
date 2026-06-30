@@ -485,7 +485,7 @@ function CustomerHome() {
               <div className="flex items-center justify-between">
                 <div><p className="font-medium text-slate-900 dark:text-white">{b.service_type}</p>
                   <p className="text-xs text-slate-500">{b.scheduled_date}</p></div>
-                <span className={b.status === 'completed' ? 'badge-completed' : b.status === 'in_progress' ? 'badge-in-progress' : b.status === 'confirmed' ? 'badge-confirmed' : 'badge-pending'}>{b.status?.replace('_', ' ')}</span>
+                <span className={b.status === 'completed' ? 'badge-completed' : b.status === 'job_done' ? 'badge-in-progress bg-blue-100 text-blue-800' : b.status === 'in_progress' ? 'badge-in-progress' : b.status === 'confirmed' ? 'badge-confirmed' : 'badge-pending'}>{b.status?.replace('_', ' ')}</span>
               </div>
             </Card>
           ))}
@@ -1475,11 +1475,30 @@ function MyBookingsTab() {
   const [addonReferenceNumber, setAddonReferenceNumber] = useState('');
   const [addonPaymentSubmitting, setAddonPaymentSubmitting] = useState(false);
 
+  const location = useLocation();
+
   const fetchBookings = () => {
     if (profile?.id) {
       setLoading(true);
       api.get(`/api/bookings/customer/${profile.id}`)
-        .then(r => setBookings(r.data || []))
+        .then(r => {
+          const fetchedBookings = r.data || [];
+          setBookings(fetchedBookings);
+          
+          // Auto-open booking and addon based on navigation state
+          if (location.state?.bookingId && fetchedBookings.length > 0) {
+            const b = fetchedBookings.find((bk: any) => bk.id === location.state.bookingId || bk.uid === location.state.bookingId);
+            if (b) {
+              setSelectedBooking(b);
+              if (location.state.openAddon) {
+                const pendingAddon = b.add_ons?.find((a: any) => a.status === 'pending_approval');
+                if (pendingAddon) {
+                  setShowAddonPaymentModal(pendingAddon.id);
+                }
+              }
+            }
+          }
+        })
         .catch(() => { })
         .finally(() => setLoading(false));
     } else {
@@ -1489,7 +1508,7 @@ function MyBookingsTab() {
 
   useEffect(() => {
     fetchBookings();
-  }, [profile]);
+  }, [profile, location.state?.bookingId]);
 
   const statusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
@@ -1664,7 +1683,7 @@ function MyBookingsTab() {
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{selectedBooking.price || '0.00'}</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Quantity:</span>
@@ -1688,7 +1707,7 @@ function MyBookingsTab() {
               )}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-900 dark:text-white font-black">Total:</span>
-                <span className="col-span-2 text-lg font-black text-slate-900 dark:text-white font-semibold">₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}</span>
+                <span className="col-span-2 text-lg font-black text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
@@ -1737,14 +1756,14 @@ function MyBookingsTab() {
                   Additional Charges
                 </h4>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
                 {selectedBooking.add_ons.map((addon: any) => (
-                  <div key={addon.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-bold text-slate-900 dark:text-white text-sm">{addon.description}</div>
-                      <div className="font-black text-brand-green">₱{addon.amount}</div>
+                  <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-sm">
+                    <div className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-1">
+                      <span className="flex-1">{addon.description}</span>
+                      <span className="font-bold text-slate-900 dark:text-white w-24 text-right mx-4 shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
                     </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <div className="mt-2 sm:mt-0 flex-shrink-0 flex items-center gap-3">
                       <div>
                         {addon.status === 'pending_approval' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Action Required</span>}
                         {addon.status === 'pending_verification' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Verifying Payment</span>}

@@ -299,6 +299,29 @@ public class BookingService {
         }
     }
 
+    public void deleteAddon(String bookingId, String addonId) throws Exception {
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found");
+
+        List<Map<String, Object>> addOns = (List<Map<String, Object>>) booking.get("add_ons");
+        if (addOns == null) throw new RuntimeException("No add-ons found");
+
+        Map<String, Object> addonToRemove = null;
+        for (Map<String, Object> addon : addOns) {
+            if (addonId.equals(addon.get("id"))) {
+                addonToRemove = addon;
+                break;
+            }
+        }
+        if (addonToRemove == null) throw new RuntimeException("Add-on not found");
+        if (!"pending_approval".equals(addonToRemove.get("status"))) {
+            throw new RuntimeException("Only pending add-ons can be cancelled");
+        }
+
+        addOns.remove(addonToRemove);
+        firestoreService.updateField("bookings", bookingId, "add_ons", addOns);
+    }
+
     public void payAddon(String bookingId, String addonId, Map<String, Object> body) throws Exception {
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found");
