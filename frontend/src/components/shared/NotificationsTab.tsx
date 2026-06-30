@@ -284,8 +284,8 @@ export function NotificationsTab() {
                     const title = (n.type || n.title || '').toLowerCase();
                     const message = (n.message || '').toLowerCase();
                     
-                    const match = n.message.match(/BK-\d+/);
-                    const bookingId = match ? match[0] : null;
+                    const match = n.message.match(/(BK-\d+|HQ Chat)/i);
+                    const bookingId = match ? match[1] : null;
 
                     // Cancellation or Refund -> Refunds tab (Admin/Customer), Bookings tab (Vendor/Personnel)
                     if (title.includes('cancel') || title.includes('refund') || message.includes('cancel') || message.includes('refund')) {
@@ -315,6 +315,17 @@ export function NotificationsTab() {
                         navigate(`/admin/vendors-management`);
                         return;
                       }
+                    }
+
+                    // Message routes for Customer, Vendor, Personnel
+                    if (title.includes('message') || message.includes('message')) {
+                       if (role === 'personnel') {
+                          navigate(`/${role}/bookings`, { state: { bookingId } });
+                       } else {
+                          const openChannel = title.includes('personnel') || message.includes('personnel') || message.includes('technician') ? 'personnel' : 'vendor';
+                          navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
+                       }
+                       return;
                     }
 
                     // Default to bookings if there's a booking ID

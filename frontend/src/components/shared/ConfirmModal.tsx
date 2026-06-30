@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 import { Button } from './Button';
@@ -80,7 +81,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -134,6 +135,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

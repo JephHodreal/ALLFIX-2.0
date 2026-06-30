@@ -11,6 +11,7 @@ export interface ChatMessage {
   is_logistics?: boolean;
   delivery_status?: 'sending' | 'failed';
   sender_avatar?: string;
+  is_read?: boolean;
 }
 
 export interface ChatThread {
@@ -73,10 +74,22 @@ export function useChatThreads(participants: (string | undefined)[], role: 'cust
   return { threads, loading };
 }
 
-export function useChatMessages(threadId: string | null) {
+export function useChatMessages(threadId: string | null, userId?: string) {
   const [firestoreMessages, setFirestoreMessages] = useState<ChatMessage[]>([]);
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (firestoreMessages.length > 0 && userId && threadId) {
+      const unreadMsgs = firestoreMessages.filter(m => m.sender_id !== userId && !m.is_read);
+      if (unreadMsgs.length > 0) {
+        unreadMsgs.forEach(m => {
+          const msgRef = doc(db, 'chat_threads', threadId, 'messages', m.id);
+          updateDoc(msgRef, { is_read: true }).catch(console.error);
+        });
+      }
+    }
+  }, [firestoreMessages, userId, threadId]);
 
   useEffect(() => {
     if (!threadId) {

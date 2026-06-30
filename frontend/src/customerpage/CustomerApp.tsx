@@ -3999,8 +3999,10 @@ function CustomerMessages() {
   const { threads, loading: threadsLoading } = useChatThreads([user?.uid, profile?.id], 'customer');
   const { bookings } = useBookings(profile?.id, 'customer');
   
+  const location = useLocation();
   const [selectedThread, setSelectedThread] = useState<any>(null);
   const [activeChannel, setActiveChannel] = useState<'vendor'|'personnel'>('vendor');
+  const [initialized, setInitialized] = useState(false);
   
   // Find associated booking for selected thread
   const selectedBooking = useMemo(() => {
@@ -4010,6 +4012,21 @@ function CustomerMessages() {
   
   const showPersonnelTab = selectedBooking?.status === 'dispatched' || selectedBooking?.status === 'in_progress' || selectedBooking?.status === 'in-transit';
 
+  useEffect(() => {
+    if (threads.length > 0 && !initialized) {
+      setInitialized(true);
+      if (location.state?.bookingId) {
+        const found = threads.find(t => t.id === location.state.bookingId);
+        if (found) {
+          setSelectedThread(found);
+          if (location.state.openChannel === 'personnel') {
+            setActiveChannel('personnel');
+          }
+        }
+      }
+    }
+  }, [threads, location.state, initialized]);
+
   const isHardLocked = useMemo(() => {
     if (selectedBooking?.status !== 'completed') return false;
     const completedAt = selectedBooking?.completed_at ? new Date(selectedBooking.completed_at) : null;
@@ -4018,12 +4035,20 @@ function CustomerMessages() {
     return hoursSinceCompletion > 48;
   }, [selectedBooking]);
   
-  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null);
+  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null, user?.uid);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLength = useRef(0);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const timeout = setTimeout(() => {
+      if (messagesEndRef.current) {
+        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0;
+        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
+        prevMessagesLength.current = messages.length;
+      }
+    }, 100);
+    return () => clearTimeout(timeout);
   }, [messages, activeChannel]);
 
   useEffect(() => {
@@ -4043,14 +4068,14 @@ function CustomerMessages() {
   };
 
   return (
-    <div className="space-y-6 h-[calc(100vh-120px)] flex flex-col">
+    <div className="space-y-4 h-[calc(100vh-112px)] flex flex-col">
       <AdminPageHeader
         title="Messages"
         subtitle="Coordinate directly with your service providers and technicians."
         icon={<MessageSquare />}
       />
 
-      <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex h-full min-h-[600px]">
+      <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex min-h-0">
         {/* Left Pane (30%) */}
         <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
@@ -4091,7 +4116,7 @@ function CustomerMessages() {
           {selectedThread ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm relative">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
                     {activeChannel === 'vendor' ? (
@@ -4112,40 +4137,74 @@ function CustomerMessages() {
                     <h3 className="font-bold text-slate-800 dark:text-white">
                       {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
                     </h3>
-                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Online
-                    </p>
+                    {activeChannel === 'vendor' ? (
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Online
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-bold flex items-center gap-1 mt-0.5">
+                        {selectedBooking?.status === 'assigned' && <span className="text-slate-500">🟡 Personnel Assigned</span>}
+                        {selectedBooking?.status === 'dispatched' && <span className="text-emerald-600 dark:text-emerald-400">🟢 On the way (ETA: 15 mins)</span>}
+                        {selectedBooking?.status === 'in-transit' && <span className="text-orange-600 dark:text-orange-400">📍 Arriving soon</span>}
+                        {selectedBooking?.status === 'in_progress' && <span className="text-blue-600 dark:text-blue-400">🔵 Working on-site</span>}
+                        {selectedBooking?.status === 'completed' && <span className="text-slate-500">✅ Job Completed</span>}
+                        {!['assigned', 'dispatched', 'in-transit', 'in_progress', 'completed'].includes(selectedBooking?.status) && <span className="text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Online</span>}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                  <button
-                    onClick={() => setActiveChannel('vendor')}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      activeChannel === 'vendor' 
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    Vendor
-                  </button>
-                  {showPersonnelTab && (
+                <div className="flex items-center gap-2">
+                  {activeChannel === 'personnel' && (
                     <button
-                      onClick={() => setActiveChannel('personnel')}
+                      onClick={() => window.confirm(`Call ${selectedThread?.personnel_name}?`)}
+                      className="p-2 rounded-xl bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-white transition-colors border border-brand-green/20"
+                      title="Call Personnel"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                      </svg>
+                    </button>
+                  )}
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                    <button
+                      onClick={() => setActiveChannel('vendor')}
                       className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        activeChannel === 'personnel' 
+                        activeChannel === 'vendor' 
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
                           : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                       }`}
                     >
-                      Assigned Personnel
+                      Vendor
                     </button>
-                  )}
+                    {showPersonnelTab && (
+                      <button
+                        onClick={() => setActiveChannel('personnel')}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                          activeChannel === 'personnel' 
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        Assigned Personnel
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-6">
+              <div className="flex-1 p-6 overflow-y-auto">
+                {activeChannel === 'personnel' && selectedThread?.personnel_name && (
+                  <div className="flex justify-center w-full mt-2 mb-2">
+                    <div className="bg-amber-50/80 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 border border-amber-200/60 dark:border-amber-800/50 text-xs px-5 py-3 rounded-2xl max-w-[85%] shadow-sm font-medium flex items-start sm:items-center gap-3">
+                      <span className="text-lg leading-none">🔒</span>
+                      <p className="leading-snug">
+                        For your safety, <strong>{selectedThread.vendor_name || 'the vendor'}</strong> has assigned <strong>{selectedThread.personnel_name}</strong> to your booking. Please ask for their AllFix ID upon arrival.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {messages.filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics).length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-slate-500 text-sm">No messages yet. Send a message to start the conversation.</p>
@@ -4153,31 +4212,102 @@ function CustomerMessages() {
                 ) : (
                   messages
                     .filter(m => activeChannel === 'personnel' ? m.is_logistics : !m.is_logistics)
-                    .map(msg => {
+                    .map((msg, index, arr) => {
                     const isMe = msg.sender_id === user?.uid;
-                    return (
-                      <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
-                          {msg.sender_avatar ? (
-                            <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                              {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
-                            </span>
+                    const isSystem = msg.sender_role === 'system';
+                    
+                    const nextMsg = index < arr.length - 1 ? arr[index + 1] : null;
+                    const isNextSame = nextMsg && nextMsg.sender_id === msg.sender_id && nextMsg.sender_role !== 'system';
+                    const showAvatar = !isMe && !isSystem && !isNextSame;
+
+                    const currentMsgDate = msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)) : new Date();
+                    
+                    let showDateSeparator = false;
+                    let dateLabel = '';
+                    
+                    if (index === 0) {
+                      showDateSeparator = true;
+                    } else {
+                      const prevMsg = arr[index - 1];
+                      const prevMsgDate = prevMsg.created_at ? (typeof prevMsg.created_at.toDate === 'function' ? prevMsg.created_at.toDate() : new Date(prevMsg.created_at)) : new Date();
+                      showDateSeparator = currentMsgDate.toDateString() !== prevMsgDate.toDateString();
+                    }
+                    
+                    if (showDateSeparator) {
+                      const today = new Date();
+                      const yesterday = new Date();
+                      yesterday.setDate(yesterday.getDate() - 1);
+                      if (currentMsgDate.toDateString() === today.toDateString()) {
+                        dateLabel = 'Today';
+                      } else if (currentMsgDate.toDateString() === yesterday.toDateString()) {
+                        dateLabel = 'Yesterday';
+                      } else {
+                        dateLabel = currentMsgDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', weekday: 'long' });
+                      }
+                    }
+
+                    if (isSystem) {
+                      return (
+                        <div key={msg.id} className="flex flex-col w-full">
+                          {showDateSeparator && (
+                            <div className="flex justify-center mb-4 mt-2 w-full">
+                              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                                {dateLabel}
+                              </span>
+                            </div>
                           )}
+                          <div className="flex justify-center w-full my-4">
+                            <div className="bg-brand-green/10 text-brand-green border border-brand-green/20 text-xs px-5 py-2.5 rounded-2xl text-center max-w-[85%] shadow-sm font-medium">
+                              {msg.text}
+                            </div>
+                          </div>
                         </div>
-                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                          <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
+                      );
+                    }
+
+                    return (
+                      <div key={msg.id} className="flex flex-col w-full">
+                        {showDateSeparator && (
+                          <div className="flex justify-center mb-4 mt-2 w-full">
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                              {dateLabel}
+                            </span>
+                          </div>
+                        )}
+                        <div className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${isNextSame ? 'mb-1.5' : 'mb-6'} w-full`}>
+                          {!isMe && (
+                          <div className={`flex-shrink-0 flex items-end justify-center ${showAvatar ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-0 sm:w-0'}`}>
+                            {showAvatar && (
+                              <div className="w-full h-full rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                                {msg.sender_avatar ? (
+                                  <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover bg-white" />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                    {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
+                          <div className={`rounded-2xl px-4 py-3 min-w-[120px] text-sm ${
                             isMe 
-                              ? 'bg-brand-navy text-white rounded-tr-none' 
-                              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
+                              ? 'bg-brand-navy text-white rounded-br-none shadow-md' 
+                              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none border border-slate-100 dark:border-slate-700 shadow-sm'
                           }`}>
                             <p>{msg.text}</p>
-                            <span className={`text-[10px] mt-1 block text-right ${isMe ? 'text-slate-300' : 'text-slate-400'}`}>
+                            <span className={`text-[10px] mt-1.5 flex justify-end items-center gap-1.5 ${isMe ? 'text-slate-200' : 'text-slate-400/80'}`}>
                               {msg.created_at?.toDate ? msg.created_at.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                              {isMe && (
+                                <span className={msg.is_read ? 'text-blue-200 font-black tracking-tighter text-[11px]' : 'text-slate-300/60 font-bold'}>
+                                  {msg.is_read ? '✓✓' : '✓'}
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>
+                      </div>
                       </div>
                     );
                   })

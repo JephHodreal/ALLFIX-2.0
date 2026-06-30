@@ -194,10 +194,19 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                               if (messageLower.includes('refund')) {
                                 navigate(`/${role}/refunds`);
                               } else {
-                                const match = item.message.match(/BK-\d+/);
+                                const match = item.message.match(/(BK-\d+|HQ Chat)/i);
                                 if (match) {
-                                  const bookingId = match[0];
-                                  navigate(`/${role}/bookings`, { state: { bookingId } });
+                                  const bookingId = match[1];
+                                  if (messageLower.includes('message')) {
+                                      if (role === 'personnel') {
+                                          navigate(`/${role}/bookings`, { state: { bookingId } });
+                                      } else {
+                                          const openChannel = messageLower.includes('personnel') || messageLower.includes('technician') ? 'personnel' : 'vendor';
+                                          navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
+                                      }
+                                  } else {
+                                      navigate(`/${role}/bookings`, { state: { bookingId } });
+                                  }
                                 } else {
                                   navigate(`/${role}/notifications`);
                                 }

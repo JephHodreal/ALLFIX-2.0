@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ph.allfix.service.FirestoreService;
 
+import ph.allfix.service.NotificationService;
+
 import java.util.*;
 
 @RestController
@@ -14,9 +16,11 @@ import java.util.*;
 public class MessageController {
 
     private final FirestoreService firestoreService;
+    private final NotificationService notificationService;
 
-    public MessageController(FirestoreService firestoreService) {
+    public MessageController(FirestoreService firestoreService, NotificationService notificationService) {
         this.firestoreService = firestoreService;
+        this.notificationService = notificationService;
     }
 
     @PostMapping
@@ -97,6 +101,56 @@ public class MessageController {
 
             // Update thread's updated_at
             db.collection("chat_threads").document(threadId).update("updated_at", FieldValue.serverTimestamp()).get();
+
+            // --- Notifications ---
+            try {
+                // Proceed with notifications regardless of chat_threads document existence
+                String customerId = null;
+                String vendorId = null;
+                String technicianId = null;
+
+                if (threadId.startsWith("hq_")) {
+                    String[] parts = threadId.split("_");
+                    if (parts.length == 3) {
+                        technicianId = parts[1]; // PER-xxx
+                        vendorId = parts[2];     // VEN-xxx
+                    }
+                } else {
+                    // Customer thread (threadId is bookingId)
+                    Map<String, Object> booking = firestoreService.getById("bookings", threadId);
+                    if (booking != null) {
+                        customerId = (String) booking.get("customer_id"); // CUS-xxx
+                        vendorId = (String) booking.get("vendor_id");     // VEN-xxx
+                        technicianId = (String) booking.get("personnel_id"); // PER-xxx (if assigned)
+                    }
+                }
+
+                String displayId = threadId.startsWith("hq_") ? "HQ Chat" : threadId;
+                String title = "New Message";
+                String notifMessage = "New message received on " + displayId;
+
+                if ("customer".equalsIgnoreCase(senderRole)) {
+                    title = "New Message from Customer";
+                    notifMessage = "Customer sent a new message on " + displayId;
+                    if (vendorId != null && !isLogistics) notificationService.notifyMessage(vendorId, "vendor", title, notifMessage, displayId);
+                    if (isLogistics && technicianId != null) notificationService.notifyMessage(technicianId, "personnel", title, notifMessage, displayId);
+                } else if ("vendor".equalsIgnoreCase(senderRole)) {
+                    title = "New Message from Vendor";
+                    notifMessage = "Vendor sent a new message on " + displayId;
+                    if (customerId != null && !isLogistics) notificationService.notifyMessage(customerId, "customer", title, notifMessage, displayId);
+                    if (technicianId != null && isLogistics) notificationService.notifyMessage(technicianId, "personnel", title, notifMessage, displayId);
+                } else if ("technician".equalsIgnoreCase(senderRole)) {
+                    title = "New Message from Personnel";
+                    notifMessage = "Assigned personnel sent a new message on " + displayId;
+                    if (vendorId != null && threadId.startsWith("hq_")) {
+                        notificationService.notifyMessage(vendorId, "vendor", title, notifMessage, displayId);
+                    } else {
+                        if (customerId != null) notificationService.notifyMessage(customerId, "customer", title, notifMessage, displayId);
+                    }
+                }
+            } catch (Exception ex) {
+                System.err.println("MessageController: Failed to send notifications: " + ex.getMessage());
+            }
 
             return ResponseEntity.ok(Map.of("id", msgRef.getId(), "message", "Message sent successfully"));
         } catch (Exception e) {

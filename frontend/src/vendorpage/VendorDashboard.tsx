@@ -3612,10 +3612,12 @@ function VendorMessages() {
   const { confirm: showAlert, ConfirmComponent } = useConfirm();
   const { user, profile } = useAuth();
   const { bookings } = useBookings(profile?.id, 'vendor');
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'customers' | 'team'>('customers');
   const { threads: customerThreads, loading: threadsLoading } = useChatThreads([user?.uid, profile?.id], 'vendor');
   const [selectedThread, setSelectedThread] = useState<any>(null);
   const [personnels, setPersonnels] = useState<any[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -3625,8 +3627,40 @@ function VendorMessages() {
     }
   }, [profile]);
 
-  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null);
+  useEffect(() => {
+    if (customerThreads.length > 0 && !initialized) {
+      setInitialized(true);
+      if (location.state?.bookingId) {
+        const found = customerThreads.find(t => t.id === location.state.bookingId);
+        if (found) {
+          setSelectedThread(found);
+          if (location.state.openChannel === 'personnel') {
+            setActiveTab('team');
+          } else {
+            setActiveTab('customers');
+          }
+        }
+      } else if (location.state?.openChannel === 'personnel') {
+        setActiveTab('team');
+      }
+    }
+  }, [customerThreads, location.state, initialized]);
+
+  const { messages, sendMessage } = useChatMessages(selectedThread?.id || null, user?.uid);
   const [inputText, setInputText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLength = useRef(0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (messagesEndRef.current) {
+        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0;
+        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
+        prevMessagesLength.current = messages.length;
+      }
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [messages, activeTab]);
 
   const activeBooking = bookings?.find((b: any) => b.id === selectedThread?.booking_id);
   const threadStatus = activeBooking?.status || selectedThread?.status;
@@ -3662,7 +3696,7 @@ function VendorMessages() {
   });
 
   return (
-    <div className="space-y-3 h-[calc(100vh-120px)] flex flex-col">
+    <div className="space-y-3 h-[calc(100vh-96px)] flex flex-col">
       <AdminPageHeader
         title="Messages"
         subtitle="Manage customer communications and team dispatch."
@@ -3753,7 +3787,7 @@ function VendorMessages() {
             <>
               {activeTab === 'customers' ? (
                 <>
-                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm relative">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
                         {selectedThread.customer_avatar ? (
@@ -3774,17 +3808,23 @@ function VendorMessages() {
                       View Booking Details
                     </Button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {messages.map((msg, index) => {
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {messages.map((msg: any, idx: number) => {
+                      const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                      const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                      
+                      const isNextSame = nextMsg && nextMsg.sender_id === msg.sender_id && nextMsg.sender_role !== 'system';
+                      const showAvatar = msg.sender_id !== user?.uid && !isNextSame;
+
                       const currentMsgDate = msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)) : new Date();
                       
                       let showDateSeparator = false;
                       let dateLabel = '';
                       
-                      if (index === 0) {
+                      if (idx === 0) {
                         showDateSeparator = true;
                       } else {
-                        const prevMsg = messages[index - 1];
+                        const prevMsg = messages[idx - 1];
                         const prevMsgDate = prevMsg.created_at ? (typeof prevMsg.created_at.toDate === 'function' ? prevMsg.created_at.toDate() : new Date(prevMsg.created_at)) : new Date();
                         
                         showDateSeparator = currentMsgDate.toDateString() !== prevMsgDate.toDateString();
@@ -3810,7 +3850,7 @@ function VendorMessages() {
                       }
 
                       return (
-                        <div key={msg.id} className="flex flex-col">
+                        <div key={msg.id || idx} className={`flex flex-col ${isNextSame ? 'mb-1.5' : 'mb-4'}`}>
                           {showDateSeparator && (
                             <div className="flex justify-center mb-4 mt-2">
                               <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
@@ -3844,22 +3884,30 @@ function VendorMessages() {
                               </div>
                             ) : (
                               <div className={`flex items-end gap-2 max-w-[70%] ${msg.sender_id === user?.uid ? 'flex-row-reverse' : 'flex-row'}`}>
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
-                                  {msg.sender_avatar ? (
-                                    <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                      {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'HQ'}
-                                    </span>
-                                  )}
-                                </div>
+                                {msg.sender_id !== user?.uid && (
+                                  <div className={`flex-shrink-0 flex items-end justify-center ${showAvatar ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-0 sm:w-0'}`}>
+                                    {showAvatar && (
+                                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                                        {msg.sender_avatar ? (
+                                          <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                            {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'HQ'}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                                 <div className={`flex flex-col ${msg.sender_id === user?.uid ? 'items-end' : 'items-start'}`}>
-                                  <div className={`rounded-2xl px-4 py-2 shadow-sm ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-100 dark:border-slate-700 rounded-bl-none'}`}>
+                                  <div className={`min-w-[120px] rounded-2xl px-4 py-2.5 shadow-sm ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-100 dark:border-slate-700 rounded-bl-none'}`}>
                                     <p className="text-sm leading-relaxed">{msg.text}</p>
                                     {msg.sender_id === user?.uid && (
-                                      <div className="text-[9px] text-white/80 text-right mt-1 flex justify-end items-center gap-0.5">
+                                      <div className="text-[9px] text-white/90 text-right mt-1 flex justify-end items-center gap-1.5">
                                         {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
-                                        ✓✓
+                                        <span className={msg.is_read ? 'text-blue-200 font-black tracking-tighter text-[11px]' : 'text-slate-300/60 font-bold'}>
+                                          {msg.is_read ? '✓✓' : '✓'}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
@@ -3875,6 +3923,7 @@ function VendorMessages() {
                         </div>
                       );
                     })}
+                    <div ref={messagesEndRef} />
                   </div>
                   {(threadStatus === 'archived' || threadStatus === 'completed' || threadStatus === 'cancelled' || isExpired(selectedThread.updated_at)) ? (
                     <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
@@ -3902,7 +3951,7 @@ function VendorMessages() {
                 </>
               ) : (
                 <>
-                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                  <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm relative">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
                         {selectedThread.technician_avatar ? (
@@ -3917,8 +3966,11 @@ function VendorMessages() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-6">
                     {messages.filter(m => m.is_logistics).map((msg, index, filteredArray) => {
+                      const nextMsg = index < filteredArray.length - 1 ? filteredArray[index + 1] : null;
+                      const isNextSame = nextMsg && nextMsg.sender_id === msg.sender_id && nextMsg.sender_role !== 'system';
+                      
                       const currentMsgDate = msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)) : new Date();
                       
                       let showDateSeparator = false;
@@ -3953,7 +4005,7 @@ function VendorMessages() {
                       }
 
                       return (
-                        <div key={msg.id} className="flex flex-col">
+                        <div key={msg.id} className={`flex flex-col ${isNextSame ? 'mb-1.5' : 'mb-4'}`}>
                           {showDateSeparator && (
                             <div className="flex justify-center mb-4 mt-2">
                               <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
@@ -3968,7 +4020,7 @@ function VendorMessages() {
                               </span>
                             ) : (
                               <div className="flex flex-col max-w-[70%]">
-                                <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-800 dark:bg-slate-700 text-white rounded-bl-none'}`}>
+                                <div className={`min-w-[120px] rounded-2xl px-4 py-2.5 shadow-sm ${msg.sender_id === user?.uid ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-800 dark:bg-slate-700 text-white rounded-bl-none'}`}>
                                   {msg.sender_id !== user?.uid && (
                                     <div className="text-[10px] font-bold text-slate-300 mb-1 flex items-center gap-1">
                                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -3977,9 +4029,11 @@ function VendorMessages() {
                                   )}
                                   <p className="text-sm">{msg.text}</p>
                                   {msg.sender_id === user?.uid && (
-                                    <div className="text-[9px] text-[#005e3f] opacity-80 text-right mt-1 flex justify-end items-center gap-0.5">
+                                    <div className="text-[9px] text-slate-400/80 text-right mt-1 flex justify-end items-center gap-1.5">
                                       {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
-                                      ✓✓
+                                      <span className={msg.is_read ? 'text-brand-green font-black tracking-tighter text-[11px]' : 'text-slate-400/60 font-bold'}>
+                                        {msg.is_read ? '✓✓' : '✓'}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -3994,6 +4048,7 @@ function VendorMessages() {
                         </div>
                       );
                     })}
+                    <div ref={messagesEndRef} />
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
                     <div className="flex gap-2">

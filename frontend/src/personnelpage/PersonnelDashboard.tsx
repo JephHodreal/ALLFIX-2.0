@@ -29,8 +29,21 @@ function PersonnelChatModal({
   profile: any; 
 }) {
   const threadId = type === 'hq' ? `hq_${profile.id}_${booking.vendor_id}` : booking.id;
-  const { messages, loading, sendMessage, retryMessage } = useChatMessages(threadId);
+  const { messages, loading, sendMessage, retryMessage } = useChatMessages(threadId, profile?.id);
   const [inputText, setInputText] = useState('');
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const prevMessagesLength = React.useRef(0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (messagesEndRef.current) {
+        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0;
+        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
+        prevMessagesLength.current = messages.length;
+      }
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [messages, isOpen]);
 
   if (!isOpen) return null;
 
@@ -71,46 +84,75 @@ function PersonnelChatModal({
              <div className="text-center py-4 text-sm text-slate-500">No messages yet. Say hello!</div>
           ) : (
             // For customer channel, only show logistics messages!
-            messages.filter(m => type === 'hq' ? true : m.is_logistics).map(msg => (
-              <div key={msg.id} className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === profile.id ? 'justify-end' : 'justify-start'}`}>
-                {msg.sender_role === 'system' ? (
-                  <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
-                    {msg.text}
-                  </span>
-                ) : (
-                  <div className={`flex items-end gap-2 max-w-[80%] ${msg.sender_id === profile.id ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
-                      {msg.sender_avatar ? (
-                        <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                          {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
-                        </span>
+            messages.filter(m => type === 'hq' ? true : m.is_logistics).map((msg, idx, filteredArray) => {
+              const prevMsg = idx > 0 ? filteredArray[idx - 1] : null;
+              const nextMsg = idx < filteredArray.length - 1 ? filteredArray[idx + 1] : null;
+              
+              const isNextSame = nextMsg && nextMsg.sender_id === msg.sender_id && nextMsg.sender_role !== 'system';
+              const timeDiff = nextMsg && msg.created_at && nextMsg.created_at ? 
+                ((nextMsg.created_at?.toDate?.() || new Date(nextMsg.created_at)).getTime() - (msg.created_at?.toDate?.() || new Date(msg.created_at)).getTime()) : 0;
+              
+              const showAvatar = msg.sender_id !== profile.id && (!isNextSame || timeDiff > 60000);
+
+              return (
+                <div key={msg.id} className={`flex ${msg.sender_role === 'system' ? 'justify-center' : msg.sender_id === profile.id ? 'justify-end' : 'justify-start'}`}>
+                  {msg.sender_role === 'system' ? (
+                    <span className="text-xs bg-brand-green/10 text-brand-green px-3 py-1 rounded-full font-bold text-center max-w-[80%]">
+                      {msg.text}
+                    </span>
+                  ) : (
+                    <div className={`flex items-end gap-2 max-w-[80%] ${msg.sender_id === profile.id ? 'flex-row-reverse' : 'flex-row'}`}>
+                      {msg.sender_id !== profile.id && (
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0 flex items-end justify-center">
+                          {showAvatar && (
+                            <div className="w-full h-full rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
+                              {msg.sender_avatar ? (
+                                <img src={msg.sender_avatar} alt="avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                  {msg.sender_role === 'vendor' ? 'V' : msg.sender_role === 'customer' ? 'C' : 'T'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </div>
-                    <div className={`flex flex-col gap-1 ${msg.sender_id === profile.id ? 'items-end' : 'items-start'}`}>
-                      <div className={`rounded-2xl px-4 py-2 ${msg.sender_id === profile.id ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'} ${msg.delivery_status === 'sending' ? 'opacity-70' : ''}`}>
+                      <div className={`flex flex-col gap-1 ${msg.sender_id === profile.id ? 'items-end' : 'items-start'}`}>
+                        <div className={`min-w-[120px] rounded-2xl px-4 py-2 ${msg.sender_id === profile.id ? 'bg-brand-green text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-bl-none'} ${msg.delivery_status === 'sending' ? 'opacity-70' : ''}`}>
+                          {msg.sender_id !== profile.id && showAvatar && (
+                            <div className="text-[10px] font-bold text-slate-400 mb-1">
+                              {msg.sender_role === 'vendor' ? 'Vendor Manager' : booking.customer_name}
+                            </div>
+                          )}
+                          <p className="text-sm">{msg.text}</p>
+                          {msg.sender_id === profile.id && (
+                            <div className="text-[9px] text-white/80 text-right mt-1 flex justify-end items-center gap-0.5">
+                              {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2:53 PM'}
+                              ✓✓
+                            </div>
+                          )}
+                        </div>
+                        {msg.sender_id === profile.id && msg.delivery_status === 'sending' && (
+                          <span className="text-[10px] text-slate-400">Sending...</span>
+                        )}
+                        {msg.sender_id === profile.id && msg.delivery_status === 'failed' && (
+                          <button onClick={() => retryMessage(msg)} className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Tap to retry
+                          </button>
+                        )}
                         {msg.sender_id !== profile.id && (
-                          <div className="text-[10px] font-bold text-slate-400 mb-1">
-                            {msg.sender_role === 'vendor' ? 'Vendor Manager' : booking.customer_name}
+                          <div className="text-[9px] text-slate-400 mt-1">
+                            {msg.created_at ? (typeof msg.created_at.toDate === 'function' ? msg.created_at.toDate() : new Date(msg.created_at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </div>
                         )}
-                        <p className="text-sm">{msg.text}</p>
                       </div>
-                      {msg.sender_id === profile.id && msg.delivery_status === 'sending' && (
-                        <span className="text-[10px] text-slate-400">Sending...</span>
-                      )}
-                      {msg.sender_id === profile.id && msg.delivery_status === 'failed' && (
-                        <button onClick={() => retryMessage(msg)} className="text-[10px] text-red-500 font-bold hover:underline flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Tap to retry
-                        </button>
-                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
+                  )}
+                </div>
+              );
+            })
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
