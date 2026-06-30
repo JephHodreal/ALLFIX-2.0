@@ -4003,6 +4003,7 @@ function CustomerMessages() {
   const [selectedThread, setSelectedThread] = useState<any>(null);
   const [activeChannel, setActiveChannel] = useState<'vendor'|'personnel'>('vendor');
   const [initialized, setInitialized] = useState(false);
+  const { confirm, ConfirmComponent } = useConfirm();
   
   // Find associated booking for selected thread
   const selectedBooking = useMemo(() => {
@@ -4039,13 +4040,16 @@ function CustomerMessages() {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesLength = useRef(0);
+  const prevChannel = useRef(activeChannel);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (messagesEndRef.current) {
-        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0;
+        const isChannelChange = prevChannel.current !== activeChannel;
+        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0 || isChannelChange;
         messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
         prevMessagesLength.current = messages.length;
+        prevChannel.current = activeChannel;
       }
     }, 100);
     return () => clearTimeout(timeout);
@@ -4157,7 +4161,14 @@ function CustomerMessages() {
                 <div className="flex items-center gap-2">
                   {activeChannel === 'personnel' && (
                     <button
-                      onClick={() => window.confirm(`Call ${selectedThread?.personnel_name}?`)}
+                      onClick={() => {
+                        confirm({
+                          title: `Call ${selectedThread?.personnel_name || 'Personnel'}`,
+                          message: `Are you sure you want to call ${selectedThread?.personnel_name}? Standard carrier rates may apply.`,
+                          confirmText: 'Call Now',
+                          type: 'info'
+                        });
+                      }}
                       className="p-2 rounded-xl bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-white transition-colors border border-brand-green/20"
                       title="Call Personnel"
                     >
@@ -4336,7 +4347,13 @@ function CustomerMessages() {
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     />
-                    <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl">Send</Button>
+                    <Button 
+                      onClick={handleSend} 
+                      disabled={!inputText.trim()}
+                      className={`rounded-xl ${!inputText.trim() ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 !opacity-100' : 'bg-brand-green hover:bg-[#005e3f] text-white shadow-sm'}`}
+                    >
+                      Send
+                    </Button>
                   </div>
                 </div>
               )}
@@ -4352,6 +4369,7 @@ function CustomerMessages() {
           )}
         </div>
       </div>
+      <ConfirmComponent />
     </div>
   );
 }

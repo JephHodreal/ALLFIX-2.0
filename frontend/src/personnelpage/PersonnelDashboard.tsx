@@ -165,7 +165,13 @@ function PersonnelChatModal({
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
             />
-            <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl shadow-md">Send</Button>
+            <Button 
+              onClick={handleSend} 
+              disabled={!inputText.trim()}
+              className={`rounded-xl ${!inputText.trim() ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 !opacity-100' : 'bg-brand-green hover:bg-[#005e3f] text-white shadow-md'}`}
+            >
+              Send
+            </Button>
           </div>
         </div>
       </div>

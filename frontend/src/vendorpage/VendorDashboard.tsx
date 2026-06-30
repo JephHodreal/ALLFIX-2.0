@@ -3650,13 +3650,16 @@ function VendorMessages() {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesLength = useRef(0);
+  const prevTab = useRef(activeTab);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (messagesEndRef.current) {
-        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0;
+        const isTabChange = prevTab.current !== activeTab;
+        const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0 || isTabChange;
         messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
         prevMessagesLength.current = messages.length;
+        prevTab.current = activeTab;
       }
     }, 100);
     return () => clearTimeout(timeout);
@@ -3944,7 +3947,13 @@ function VendorMessages() {
                           onChange={(e) => setInputText(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         />
-                        <Button onClick={handleSend} className="bg-brand-green hover:bg-[#005e3f] text-white rounded-xl">Send</Button>
+                        <Button 
+                          onClick={handleSend} 
+                          disabled={!inputText.trim()}
+                          className={`rounded-xl ${!inputText.trim() ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 !opacity-100' : 'bg-brand-green hover:bg-[#005e3f] text-white shadow-sm'}`}
+                        >
+                          Send
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -4060,7 +4069,13 @@ function VendorMessages() {
                         onChange={(e) => setInputText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                       />
-                      <Button onClick={handleSend} disabled={!inputText.trim()} className={`rounded-xl text-white transition-colors ${inputText.trim() ? 'bg-brand-green hover:bg-[#005e3f]' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}>Send</Button>
+                      <Button 
+                        onClick={handleSend} 
+                        disabled={!inputText.trim()} 
+                        className={`rounded-xl ${!inputText.trim() ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 !opacity-100' : 'bg-brand-green hover:bg-[#005e3f] text-white shadow-sm'}`}
+                      >
+                        Send
+                      </Button>
                     </div>
                   </div>
                 </>
