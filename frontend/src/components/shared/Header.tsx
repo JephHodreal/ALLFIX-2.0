@@ -4,6 +4,7 @@ import { Bell, Sun, Moon, Menu, Check, Trash2, ArrowRight, LifeBuoy } from 'luci
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/apiService';
+import { CustomerMobileProfileModal } from './CustomerMobileProfileModal';
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -21,6 +22,9 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
   const [filter, setFilter] = React.useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
+  
+  const [customerMobileMenuOpen, setCustomerMobileMenuOpen] = React.useState(false);
+  const isCustomer = profile?.role === 'customer';
 
   const fetchNotifications = React.useCallback(async () => {
     if (!profile?.id) return;
@@ -96,7 +100,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
   return (
     <header className="h-16 bg-white dark:bg-[#020617] border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center gap-4">
-        {onMenuToggle && (
+        {onMenuToggle && !isCustomer && (
           <button onClick={onMenuToggle} className="lg:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
@@ -104,7 +108,9 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
         {title && <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h1>}
       </div>
       <div className="flex items-center gap-3">
-        {profile?.role === 'personnel' && (
+        {/* Default Desktop / Non-Customer Items */}
+        <div className={`items-center gap-3 ${isCustomer ? 'hidden lg:flex' : 'flex'}`}>
+          {profile?.role === 'personnel' && (
           <button 
             onClick={() => setIsOnDuty(!isOnDuty)}
             className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${
@@ -294,6 +300,30 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-navy to-brand-green flex items-center justify-center text-white text-sm font-bold">
           {profile?.first_name?.[0] || profile?.email?.[0]?.toUpperCase() || '?'}
         </div>
+        </div>
+
+        {/* Customer Mobile Menu Trigger */}
+        {isCustomer && (
+          <div className="flex lg:hidden items-center">
+            <button 
+              onClick={() => setCustomerMobileMenuOpen(true)}
+              className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+            >
+              <Menu className="w-6 h-6 text-slate-800 dark:text-slate-200" />
+              {notifications.filter(n => !(n.is_read || n.read)).length > 0 && (
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-brand-red border-2 border-white dark:border-[#020617] rounded-full"></span>
+              )}
+            </button>
+            <CustomerMobileProfileModal
+              isOpen={customerMobileMenuOpen}
+              onClose={() => setCustomerMobileMenuOpen(false)}
+              profile={profile}
+              isDark={isDark}
+              toggleTheme={toggleTheme}
+              unreadNotificationsCount={notifications.filter(n => !(n.is_read || n.read)).length}
+            />
+          </div>
+        )}
       </div>
     </header>
   );

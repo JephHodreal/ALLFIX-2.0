@@ -7,6 +7,8 @@ import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
+import { MobileBottomNav } from '../components/shared/MobileBottomNav';
+import { FloatingCartWidget } from './FloatingCartWidget';
 import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -4641,11 +4643,13 @@ export default function CustomerApp() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
-      <Sidebar role="customer" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className={`transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'}`}>
+    <div className="min-h-screen bg-surface-light dark:bg-surface-dark pb-[80px] lg:pb-0">
+      <div className="hidden lg:block">
+        <Sidebar role="customer" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      </div>
+      <div className={`transition-all duration-300 ${collapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}>
         <Header onMenuToggle={() => setMobileOpen(true)} />
-        <main className="p-4 md:p-6">
+        <main className="p-4 lg:p-6 pb-24 lg:pb-6">
           <Routes>
             <Route index element={<CustomerHome />} />
             <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
@@ -4660,6 +4664,9 @@ export default function CustomerApp() {
           </Routes>
         </main>
       </div>
+
+      <FloatingCartWidget cartCount={cart.length} />
+      <MobileBottomNav role="customer" />
 
       <CheckoutModal
         isOpen={checkoutModalOpen}
