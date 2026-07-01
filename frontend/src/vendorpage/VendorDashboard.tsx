@@ -594,6 +594,18 @@ function VendorBookings() {
                 <span className="text-slate-400 font-medium">Reference No:</span>
                 <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
               </div>
+              {(selectedBooking.account_name || selectedBooking.account_number) && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Name:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name || '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Number:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number || '—'}</span>
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">

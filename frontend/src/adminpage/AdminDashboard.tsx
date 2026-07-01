@@ -1704,7 +1704,7 @@ function BookingsTab() {
 
   if (selectedBooking) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto">
         {/* Header with Back button */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -1721,7 +1721,7 @@ function BookingsTab() {
             </button>
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">ID: {selectedBooking.id}</p>
             </div>
           </div>
           <div>
@@ -1741,13 +1741,13 @@ function BookingsTab() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Booking Info Card */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          {/* Service Information */}
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Service Category:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-bold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Work Type:</span>
@@ -1756,7 +1756,7 @@ function BookingsTab() {
               {selectedBooking.description && (
                 <div className="grid grid-cols-3 gap-2">
                   <span className="text-slate-400 font-medium">Description:</span>
-                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic">"{selectedBooking.description}"</span>
+                  <span className="col-span-2 text-slate-600 dark:text-slate-350 italic leading-tight">"{selectedBooking.description}"</span>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-2">
@@ -1773,27 +1773,29 @@ function BookingsTab() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Address:</span>
-                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-normal">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
+                <span className="col-span-2 text-slate-800 dark:text-slate-200 leading-tight">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
               </div>
             </div>
           </Card>
 
-          {/* Payment Info Card */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          {/* Payment Info Card & Additional Charges */}
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                <div className="col-span-2">
+                  <span className="text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Quantity:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
               </div>
               {/* Voucher Discount Info */}
               {selectedBooking.discount_amount > 0 && (
                 <>
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                     <span className="text-slate-400 font-medium">Subtotal:</span>
                     <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
                   </div>
@@ -1806,11 +1808,13 @@ function BookingsTab() {
                   </div>
                 </>
               )}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 items-center">
                 <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
-                <span className="col-span-2 text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
+                <div className="col-span-2">
+                  <span className="text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
               </div>
@@ -1818,35 +1822,35 @@ function BookingsTab() {
                 <span className="text-slate-400 font-medium">Reference No:</span>
                 <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
               </div>
-              {selectedBooking.account_name && (
-                <div className="grid grid-cols-3 gap-2">
-                  <span className="text-slate-400 font-medium">Account Name:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name}</span>
-                </div>
+              {(selectedBooking.account_name || selectedBooking.account_number) && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Name:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name || '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Number:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number || '—'}</span>
+                  </div>
+                </>
               )}
-              {selectedBooking.account_number && (
-                <div className="grid grid-cols-3 gap-2">
-                  <span className="text-slate-400 font-medium">Account Number:</span>
-                  <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number}</span>
-                </div>
-              )}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
                   {selectedBooking.payment_confirmed ? (
-                    <span className="text-green-600 dark:text-green-400 font-bold flex items-center gap-1.5">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5 text-sm">
                       <CheckCircle2 className="w-4 h-4" /> Paid
                     </span>
                   ) : (
-                    <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5">
+                    <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5 text-sm">
                       <Clock className="w-4 h-4" /> Awaiting Payment
                     </span>
                   )}
                 </span>
               </div>
               {(selectedBooking.refund_reference_number || selectedBooking.refund_method) && (
-                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-350">
-                  <p className="font-extrabold uppercase tracking-wide">Linked Refund Information</p>
+                <div className="mt-3 p-2.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1 text-xs text-rose-800 dark:text-rose-350">
+                  <p className="font-extrabold uppercase tracking-wide mb-1">Linked Refund Information</p>
                   {selectedBooking.cancelled_by && (
                     <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>
                   )}
@@ -1867,55 +1871,50 @@ function BookingsTab() {
                 </div>
               )}
             </div>
-          </Card>
 
-          {/* Additional Charges / Add-ons Section */}
-          {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
-            <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm md:col-span-2">
-              <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
-                <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-brand-navy dark:text-blue-400" />
-                  Additional Charges / Add-ons
-                </h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[320px] overflow-y-auto pr-1">
-                {selectedBooking.add_ons.map((addon: any) => (
-                  <div key={addon.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="font-bold text-slate-900 dark:text-white text-sm flex-1">{addon.description}</div>
-                      <div className="font-black text-brand-green w-24 text-right shrink-0">₱{Number(addon.amount).toFixed(2)}</div>
-                    </div>
-                    
-                    <div className="space-y-1.5 text-xs">
-                      {addon.payment_method && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Method:</span>
-                          <span className="text-slate-900 dark:text-white font-semibold">{addon.payment_method}</span>
+            {/* Additional Charges / Add-ons Section */}
+            {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-brand-navy dark:text-blue-400" />
+                    Additional Charges / Add-ons
+                  </h4>
+                </div>
+                
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                  {selectedBooking.add_ons.map((addon: any) => (
+                    <div key={addon.id} className="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-[13px] sm:text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 pr-2">
+                          {addon.description}
                         </div>
-                      )}
-                      {addon.reference_number && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 font-medium">Ref No:</span>
-                          <span className="text-slate-900 dark:text-white font-mono font-semibold">{addon.reference_number}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-slate-900 dark:text-white shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {addon.status === 'pending_approval' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-amber-100 text-amber-700 rounded whitespace-nowrap">Pending Customer Approval</span>}
+                            {addon.status === 'pending_verification' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-blue-100 text-blue-700 rounded whitespace-nowrap">Pending Admin Verification</span>}
+                            {addon.status === 'confirmed' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded whitespace-nowrap">Confirmed & Paid</span>}
+                            
+                            {addon.status === 'pending_verification' && (
+                              <Button size="sm" variant="success" className="h-6 text-[10px] py-0.5 px-2 ml-1" onClick={() => setAddonToVerify(addon.id)}>Verify Payment</Button>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                      <div>
-                        {addon.status === 'pending_approval' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Pending Customer Approval</span>}
-                        {addon.status === 'pending_verification' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Pending Admin Verification</span>}
-                        {addon.status === 'confirmed' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md">Confirmed & Paid</span>}
                       </div>
-                      {addon.status === 'pending_verification' && (
-                        <Button size="sm" variant="success" onClick={() => setAddonToVerify(addon.id)}>Verify Payment</Button>
+                      
+                      {(addon.payment_method || addon.reference_number) && (
+                        <div className="mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                          {addon.payment_method && <div><span className="font-medium">Method:</span> <span className="text-slate-700 dark:text-slate-300 font-bold">{addon.payment_method}</span></div>}
+                          {addon.reference_number && <div><span className="font-medium">Ref No:</span> <span className="text-slate-700 dark:text-slate-300 font-bold">{addon.reference_number}</span></div>}
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </Card>
-          )}
+            )}
+          </Card>
         </div>
 
         {/* Action Buttons */}

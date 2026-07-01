@@ -1597,7 +1597,7 @@ function MyBookingsTab() {
     const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method || selectedBooking.cancelled_by;
 
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -1615,7 +1615,7 @@ function MyBookingsTab() {
             </button>
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Booking Details</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ID: {formatBookingId(selectedBooking.id)}</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">ID: {formatBookingId(selectedBooking.id)}</p>
             </div>
           </div>
           <div>
@@ -1638,13 +1638,14 @@ function MyBookingsTab() {
 
         {/* Two-column info layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
           {/* Service Information */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Service:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-bold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
+                <span className="text-slate-400 font-medium">Service Category:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Work Type:</span>
@@ -1653,7 +1654,7 @@ function MyBookingsTab() {
               {selectedBooking.description && (
                 <div className="grid grid-cols-3 gap-2">
                   <span className="text-slate-400 font-medium">Description:</span>
-                  <span className="col-span-2 text-slate-600 dark:text-slate-350 italic">"{selectedBooking.description}"</span>
+                  <span className="col-span-2 text-slate-600 dark:text-slate-350 italic leading-tight">"{selectedBooking.description}"</span>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-2">
@@ -1666,35 +1667,41 @@ function MyBookingsTab() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Address:</span>
-                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-normal">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
+                <span className="col-span-2 text-slate-800 dark:text-slate-200 leading-tight">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
               </div>
               {selectedBooking.personnel_id && (
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-400 font-medium">Personnel:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold font-semibold">{selectedBooking.personnel_name || 'Assigned'}</span>
+                <div className="grid grid-cols-3 gap-2 pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/60 items-center">
+                  <span className="text-slate-400 font-medium">Assigned To:</span>
+                  <span className="col-span-2 text-slate-900 dark:text-white font-bold flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-brand-green flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                    {selectedBooking.personnel_name || 'Assigned'}
+                  </span>
                 </div>
               )}
             </div>
           </Card>
 
-          {/* Payment Information */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          {/* Payment Info Card & Additional Charges */}
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1.5 text-[13px] sm:text-sm pt-1">
+              <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                <div className="col-span-2">
+                  <span className="text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Quantity:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
               </div>
               {/* Voucher Discount Info */}
               {selectedBooking.discount_amount > 0 && (
                 <>
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                     <span className="text-slate-400 font-medium">Subtotal:</span>
                     <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
+                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-medium line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-slate-400 font-medium">Voucher:</span>
@@ -1705,11 +1712,13 @@ function MyBookingsTab() {
                   </div>
                 </>
               )}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-slate-900 dark:text-white font-black">Total:</span>
-                <span className="col-span-2 text-lg font-black text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 items-center">
+                <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
+                <div className="col-span-2">
+                  <span className="text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Payment Method:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
               </div>
@@ -1729,15 +1738,15 @@ function MyBookingsTab() {
                   <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number}</span>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
                   {statusBadge(selectedBooking.payment_confirmed ? 'confirmed' : 'pending')}
                 </span>
               </div>
               {hasRefundInfo && (
-                <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-300">
-                  <p className="font-extrabold uppercase tracking-wide">Refund Information</p>
+                <div className="mt-3 p-2.5 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1 text-xs text-rose-800 dark:text-rose-300">
+                  <p className="font-extrabold uppercase tracking-wide mb-1">Refund Information</p>
                   {selectedBooking.cancelled_by && <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>}
                   {selectedBooking.refund_amount && <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>}
                   {selectedBooking.refund_method && <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>}
@@ -1745,54 +1754,55 @@ function MyBookingsTab() {
                 </div>
               )}
             </div>
-          </Card>
 
-          {/* Additional Charges / Add-ons Section */}
-          {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
-            <Card className="p-6 space-y-4 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
-              <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
-                <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-brand-navy" />
-                  Additional Charges
-                </h4>
-              </div>
-              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-                {selectedBooking.add_ons.map((addon: any) => (
-                  <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-sm">
-                    <div className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-1">
-                      <span className="flex-1">{addon.description}</span>
-                      <span className="font-bold text-slate-900 dark:text-white w-24 text-right mx-4 shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
-                    </div>
-                    <div className="mt-2 sm:mt-0 flex-shrink-0 flex items-center gap-3">
-                      <div>
-                        {addon.status === 'pending_approval' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-amber-100 text-amber-700 rounded-md">Action Required</span>}
-                        {addon.status === 'pending_verification' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-blue-100 text-blue-700 rounded-md">Verifying Payment</span>}
-                        {addon.status === 'confirmed' && <span className="text-[10px] font-bold px-2 py-1 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-md">Confirmed</span>}
+            {/* Additional Charges / Add-ons Section */}
+            {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-brand-navy dark:text-blue-400" />
+                    Additional Charges
+                  </h4>
+                </div>
+                
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                  {selectedBooking.add_ons.map((addon: any) => (
+                    <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center px-2.5 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-[13px] sm:text-sm gap-2">
+                      <div className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 pr-2">
+                        {addon.description}
                       </div>
-                      {addon.status === 'pending_approval' && (
-                        <Button size="sm" variant="primary" onClick={() => setShowAddonPaymentModal(addon.id)}>Approve & Pay</Button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-bold text-slate-900 dark:text-white shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {addon.status === 'pending_approval' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-amber-100 text-amber-700 rounded whitespace-nowrap">Action Required</span>}
+                          {addon.status === 'pending_verification' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-blue-100 text-blue-700 rounded whitespace-nowrap">Verifying Payment</span>}
+                          {addon.status === 'confirmed' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded whitespace-nowrap">Confirmed</span>}
+                          
+                          {addon.status === 'pending_approval' && (
+                            <button className="text-[10px] font-bold px-3 py-1 bg-brand-green text-white rounded-md uppercase tracking-wider hover:bg-brand-green/90 transition-colors shadow-sm ml-1" onClick={() => setShowAddonPaymentModal(addon.id)}>Approve</button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </Card>
-          )}
+            )}
+          </Card>
         </div>
 
         {/* Action Buttons */}
         {!showRefundForm && !showCancelConfirm && isCancellable && (
-          <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800/80">
-            <Button
-              variant="outline"
-              className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[140px] shadow-none transition-colors"
+          <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 mt-4">
+            <button
+              className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 border-rose-500 text-rose-600 bg-transparent hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shadow-none"
               onClick={() => {
                 console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
                 setShowCancelConfirm(true);
               }}
             >
               Cancel
-            </Button>
+            </button>
           </div>
         )}
 
@@ -1841,7 +1851,7 @@ function MyBookingsTab() {
                 <button onClick={() => setShowAddonPaymentModal(null)} className="flex-1 px-4 py-4 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50">Cancel</button>
                 <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
                 <button
-                  onClick={() => handlePayAddon(showAddonPaymentModal)}
+                  onClick={() => handlePayAddon(showAddonPaymentModal as string)}
                   disabled={addonPaymentSubmitting || !addonPaymentMethod || !addonReferenceNumber.trim()}
                   className="flex-1 px-4 py-4 text-sm font-bold text-brand-navy dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -4510,6 +4520,7 @@ function CustomerMessages() {
 
 // ─── Customer Help & Support Tab ────────────────────────────────────────────────
 function CustomerSupport() {
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [ticketForm, setTicketForm] = useState({ issueType: 'Late Technician', bookingId: '', message: '' });
 
@@ -4522,11 +4533,11 @@ function CustomerSupport() {
         message: ticketForm.message,
         priority: 'medium'
       });
-      alert('Support ticket submitted successfully. Our team will review this shortly.');
+      showAlert({ title: 'Success', message: 'Support ticket submitted successfully. Our team will review this shortly.', type: 'success', hideCancel: true });
       setShowTicketModal(false);
       setTicketForm({ issueType: 'Late Technician', bookingId: '', message: '' });
     } catch (err) {
-      alert('Failed to submit ticket');
+      showAlert({ title: 'Error', message: 'Failed to submit ticket', type: 'danger', hideCancel: true });
     }
   };
 
@@ -4596,6 +4607,7 @@ function CustomerSupport() {
           </div>
         </div>
       )}
+      <ConfirmComponent />
     </div>
   );
 }

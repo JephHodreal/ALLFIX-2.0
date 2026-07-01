@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardList, MessageSquare, Building2, User, HelpCircle, Bug, X, AlertCircle } from 'lucide-react';
 import { Button } from '../components/shared/Button';
 import { formatBookingId } from '../utils/formatters';
@@ -190,6 +191,7 @@ function PersonnelChatModal({
 
 function PersonnelHome() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -222,8 +224,16 @@ function PersonnelHome() {
     );
   }
 
-  const activeJobs = bookings.filter(b => b.status === 'in_progress').length;
-  const completedJobs = bookings.filter(b => b.status === 'completed').length;
+  const activeJobs = bookings.filter(b => b?.status === 'in_progress').length;
+  const completedJobs = bookings.filter(b => b?.status === 'completed').length;
+
+  const nextJob = (Array.isArray(bookings) ? [...bookings] : [])
+    .filter(b => b && ['assigned', 'dispatched', 'in-transit', 'in_progress'].includes(b.status))
+    .sort((a, b) => {
+      const dateA = a?.date ? new Date(a.date).getTime() : Infinity;
+      const dateB = b?.date ? new Date(b.date).getTime() : Infinity;
+      return dateA - dateB;
+    })[0];
 
   return (
     <div className="space-y-6">
@@ -231,6 +241,31 @@ function PersonnelHome() {
         <StatCard title="Active Jobs" value={activeJobs} icon={<ClipboardList className="w-5 h-5" />} color="green" />
         <StatCard title="Completed Jobs" value={completedJobs} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
       </div>
+
+      {nextJob && (
+        <Card className="bg-brand-navy border-none shadow-lg overflow-hidden relative p-5 sm:p-6">
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-extrabold text-brand-green uppercase tracking-widest mb-1">Next Scheduled Job</p>
+              <h3 className="text-lg font-black text-white">{formatBookingId(nextJob.id)} - {nextJob.service_type || nextJob.service_category}</h3>
+              <p className="text-sm font-semibold text-slate-300 mt-1">
+                {(() => {
+                  if (!nextJob.date) return 'TBD';
+                  const d = new Date(nextJob.date);
+                  return isNaN(d.getTime()) ? 'TBD' : d.toLocaleDateString();
+                })()} @ {nextJob.time || 'TBD'} • {nextJob.customer_address || nextJob.address || 'Location provided upon dispatch'}
+              </p>
+            </div>
+            <button 
+              onClick={() => navigate('/personnel/bookings')} 
+              className="bg-brand-green hover:bg-[#005e3f] text-white font-bold px-6 py-3 rounded-xl shadow-md transition-colors w-full sm:w-auto text-sm whitespace-nowrap active:scale-95 flex items-center justify-center gap-2"
+            >
+              <ClipboardList className="w-4 h-4" /> View Dispatch
+            </button>
+          </div>
+          <ClipboardList className="absolute -right-6 -bottom-6 w-32 h-32 text-white/5 rotate-12 pointer-events-none" />
+        </Card>
+      )}
 
       <div className="w-full">
         <Card>
@@ -255,6 +290,34 @@ function PersonnelBookings() {
   const [activeChat, setActiveChat] = useState<'hq' | 'customer' | null>(null);
   const [hasConfirmedHq, setHasConfirmedHq] = useState(false);
   const [hasConfirmedCustomer, setHasConfirmedCustomer] = useState(false);
+
+  // Proof of Work Modal State
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [proofNote, setProofNote] = useState('');
+  const [proofImageUrl, setProofImageUrl] = useState('');
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  const handleProofFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingProof(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await api.post('/api/upload/image', {
+          image: base64,
+          folder: 'proof_of_work'
+        });
+        setProofImageUrl(res.data.url);
+      } catch (err: any) {
+        console.error('Upload failed', err);
+      } finally {
+        setUploadingProof(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleUpdateStatus = (newStatus: string, label: string) => {
     confirm({
@@ -300,10 +363,10 @@ function PersonnelBookings() {
   // ── CAVEMAN MODE: if a booking is selected, show the READ-ONLY details view ──
   if (selectedBooking) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto">
 
         {/* ── Header with Back button ── */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelectedBooking(null)}
@@ -322,49 +385,33 @@ function PersonnelBookings() {
           <div>{statusBadge(selectedBooking.status)}</div>
         </div>
 
-        {/* ── Two-column: Service Info & Customer + Schedule ── */}
+        {/* ── Two-column Layout: Service Info & Payment Info ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Service Information */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
-            <div className="space-y-3 text-sm">
-
+            <div className="space-y-2 text-sm">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Service Category:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-bold">
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
                   {selectedBooking.sub_service || selectedBooking.service_type || '—'}
                 </span>
               </div>
-
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Work Type:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
                   {selectedBooking.service_type || '—'}
                 </span>
               </div>
-
               {selectedBooking.description && (
                 <div className="grid grid-cols-3 gap-2">
                   <span className="text-slate-400 font-medium">Description:</span>
-                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic">
+                  <span className="col-span-2 text-slate-600 dark:text-slate-300 italic leading-tight">
                     &ldquo;{selectedBooking.description}&rdquo;
                   </span>
                 </div>
               )}
-
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400 font-medium">Booking Status:</span>
-                <span className="col-span-2">{statusBadge(selectedBooking.status)}</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Customer & Schedule */}
-          <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
-            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Customer &amp; Schedule</h4>
-            <div className="space-y-3 text-sm">
-
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Customer:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
@@ -376,31 +423,23 @@ function PersonnelBookings() {
                   )}
                 </span>
               </div>
-
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Date &amp; Time:</span>
                 <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
                   📅 {selectedBooking.scheduled_date || '—'} &nbsp;⏰ {selectedBooking.scheduled_time || '—'}
                 </span>
               </div>
-
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Address:</span>
-                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-normal">
+                <span className="col-span-2 text-slate-700 dark:text-slate-300 leading-tight">
                   {selectedBooking.address || selectedBooking.service_address || '—'}
                 </span>
               </div>
-
-              {/* Assigned Personnel */}
               {selectedBooking.personnel_id && (
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-3 gap-2 pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/60 items-center">
                   <span className="text-slate-400 font-medium">Assigned To:</span>
                   <span className="col-span-2 text-slate-900 dark:text-white font-bold flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-brand-green flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <polyline points="16 11 18 13 22 9" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-brand-green flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
                     {profile?.id === selectedBooking.personnel_id
                       ? `${profile?.first_name} ${profile?.last_name} (You)`
                       : selectedBooking.personnel_id}
@@ -409,34 +448,26 @@ function PersonnelBookings() {
               )}
             </div>
           </Card>
-        </div>
 
-        {/* ── Payment Details (view-only) ── */}
-        <Card className="p-6 space-y-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
-          <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment Details</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
+          {/* Payment Info Card & Additional Charges */}
+          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
+            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="text-slate-400 font-medium">Unit Price:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
-                  ₱{selectedBooking.price || '0.00'}
-                </span>
+                <div className="col-span-2">
+                  <span className="text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                 <span className="text-slate-400 font-medium">Quantity:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
-                  {selectedBooking.quantity || 1}
-                </span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
               </div>
-              {/* Voucher Discount Info */}
               {selectedBooking.discount_amount > 0 && (
                 <>
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
                     <span className="text-slate-400 font-medium">Subtotal:</span>
-                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">
-                      ₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}
-                    </span>
+                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-slate-400 font-medium">Voucher:</span>
@@ -447,138 +478,186 @@ function PersonnelBookings() {
                   </div>
                 </>
               )}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-slate-900 dark:text-white font-black">Total:</span>
-                <span className="col-span-2 text-lg font-black text-brand-green">
-                  ₱{selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || '0.00'}
-                </span>
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 items-center">
+                <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
+                <div className="col-span-2">
+                  <span className="text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Method:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">
-                  {selectedBooking.payment_method || '—'}
-                </span>
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
+                <span className="text-slate-400 font-medium">Payment Method:</span>
+                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Reference:</span>
-                <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">
-                  {selectedBooking.payment_reference || '—'}
-                </span>
+                <span className="text-slate-400 font-medium">Reference No:</span>
+                <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
               </div>
+              {(selectedBooking.account_name || selectedBooking.account_number) && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Name:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name || '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-slate-400 font-medium">Account Number:</span>
+                    <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number || '—'}</span>
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-400 font-medium">Payment Status:</span>
                 <span className="col-span-2">
-                  {selectedBooking.payment_confirmed
-                    ? <span className="badge-completed">Confirmed</span>
-                    : <span className="badge-pending">Pending</span>
-                  }
+                  {selectedBooking.payment_confirmed ? (
+                    <span className="badge-completed">Confirmed</span>
+                  ) : (
+                    <span className="badge-pending">Pending</span>
+                  )}
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Refund block — view-only, only shown if refund info exists */}
-          {(selectedBooking.refund_reference_number || selectedBooking.refund_method) && (
-            <div className="mt-2 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1.5 text-xs text-rose-800 dark:text-rose-350">
-              <p className="font-extrabold uppercase tracking-wide">Linked Refund Information</p>
-              <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>
-              <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>
-              <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>
-              {selectedBooking.refund_receiver_gcash_number && (
-                <p><span className="font-bold">Receiver GCash:</span> {selectedBooking.refund_receiver_gcash_number}</p>
+            {/* Additional Charges / Add-ons Section */}
+            {((selectedBooking.add_ons && selectedBooking.add_ons.length > 0) || (selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned' || selectedBooking.status === 'dispatched' || selectedBooking.status === 'in-transit')) && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Additional Charges</h4>
+                  {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
+                    <button
+                      className="text-[11px] font-bold text-brand-navy dark:text-slate-200 hover:text-brand-blue dark:hover:text-white flex items-center gap-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-2 py-1 rounded transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                      Add Extra Service / Parts
+                    </button>
+                  )}
+                </div>
+                
+                {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                    {selectedBooking.add_ons.map((addon: any) => (
+                      <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center px-2.5 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-[13px] sm:text-sm gap-2">
+                        <div className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 pr-2">
+                          {addon.description}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-slate-900 dark:text-white shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {addon.status === 'pending_approval' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-amber-100 text-amber-700 rounded whitespace-nowrap">Pending Cust. Approval</span>
+                            )}
+                            {addon.status === 'pending_verification' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-blue-100 text-blue-700 rounded whitespace-nowrap">Pending Admin Verif.</span>
+                            )}
+                            {addon.status === 'confirmed' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded whitespace-nowrap">Confirmed</span>
+                            )}
+                            {addon.status === 'pending_approval' && (
+                              <button
+                                className="text-slate-400 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 cursor-not-allowed opacity-50"
+                                title="Cannot cancel request from this dashboard"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400 text-center py-1.5 italic bg-slate-50 dark:bg-slate-900/50 rounded flex items-center justify-center">No additional charges</div>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Action Buttons */}
+          <div className="flex flex-col gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+            {/* Communication Actions */}
+            <div className="flex gap-3">
+              <button
+                className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-navy hover:bg-slate-800 text-white font-bold transition-all text-sm shadow-sm"
+                onClick={() => {
+                  if (hasConfirmedHq) {
+                    setActiveChat('hq');
+                    return;
+                  }
+                  confirm({
+                    title: 'Message HQ',
+                    message: 'Are you sure you want to open a chat with HQ?',
+                    type: 'info',
+                    confirmText: 'Yes',
+                    onConfirm: () => {
+                      setHasConfirmedHq(true);
+                      setActiveChat('hq');
+                    }
+                  });
+                }}
+              >
+                <Building2 className="w-4 h-4" /> Message HQ
+              </button>
+              
+              {(selectedBooking.status === 'dispatched' || selectedBooking.status === 'in-transit' || selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned') && (
+                <button
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-green/10 hover:bg-brand-green/20 text-brand-green font-bold transition-all text-sm shadow-sm"
+                  onClick={() => {
+                    if (hasConfirmedCustomer) {
+                      setActiveChat('customer');
+                      return;
+                    }
+                    confirm({
+                      title: 'Message Customer',
+                      message: 'Are you sure you want to message the customer directly?',
+                      type: 'info',
+                      confirmText: 'Yes',
+                      onConfirm: () => {
+                        setHasConfirmedCustomer(true);
+                        setActiveChat('customer');
+                      }
+                    });
+                  }}
+                >
+                  <MessageSquare className="w-4 h-4" /> Message Customer
+                </button>
               )}
             </div>
-          )}
-        </Card>
-
-        {/* ── Status Action Sheet ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
-          {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'assigned') && (
-            <button
-              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => handleUpdateStatus('dispatched', 'Dispatched')}
-            >
-              Start Job (Dispatched)
-            </button>
-          )}
-          {selectedBooking.status === 'dispatched' && (
-            <button
-              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => handleUpdateStatus('in-transit', 'In Transit')}
-            >
-              In Transit
-            </button>
-          )}
-          {selectedBooking.status === 'in-transit' && (
-            <button
-              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => handleUpdateStatus('in_progress', 'In Progress')}
-            >
-              Arrived / In Progress
-            </button>
-          )}
-          {selectedBooking.status === 'in_progress' && (
-            <button
-              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => handleUpdateStatus('job_done', 'Job Done')}
-            >
-              <ClipboardList className="w-5 h-5" /> Complete Job
-            </button>
-          )}
-        </div>
-
-        {/* ── Communication Action Sheet ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          <button
-            className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-navy hover:bg-slate-800 text-white font-bold transition-all shadow-sm active:scale-95"
-            onClick={() => {
-              if (hasConfirmedHq) {
-                setActiveChat('hq');
-                return;
-              }
-              confirm({
-                title: 'Message HQ',
-                message: 'Are you sure you want to open a chat with HQ?',
-                type: 'info',
-                confirmText: 'Yes',
-                onConfirm: () => {
-                  setHasConfirmedHq(true);
-                  setActiveChat('hq');
-                }
-              });
-            }}
-          >
-            <Building2 className="w-5 h-5" /> Message HQ
-          </button>
-          
-          {/* Conditional Customer Messaging Button */}
-          {(selectedBooking.status === 'dispatched' || selectedBooking.status === 'in-transit' || selectedBooking.status === 'in_progress' || selectedBooking.status === 'assigned') && (
-            <button
-              className="flex items-center justify-center gap-2 p-4 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all shadow-sm active:scale-95"
-              onClick={() => {
-                if (hasConfirmedCustomer) {
-                  setActiveChat('customer');
-                  return;
-                }
-                confirm({
-                  title: 'Message Customer',
-                  message: 'Are you sure you want to message the customer directly?',
-                  type: 'info',
-                  confirmText: 'Yes',
-                  onConfirm: () => {
-                    setHasConfirmedCustomer(true);
-                    setActiveChat('customer');
-                  }
-                });
-              }}
-            >
-              <MessageSquare className="w-5 h-5" /> Message Customer
-            </button>
-          )}
-        </div>
+  
+            {/* Status Actions */}
+            <div className="flex w-full gap-3">
+              {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'assigned') && (
+                <button
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold transition-all text-sm shadow-sm"
+                  onClick={() => handleUpdateStatus('dispatched', 'Dispatched')}
+                >
+                  Start Job
+                </button>
+              )}
+              {selectedBooking.status === 'dispatched' && (
+                <button
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all text-sm shadow-sm"
+                  onClick={() => handleUpdateStatus('in-transit', 'In Transit')}
+                >
+                  In Transit
+                </button>
+              )}
+              {selectedBooking.status === 'in-transit' && (
+                <button
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all text-sm shadow-sm"
+                  onClick={() => handleUpdateStatus('in_progress', 'In Progress')}
+                >
+                  Arrived
+                </button>
+              )}
+              {selectedBooking.status === 'in_progress' && (
+                <button
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all text-sm shadow-sm"
+                  onClick={() => setShowProofModal(true)}
+                >
+                  <ClipboardList className="w-4 h-4" /> Complete Job
+                </button>
+              )}
+            </div>
+          </div>
 
         <PersonnelChatModal 
           isOpen={activeChat !== null}
@@ -588,6 +667,68 @@ function PersonnelBookings() {
           profile={profile}
         />
         <ConfirmComponent />
+
+        {/* Upload Proof of Work Modal */}
+        <AnimatePresence>
+          {showProofModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowProofModal(false)} />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative z-10 border border-slate-100 dark:border-slate-800">
+                <div className="p-6 space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Complete Job</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Please provide proof of work to request final approval.</p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Photo Evidence (Optional)</label>
+                      <input type="file" accept="image/*" onChange={handleProofFileChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20" />
+                      {uploadingProof && <p className="text-xs text-brand-blue mt-2 font-bold animate-pulse">Uploading...</p>}
+                      {proofImageUrl && <img src={proofImageUrl} alt="Proof" className="mt-3 rounded-xl max-h-32 object-cover border border-slate-200 dark:border-slate-800" />}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Closing Note (Optional)</label>
+                      <textarea
+                        rows={3}
+                        placeholder="E.g., Screen replaced, tested, works perfectly."
+                        value={proofNote}
+                        onChange={e => setProofNote(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => setShowProofModal(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                    <button
+                      disabled={uploadingProof}
+                      onClick={async () => {
+                        try {
+                          await api.put(`/api/bookings/${selectedBooking.id}`, { 
+                            status: 'job_done',
+                            proof_note: proofNote,
+                            proof_image_url: proofImageUrl
+                          });
+                          const updated = await api.get(`/api/bookings/${selectedBooking.id}`);
+                          setSelectedBooking(updated.data);
+                          setBookings(bookings.map((b: any) => b.id === selectedBooking.id ? updated.data : b));
+                          setShowProofModal(false);
+                        } catch (err) {
+                          confirm({ title: 'Error', message: 'Failed to complete job.', type: 'danger', hideCancel: true, confirmText: 'Okay' });
+                        }
+                      }}
+                      className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-brand-green hover:bg-[#005e3f] disabled:opacity-50 transition-colors"
+                    >
+                      Submit & Complete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -824,12 +965,16 @@ function PersonnelProfile() {
           <Card className="flex flex-col p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">Field Contact Info</h2>
-              {!isEditingContact && <EditButton onClick={() => setIsEditingContact(true)} />}
             </div>
             {!isEditingContact ? (
-              <div className="flex flex-col py-1">
-                <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Mobile Number (For Customers)</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{(profile as any).phone || '—'}</p>
+              <div className="space-y-2.5">
+                <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Mobile Number (For Customers)</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white break-words">{(profile as any).phone || '—'}</span>
+                  </div>
+                  <EditButton onClick={() => setIsEditingContact(true)} />
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSaveContact} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
@@ -862,10 +1007,11 @@ function PersonnelProfile() {
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-rose-600 dark:text-rose-400 flex items-center gap-2">
                  <AlertCircle className="w-4 h-4" /> Emergency Contact
               </h2>
-              {!isEditingSafety && <EditButton onClick={() => { setIsEditingSafety(true); setSafetyData(savedSafetyData); }} />}
+              <EditButton onClick={() => { setIsEditingSafety(true); setSafetyData(savedSafetyData); }} />
             </div>
-            {!isEditingSafety ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-4">
+            
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-0.5">Name</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{savedSafetyData.eName || '—'}</p>
@@ -879,31 +1025,48 @@ function PersonnelProfile() {
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{savedSafetyData.ePhone || '—'}</p>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleSaveSafety} className="space-y-3 bg-rose-50/50 dark:bg-rose-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-900/30">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Name</label>
-                    <input type="text" value={safetyData.eName} onChange={(e) => setSafetyData({ ...safetyData, eName: e.target.value })} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Relationship</label>
-                    <input type="text" value={safetyData.eRel} onChange={(e) => setSafetyData({ ...safetyData, eRel: e.target.value })} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone</label>
-                    <input type="text" value={safetyData.ePhone} onChange={(e) => setSafetyData({ ...safetyData, ePhone: e.target.value })} className={inputClass} />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => setIsEditingSafety(false)} className={btnGhost}>Cancel</button>
-                  <button type="submit" className={btnSuccess}>Save Changes</button>
-                </div>
-              </form>
-            )}
+            </div>
           </Card>
         </div>
       </div>
+
+      {/* Emergency Contact Modal */}
+      {isEditingSafety && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative z-10">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-rose-500" /> Edit Emergency Contact
+              </h3>
+              <button type="button" onClick={() => setIsEditingSafety(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSaveSafety}>
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-slate-500">Please provide the contact details of the person we should reach out to in case of an emergency while you're on the field.</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Full Name</label>
+                    <input type="text" placeholder="e.g. Maria Cruz" value={safetyData.eName} onChange={(e) => setSafetyData({ ...safetyData, eName: e.target.value })} className={inputClass} required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Relationship</label>
+                    <input type="text" placeholder="e.g. Spouse, Parent, Sibling" value={safetyData.eRel} onChange={(e) => setSafetyData({ ...safetyData, eRel: e.target.value })} className={inputClass} required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Phone Number</label>
+                    <input type="text" placeholder="e.g. 0917-000-0000" value={safetyData.ePhone} onChange={(e) => setSafetyData({ ...safetyData, ePhone: e.target.value })} className={inputClass} required />
+                  </div>
+                </div>
+              </div>
+              <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
+                <Button type="button" variant="outline" onClick={() => setIsEditingSafety(false)}>Cancel</Button>
+                <Button type="submit" className="bg-brand-green hover:bg-[#005e3f] text-white">Save Changes</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <ConfirmComponent />
     </div>
   );

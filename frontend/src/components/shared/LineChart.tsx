@@ -25,7 +25,12 @@ export function LineChart({ data, xKey, lines, height = 300 }: LineChartProps) {
       <RechartsLineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
         <CartesianGrid vertical={false} stroke={isDark ? '#334155' : '#e2e8f0'} />
         <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} stroke={isDark ? '#475569' : '#cbd5e1'} />
-        <YAxis tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} stroke={isDark ? '#475569' : '#cbd5e1'} padding={{ bottom: 15, top: 15 }} />
+        <YAxis 
+          tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} 
+          stroke={isDark ? '#475569' : '#cbd5e1'} 
+          padding={{ bottom: 15, top: 15 }} 
+          allowDecimals={false}
+        />
         <Tooltip
           contentStyle={{
             borderRadius: '12px',

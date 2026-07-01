@@ -17,6 +17,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
   
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const [isOnDuty, setIsOnDuty] = React.useState(true);
   const [filter, setFilter] = React.useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -103,6 +104,19 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
         {title && <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h1>}
       </div>
       <div className="flex items-center gap-3">
+        {profile?.role === 'personnel' && (
+          <button 
+            onClick={() => setIsOnDuty(!isOnDuty)}
+            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${
+              isOnDuty 
+                ? 'bg-brand-green/10 border-brand-green/20 text-brand-green' 
+                : 'bg-slate-100 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${isOnDuty ? 'bg-brand-green animate-pulse' : 'bg-slate-400'}`}></div>
+            <span className="text-xs font-bold">{isOnDuty ? 'On Duty' : 'Off Duty'}</span>
+          </button>
+        )}
         <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle theme">
           {isDark ? <Sun className="w-5 h-5 text-brand-yellow" /> : <Moon className="w-5 h-5 text-slate-600" />}
         </button>
