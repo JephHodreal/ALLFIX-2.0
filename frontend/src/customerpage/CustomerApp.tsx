@@ -9,6 +9,7 @@ import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { MobileBottomNav } from '../components/shared/MobileBottomNav';
 import { FloatingCartWidget } from './FloatingCartWidget';
+import { MobileServiceCarousel } from './MobileServiceCarousel';
 import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -117,7 +118,7 @@ const ServiceCard = ({ service, isSubService = false, onServiceClick }: { servic
           alt={service.brand}
           className="w-full h-full object-cover transition-opacity duration-500 absolute top-0 left-0"
           style={{
-            objectPosition: 'center 10%',
+            objectPosition: 'center',
             opacity: hovered ? 0.3 : 1,
           }}
         />
@@ -181,16 +182,16 @@ const ServiceCard = ({ service, isSubService = false, onServiceClick }: { servic
       </div>
 
       {/* Body */}
-      <div className="p-6 sm:p-7 flex flex-col flex-grow bg-white dark:bg-slate-900 relative z-30">
-        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-0.5">{service.brand}</h3>
-        <p className="text-xs font-bold mb-3" style={{ color: service.accent }}>{service.tagline}</p>
-        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4 flex-grow">{service.description}</p>
+      <div className="p-4 sm:p-7 flex flex-col flex-grow bg-white dark:bg-slate-900 relative z-30">
+        <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white mb-0.5">{service.brand}</h3>
+        <p className="text-[11px] sm:text-xs font-bold mb-2 sm:mb-3" style={{ color: service.accent }}>{service.tagline}</p>
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-3 sm:mb-4 flex-grow line-clamp-3 sm:line-clamp-none">{service.description}</p>
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+        <div className="grid grid-cols-2 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-2 mb-3 sm:mb-4">
           {service.services.map((tag: string) => (
-            <div key={tag} className="flex items-center gap-2">
+            <div key={tag} className="flex items-center gap-1.5 sm:gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: service.accent }} />
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{tag}</span>
+              <span className="text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{tag}</span>
             </div>
           ))}
         </div>
@@ -392,26 +393,36 @@ function CustomerHome() {
                 </div>
               ) : (
                 <div className="w-full mt-4">
-                  {/* Mobile only: single card display with tab selector (xs) */}
-                  <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                    {/* Single active service card */}
-                    <Box sx={{ width: '100%', px: 1.5, mb: 1.5 }}>
-                      {services.length > 0 && (
-                        <ServiceCard
-                          service={services[activeServiceIdx] || services[0]}
-                          onServiceClick={(svc) => {
-                            setSelectedBrandService(svc);
-                            window.scrollTo(0, 0);
-                          }}
-                        />
-                      )}
-                    </Box>
-                    {/* Selector pills at the bottom */}
-                    <NavigationPills
-                      services={services.slice(0, 9)}
-                      activeServiceIdx={activeServiceIdx}
-                      setActiveServiceIdx={setActiveServiceIdx}
-                    />
+                  {/* Mobile only: 360-degree interactive 3D carousel (xs) */}
+                  <Box sx={{ display: { xs: 'block', sm: 'none' }, width: '100%' }}>
+                    {services.length > 0 && (
+                      <MobileServiceCarousel
+                        services={services.slice(0, 9)}
+                        activeIdx={activeServiceIdx}
+                        setActiveIdx={setActiveServiceIdx}
+                        renderCard={(service, isCenter) => (
+                          <div className="h-full w-full">
+                            <ServiceCard
+                              service={service}
+                              onServiceClick={(svc) => {
+                                // Handled by carousel center click
+                              }}
+                            />
+                          </div>
+                        )}
+                        onServiceClick={(svc) => {
+                          setSelectedBrandService(svc);
+                          window.scrollTo(0, 0);
+                        }}
+                        navigationPills={
+                          <NavigationPills
+                            services={services.slice(0, 9)}
+                            activeServiceIdx={activeServiceIdx}
+                            setActiveServiceIdx={setActiveServiceIdx}
+                          />
+                        }
+                      />
+                    )}
                   </Box>
 
                   {/* Tablet (sm–md): 2-column grid | Desktop (lg+): 3-column grid */}
@@ -475,7 +486,20 @@ function CustomerHome() {
         )}
       </div>
 
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Bookings</h3>
+      <div className="flex items-center justify-between mt-6 mb-3">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <span>Recent Bookings</span>
+        </h3>
+        {!loading && recentBookings.length > 0 && (
+          <button
+            onClick={() => navigate('/customer/bookings')}
+            className="inline-flex items-center gap-1.5 text-xs font-black text-brand-navy dark:text-blue-400 hover:text-brand-green dark:hover:text-emerald-400 transition-all duration-200 group px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/50 dark:border-slate-700/50 shadow-2xs cursor-pointer"
+          >
+            <span>View All</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+          </button>
+        )}
+      </div>
       {loading ? (
         <div className="space-y-3">{Array(3).fill(0).map((_, i) => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
       ) : recentBookings.length === 0 ? (
@@ -483,13 +507,24 @@ function CustomerHome() {
       ) : (
         <div className="space-y-3">
           {recentBookings.map(b => (
-            <Card key={b.id} hover padding="sm">
-              <div className="flex items-center justify-between">
-                <div><p className="font-medium text-slate-900 dark:text-white">{b.service_type}</p>
-                  <p className="text-xs text-slate-500">{b.scheduled_date}</p></div>
-                <span className={b.status === 'completed' ? 'badge-completed' : b.status === 'job_done' ? 'badge-in-progress bg-blue-100 text-blue-800' : b.status === 'in_progress' ? 'badge-in-progress' : b.status === 'confirmed' ? 'badge-confirmed' : 'badge-pending'}>{b.status?.replace('_', ' ')}</span>
-              </div>
-            </Card>
+            <div
+              key={b.id}
+              onClick={() => navigate('/customer/bookings', { state: { bookingId: b.id } })}
+              className="cursor-pointer transition-transform duration-200 hover:-translate-y-0.5"
+            >
+              <Card hover padding="sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white mb-0.5">{b.service_type}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{b.scheduled_date}</span>
+                    </p>
+                  </div>
+                  <span className={b.status === 'completed' ? 'badge-completed' : b.status === 'job_done' ? 'badge-in-progress bg-blue-100 text-blue-800' : b.status === 'in_progress' ? 'badge-in-progress' : b.status === 'confirmed' ? 'badge-confirmed' : 'badge-pending'}>{b.status?.replace('_', ' ')}</span>
+                </div>
+              </Card>
+            </div>
           ))}
         </div>
       )}
