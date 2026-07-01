@@ -62,28 +62,28 @@ export function MobileConfirmModal({
   const getBadgeStyle = () => {
     switch (type) {
       case 'danger':
-        return 'bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30';
+        return 'bg-gradient-to-br from-red-600 to-rose-700 shadow-md';
       case 'warning':
-        return 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30';
+        return 'bg-gradient-to-br from-rose-500 to-orange-600 shadow-md';
       case 'success':
-        return 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30';
+        return 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md';
       case 'info':
       default:
-        return 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30';
+        return 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md';
     }
   };
 
   const getConfirmButtonStyle = () => {
     switch (type) {
       case 'danger':
-        return 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-lg shadow-red-500/25 border border-red-400/30';
+        return 'bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white shadow-md border border-red-500/30';
       case 'warning':
-        return 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 border border-amber-400/30';
+        return 'bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-md border border-rose-400/30';
       case 'success':
-        return 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 border border-emerald-400/30';
+        return 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md border border-emerald-400/30';
       case 'info':
       default:
-        return 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30';
+        return 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md border border-blue-400/30';
     }
   };
 
