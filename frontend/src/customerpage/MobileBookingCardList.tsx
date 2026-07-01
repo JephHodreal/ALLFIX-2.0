@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Calendar, Clock, ArrowRight, Wrench, CheckCircle2, AlertCircle, XCircle, User, Loader2, History, Building2 } from 'lucide-react';
 import { Button } from '../components/shared/Button';
@@ -14,8 +15,34 @@ export function MobileBookingCardList({
   loading = false,
   onSelectBooking
 }: MobileBookingCardListProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'all' | 'active' | 'completed' | 'cancelled') || 'all';
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed' | 'cancelled'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed' | 'cancelled'>(
+    ['all', 'active', 'completed', 'cancelled'].includes(initialTab) ? initialTab : 'all'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as 'all' | 'active' | 'completed' | 'cancelled';
+    if (tab && ['all', 'active', 'completed', 'cancelled'].includes(tab)) {
+      setActiveFilter(tab);
+    } else if (!tab) {
+      setActiveFilter('all');
+    }
+  }, [searchParams]);
+
+  const handleTabSelect = (tabId: 'all' | 'active' | 'completed' | 'cancelled') => {
+    setActiveFilter(tabId);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tabId === 'all') {
+        next.delete('tab');
+      } else {
+        next.set('tab', tabId);
+      }
+      return next;
+    }, { replace: true });
+  };
 
   const formatBookingId = (id: string) => {
     if (!id) return '#BK-0000';
@@ -161,7 +188,7 @@ export function MobileBookingCardList({
             return (
               <button
                 key={chip.id}
-                onClick={() => setActiveFilter(chip.id as any)}
+                onClick={() => handleTabSelect(chip.id as any)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 cursor-pointer flex-shrink-0 ${
                   isActive
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black shadow-sm border border-slate-200/80 dark:border-slate-700/80 scale-[1.01]'
@@ -215,7 +242,7 @@ export function MobileBookingCardList({
               size="sm"
               onClick={() => {
                 setSearchQuery('');
-                setActiveFilter('all');
+                handleTabSelect('all');
               }}
               className="rounded-xl font-bold"
             >
