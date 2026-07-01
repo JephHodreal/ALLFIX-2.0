@@ -12,6 +12,7 @@ export interface MobileConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info' | 'success';
+  hideCancel?: boolean;
   icon?: React.ReactNode;
 }
 
@@ -24,6 +25,7 @@ export function MobileConfirmModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   type = 'danger',
+  hideCancel = false,
   icon
 }: MobileConfirmModalProps) {
   const [loading, setLoading] = useState(false);
@@ -155,14 +157,16 @@ export function MobileConfirmModal({
                 )}
               </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={!loading ? onClose : undefined}
-                disabled={loading}
-                className="w-full py-4 px-6 rounded-2xl font-bold text-sm bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {cancelText}
-              </motion.button>
+              {!hideCancel && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={!loading ? onClose : undefined}
+                  disabled={loading}
+                  className="w-full py-4 px-6 rounded-2xl font-bold text-sm bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {cancelText}
+                </motion.button>
+              )}
             </div>
           </motion.div>
         </div>

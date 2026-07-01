@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Bell, Sun, Moon, Ticket, LogOut, ShieldAlert, LifeBuoy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../services/firebaseService';
+import api from '../../services/apiService';
 import { MobileConfirmModal } from './MobileConfirmModal';
 
 interface CustomerMobileProfileModalProps {
@@ -25,6 +26,22 @@ export function CustomerMobileProfileModal({
 }: CustomerMobileProfileModalProps) {
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const [activeVouchersCount, setActiveVouchersCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    if (!isOpen || !profile?.id) return;
+    const fetchVoucherCount = async () => {
+      try {
+        const res = await api.get(`/api/vouchers/customer/${profile.id}`);
+        const fetched = res.data || [];
+        const active = fetched.filter((v: any) => v.temp_delete !== 1 && (v.status === 'unused' || v.status === 'active'));
+        setActiveVouchersCount(active.length);
+      } catch (err) {
+        console.error('[CAVEMAN] Error fetching voucher count in account menu:', err);
+      }
+    };
+    fetchVoucherCount();
+  }, [isOpen, profile?.id]);
 
   const handleNav = (path: string) => {
     navigate(path);
@@ -42,7 +59,7 @@ export function CustomerMobileProfileModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-[9999]"
+            className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-md z-[9999]"
             onClick={onClose}
           />
 
@@ -52,7 +69,7 @@ export function CustomerMobileProfileModal({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="fixed inset-x-0 bottom-0 top-[7vh] bg-white dark:bg-[#040819] rounded-t-[32px] shadow-[0_-20px_50px_rgba(0,0,0,0.7)] z-[10000] flex flex-col overflow-hidden border-t border-white/10"
+            className="fixed inset-x-0 bottom-0 top-[6vh] bg-white dark:bg-[#070c20] rounded-t-[32px] shadow-[0_-20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.7)] z-[10000] flex flex-col overflow-hidden border-t border-slate-200/80 dark:border-white/10"
           >
             {/* Sheet Header */}
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
@@ -70,17 +87,21 @@ export function CustomerMobileProfileModal({
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Profile Header Card (Clean without VIP badge) */}
+              {/* Profile Header Card (Aurora Concierge Membership Identity) */}
               <div
-                className="relative overflow-hidden flex items-center justify-between p-5 rounded-3xl bg-gradient-to-br from-brand-navy via-[#1a3052] to-slate-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900 text-white shadow-xl shadow-brand-navy/20 dark:shadow-black/50 border border-white/10 cursor-pointer active:scale-95 transition-all group"
+                className="relative overflow-hidden flex items-center justify-between p-5 rounded-3xl bg-gradient-to-br from-[#071529] via-[#0d2644] to-[#0A3A5E] dark:from-[#050b14] dark:via-[#091a30] dark:to-[#082640] text-white shadow-xl shadow-brand-navy/20 dark:shadow-black/50 border border-white/15 cursor-pointer active:scale-95 transition-all group"
                 onClick={() => handleNav('/customer/profile')}
               >
                 {/* Decorative ambient glass shape */}
                 <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-brand-green/25 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
                 
                 <div className="flex items-center gap-4 relative z-10 min-w-0">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-white text-xl font-black border-2 border-white/30 shadow-md flex-shrink-0">
-                    {profile?.first_name?.[0] || profile?.email?.[0]?.toUpperCase() || '?'}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-white text-xl font-black border-2 border-white/30 shadow-md flex-shrink-0 overflow-hidden relative">
+                    {(profile as any)?.avatar_url ? (
+                      <img src={(profile as any).avatar_url} alt="Profile Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{profile?.first_name?.[0] || profile?.email?.[0]?.toUpperCase() || '?'}</span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-extrabold text-white text-lg tracking-tight truncate mb-0.5">
@@ -159,9 +180,15 @@ export function CustomerMobileProfileModal({
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage coupons & discounts</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400 font-black text-xs">
-                      <span>🎫 Rewards Active</span>
-                    </div>
+                    {activeVouchersCount > 0 ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 font-black text-xs shadow-xs">
+                        <span>{activeVouchersCount} Available</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                        0 Available
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

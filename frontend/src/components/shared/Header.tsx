@@ -297,8 +297,12 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
           )}
         </div>
 
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-navy to-brand-green flex items-center justify-center text-white text-sm font-bold">
-          {profile?.first_name?.[0] || profile?.email?.[0]?.toUpperCase() || '?'}
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-navy to-brand-green flex items-center justify-center text-white text-sm font-bold overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xs relative">
+          {(profile as any)?.avatar_url ? (
+            <img src={(profile as any).avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span>{profile?.first_name?.[0] || profile?.email?.[0]?.toUpperCase() || '?'}</span>
+          )}
         </div>
         </div>
 

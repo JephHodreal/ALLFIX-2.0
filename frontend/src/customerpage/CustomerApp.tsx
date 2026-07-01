@@ -10,6 +10,9 @@ import { Header } from '../components/shared/Header';
 import { MobileBottomNav } from '../components/shared/MobileBottomNav';
 import { FloatingCartWidget } from './FloatingCartWidget';
 import { MobileServiceCarousel } from './MobileServiceCarousel';
+import { MobileBookingCardList } from './MobileBookingCardList';
+import { MobileConfirmModal } from '../components/shared/MobileConfirmModal';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 import { Card, StatCard } from '../components/shared/Card';
 import { DataTable } from '../components/shared/DataTable';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -1506,6 +1509,13 @@ function MyBookingsTab() {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState('');
 
+  const [isMobileViewport, setIsMobileViewport] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  useEffect(() => {
+    const handleResize = () => setIsMobileViewport(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Add-on Payment flow state
   const [showAddonPaymentModal, setShowAddonPaymentModal] = useState<string | null>(null);
   const [addonPaymentMethod, setAddonPaymentMethod] = useState('');
@@ -1632,6 +1642,9 @@ function MyBookingsTab() {
   if (selectedBooking) {
     const isCancellable = selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && !selectedBooking.cancellation_requested;
     const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method || selectedBooking.cancelled_by;
+    const qty = selectedBooking.quantity || 1;
+    const totalPayment = Number(selectedBooking.total_price !== undefined ? selectedBooking.total_price : (selectedBooking.price !== undefined ? selectedBooking.price * qty : 0));
+    const unitPrice = Number(selectedBooking.price !== undefined ? selectedBooking.price : (qty > 0 ? totalPayment / qty : 0));
 
     return (
       <div className="space-y-4 max-w-4xl mx-auto">
@@ -1676,172 +1689,161 @@ function MyBookingsTab() {
         {/* Two-column info layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* Service Information */}
-          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm">
-            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Service Information</h4>
-            <div className="space-y-2 text-sm">
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Service Category:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.sub_service || selectedBooking.service_type}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Work Type:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.service_type}</span>
-              </div>
-              {selectedBooking.description && (
-                <div className="grid grid-cols-3 gap-2">
-                  <span className="text-slate-400 font-medium">Description:</span>
-                  <span className="col-span-2 text-slate-600 dark:text-slate-350 italic leading-tight">"{selectedBooking.description}"</span>
-                </div>
-              )}
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Vendor:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.vendor_name || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Date & Time:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">📅 {selectedBooking.scheduled_date} at ⏰ {selectedBooking.scheduled_time}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Address:</span>
-                <span className="col-span-2 text-slate-800 dark:text-slate-200 leading-tight">{selectedBooking.address || selectedBooking.service_address || '—'}</span>
-              </div>
-              {selectedBooking.personnel_id && (
-                <div className="grid grid-cols-3 gap-2 pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/60 items-center">
-                  <span className="text-slate-400 font-medium">Assigned To:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-bold flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-brand-green flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-                    {selectedBooking.personnel_name || 'Assigned'}
-                  </span>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Payment Info Card & Additional Charges */}
-          <Card className="p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm relative">
-            <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 border-slate-100 dark:border-slate-800">Payment & Pricing</h4>
-            <div className="space-y-1.5 text-[13px] sm:text-sm pt-1">
-              <div className="grid grid-cols-3 gap-2 items-center">
-                <span className="text-slate-400 font-medium">Unit Price:</span>
-                <div className="col-span-2">
-                  <span className="text-slate-900 dark:text-white font-semibold">₱{Number(selectedBooking.price || 0).toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
-                <span className="text-slate-400 font-medium">Quantity:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.quantity || 1}</span>
-              </div>
-              {/* Voucher Discount Info */}
-              {selectedBooking.discount_amount > 0 && (
-                <>
-                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
-                    <span className="text-slate-400 font-medium">Subtotal:</span>
-                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-semibold line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
-                    <span className="col-span-2 text-slate-500 dark:text-slate-400 font-medium line-through">₱{selectedBooking.original_price || (selectedBooking.price * (selectedBooking.quantity || 1))}</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-slate-400 font-medium">Voucher:</span>
-                    <span className="col-span-2 flex items-center gap-2">
-                      <span className="font-mono text-xs px-2 py-0.5 rounded-lg bg-brand-green/10 text-brand-green border border-brand-green/20 font-bold">{selectedBooking.voucher_code}</span>
-                      <span className="text-brand-green font-bold text-xs">-₱{Number(selectedBooking.discount_amount).toFixed(2)}</span>
-                    </span>
-                  </div>
-                </>
-              )}
-              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 items-center">
-                <span className="text-slate-900 dark:text-white font-black">Total Payment:</span>
-                <div className="col-span-2">
-                  <span className="text-lg font-black text-brand-green">₱{Number(selectedBooking.total_price || (selectedBooking.price * (selectedBooking.quantity || 1)) || 0).toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
-                <span className="text-slate-400 font-medium">Payment Method:</span>
-                <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_method || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-slate-400 font-medium">Reference No:</span>
-                <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.payment_reference || '—'}</span>
-              </div>
-              {selectedBooking.account_name && (
-                <div className="grid grid-cols-3 gap-2">
-                  <span className="text-slate-400 font-medium">Account Name:</span>
-                  <span className="col-span-2 text-slate-900 dark:text-white font-semibold">{selectedBooking.account_name}</span>
-                </div>
-              )}
-              {selectedBooking.account_number && (
-                <div className="grid grid-cols-3 gap-2">
-                  <span className="text-slate-400 font-medium">Account Number:</span>
-                  <span className="col-span-2 font-mono text-slate-900 dark:text-white font-semibold">{selectedBooking.account_number}</span>
-                </div>
-              )}
-              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
-                <span className="text-slate-400 font-medium">Payment Status:</span>
-                <span className="col-span-2">
-                  {statusBadge(selectedBooking.payment_confirmed ? 'confirmed' : 'pending')}
+          {/* Service Information (High-Density Executive Compact Layout) */}
+          <Card className="p-4 sm:p-5 space-y-2.5 bg-white dark:bg-[#070c20] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm flex flex-col justify-between">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Service Information</h4>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  📅 {selectedBooking.scheduled_date} • {selectedBooking.scheduled_time}
                 </span>
               </div>
-              {hasRefundInfo && (
-                <div className="mt-3 p-2.5 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1 text-xs text-rose-800 dark:text-rose-300">
-                  <p className="font-extrabold uppercase tracking-wide mb-1">Refund Information</p>
-                  {selectedBooking.cancelled_by && <p><span className="font-bold">Cancelled By:</span> {selectedBooking.cancelled_by}</p>}
-                  {selectedBooking.refund_amount && <p><span className="font-bold">Refunded Amount:</span> ₱{selectedBooking.refund_amount}</p>}
-                  {selectedBooking.refund_method && <p><span className="font-bold">Method:</span> {selectedBooking.refund_method}</p>}
-                  {selectedBooking.refund_reference_number && <p><span className="font-bold">Refund Ref No:</span> {selectedBooking.refund_reference_number}</p>}
+              <div className="space-y-1.5 text-xs sm:text-sm pt-0.5">
+                <div className="flex justify-between items-center py-1 bg-slate-50 dark:bg-slate-900/40 px-2.5 rounded-lg">
+                  <span className="text-slate-400 font-medium">Category</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-right">{selectedBooking.sub_service || selectedBooking.service_type}</span>
                 </div>
-              )}
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-slate-400 font-medium">Work Type</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-right">{selectedBooking.service_type}</span>
+                </div>
+                {selectedBooking.description && (
+                  <div className="px-2.5 py-1.5 bg-slate-50/80 dark:bg-slate-900/30 rounded-lg text-slate-600 dark:text-slate-350 italic text-xs leading-relaxed">
+                    "{selectedBooking.description}"
+                  </div>
+                )}
+                <div className="flex justify-between items-center px-1 pt-1">
+                  <span className="text-slate-400 font-medium">Vendor</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-right truncate max-w-[200px]">{selectedBooking.vendor_name || 'AllFix Certified'}</span>
+                </div>
+                {selectedBooking.address && (
+                  <div className="flex justify-between items-start gap-3 px-1">
+                    <span className="text-slate-400 font-medium shrink-0">Address</span>
+                    <span className="text-slate-700 dark:text-slate-300 text-right text-xs leading-tight truncate max-w-[220px]">{selectedBooking.address || selectedBooking.service_address}</span>
+                  </div>
+                )}
+                {selectedBooking.personnel_id && (
+                  <div className="flex justify-between items-center pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/60 px-1">
+                    <span className="text-slate-400 font-medium">Assigned Technician</span>
+                    <span className="font-bold text-brand-green flex items-center gap-1 text-xs">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {selectedBooking.personnel_name || 'Assigned'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Additional Charges / Add-ons Section */}
-            {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-brand-navy dark:text-blue-400" />
-                    Additional Charges
-                  </h4>
-                </div>
-                
-                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                  {selectedBooking.add_ons.map((addon: any) => (
-                    <div key={addon.id} className="flex flex-col sm:flex-row sm:items-center px-2.5 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-[13px] sm:text-sm gap-2">
-                      <div className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 pr-2">
-                        {addon.description}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-bold text-slate-900 dark:text-white shrink-0">₱{Number(addon.amount).toFixed(2)}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {addon.status === 'pending_approval' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-amber-100 text-amber-700 rounded whitespace-nowrap">Action Required</span>}
-                          {addon.status === 'pending_verification' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-blue-100 text-blue-700 rounded whitespace-nowrap">Verifying Payment</span>}
-                          {addon.status === 'confirmed' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded whitespace-nowrap">Confirmed</span>}
-                          
-                          {addon.status === 'pending_approval' && (
-                            <button className="text-[10px] font-bold px-3 py-1 bg-brand-green text-white rounded-md uppercase tracking-wider hover:bg-brand-green/90 transition-colors shadow-sm ml-1" onClick={() => setShowAddonPaymentModal(addon.id)}>Approve</button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Cancel Booking Button relocated to Service Information Card! */}
+            {!showRefundForm && !showCancelConfirm && isCancellable && (
+              <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80">
+                <button
+                  className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-rose-200/80 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20 hover:bg-rose-100/70 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400 font-extrabold text-xs transition-all shadow-xs active:scale-[0.99] cursor-pointer group"
+                  onClick={() => {
+                    console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
+                    setShowCancelConfirm(true);
+                  }}
+                >
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 group-hover:scale-110 transition-transform" />
+                  <span>Cancel Booking</span>
+                </button>
               </div>
             )}
           </Card>
-        </div>
 
-        {/* Action Buttons */}
-        {!showRefundForm && !showCancelConfirm && isCancellable && (
-          <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 mt-4">
-            <button
-              className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 border-rose-500 text-rose-600 bg-transparent hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shadow-none"
-              onClick={() => {
-                console.log('[CAVEMAN] Customer clicked Cancel Booking for booking:', selectedBooking.id);
-                setShowCancelConfirm(true);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+          {/* Payment & Pricing Card (Refined Fintech Receipt Architecture with Add-ons ABOVE Total!) */}
+          <Card className="p-4 sm:p-5 space-y-2.5 bg-white dark:bg-[#070c20] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm relative flex flex-col justify-between">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Payment & Pricing</h4>
+                {statusBadge(selectedBooking.payment_confirmed ? 'confirmed' : 'pending')}
+              </div>
+              
+              <div className="space-y-2 text-xs sm:text-sm">
+                {/* Method & Ref Pill */}
+                <div className="flex justify-between items-center py-1.5 px-2.5 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100/80 dark:border-slate-800/80">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Method</span>
+                    <span className="font-bold text-slate-800 dark:text-white">{selectedBooking.payment_method || 'Cash / Online'}</span>
+                  </div>
+                  {selectedBooking.payment_reference && (
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Ref No.</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-white">{selectedBooking.payment_reference}</span>
+                    </div>
+                  )}
+                </div>
+
+                {(selectedBooking.account_name || selectedBooking.account_number) && (
+                  <div className="flex justify-between text-[11px] text-slate-500 px-1">
+                    <span>Acc: {selectedBooking.account_name}</span>
+                    <span className="font-mono">{selectedBooking.account_number}</span>
+                  </div>
+                )}
+
+                {/* Line Items Section */}
+                <div className="space-y-1.5 pt-1 px-1">
+                  <div className="flex justify-between text-slate-600 dark:text-slate-350 text-xs">
+                    <span>Unit Price ({qty}x)</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">₱{unitPrice.toFixed(2)}</span>
+                  </div>
+
+                  {/* Additional Charges / Add-ons listed directly inside line items ABOVE Total! */}
+                  {selectedBooking.add_ons && selectedBooking.add_ons.length > 0 && (
+                    <div className="py-1 space-y-1.5">
+                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                        <AlertCircle className="w-3 h-3 text-brand-navy dark:text-blue-400" />
+                        <span>Additional Charges</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-0.5">
+                        {selectedBooking.add_ons.map((addon: any) => (
+                          <div key={addon.id} className="flex items-center justify-between px-2.5 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs gap-2 shadow-2xs">
+                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate flex-1">{addon.description}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-bold text-slate-900 dark:text-white">₱{Number(addon.amount).toFixed(2)}</span>
+                              {addon.status === 'pending_approval' && (
+                                <button
+                                  className="text-[10px] font-extrabold px-2.5 py-1 bg-brand-green text-white rounded-lg uppercase tracking-wider hover:bg-brand-green/90 transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
+                                  onClick={() => setShowAddonPaymentModal(addon.id)}
+                                >
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>Approve</span>
+                                </button>
+                              )}
+                              {addon.status === 'confirmed' && <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase bg-emerald-100 text-emerald-700 rounded-md font-mono">Confirmed</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedBooking.discount_amount > 0 && (
+                    <div className="flex justify-between text-brand-green font-bold text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                      <span>Voucher ({selectedBooking.voucher_code})</span>
+                      <span>-₱{Number(selectedBooking.discount_amount).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dashed Total Row sitting at the VERY BOTTOM of all charges! */}
+                <div className="flex justify-between items-center pt-2.5 mt-2 border-t border-dashed border-slate-300 dark:border-slate-700 px-1">
+                  <span className="font-black text-slate-900 dark:text-white text-sm">Total Payment</span>
+                  <span className="font-mono text-xl font-black text-brand-green dark:text-emerald-400 tracking-tight">
+                    ₱{totalPayment.toFixed(2)}
+                  </span>
+                </div>
+
+                {hasRefundInfo && (
+                  <div className="mt-3 p-2.5 bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl space-y-1 text-[11px] text-rose-800 dark:text-rose-300">
+                    <p className="font-extrabold uppercase tracking-wide">Refund Details</p>
+                    {selectedBooking.cancelled_by && <p><span className="font-bold">By:</span> {selectedBooking.cancelled_by}</p>}
+                    {selectedBooking.refund_amount && <p><span className="font-bold">Amount:</span> ₱{selectedBooking.refund_amount}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
 
         {/* Completed Rating and Review section */}
         {selectedBooking.status === 'completed' && (
@@ -1899,43 +1901,66 @@ function MyBookingsTab() {
           </div>
         )}
 
-        {/* Cancel Confirmation Dialog */}
-        {showCancelConfirm && !showRefundForm && (
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <AlertCircle className="w-6 h-6" />
+        {/* Cancel Confirmation Dialog - Default layout for Desktop */}
+        <ConfirmModal
+          isOpen={showCancelConfirm && !showRefundForm && !isMobileViewport}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            console.log('[CAVEMAN] Customer confirmed cancellation via Desktop ConfirmModal, showing refund form.');
+            setShowCancelConfirm(false);
+            setRefundReason('');
+            setRefundError('');
+            setShowRefundForm(true);
+          }}
+          title="Cancel Booking"
+          message={
+            <div className="space-y-2 text-left mt-0.5">
+              <p>Are you sure you want to cancel this booking?</p>
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 space-y-1 text-[11px] leading-tight text-slate-600 dark:text-slate-300">
+                <p className="font-extrabold uppercase tracking-wider text-[9px] text-slate-400">Cancellation Policy</p>
+                <ul className="list-disc pl-3.5 space-y-0.5 font-medium">
+                  <li>Full refund if cancelled 24h+ before schedule.</li>
+                  <li>Cancellations within 24h may incur a processing fee.</li>
+                  <li>No cancellation once a technician is en route.</li>
+                </ul>
               </div>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Cancel Booking</h4>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-350">
-              Are you sure you want to cancel this booking? A refund request will be automatically submitted to the administrator for review.
-            </p>
-            <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-amber-200/50 dark:border-amber-900/50 space-y-2 text-xs text-amber-900 dark:text-amber-300">
-              <p className="font-bold uppercase tracking-wider">Cancellation Policy</p>
-              <ul className="list-disc pl-4 space-y-1">
-                <li>Cancellations made 24 hours before the schedule are eligible for a full refund.</li>
-                <li>Cancellations within 24 hours may incur a processing or cancellation fee depending on the vendor's policy.</li>
-                <li>Once a technician is en route or the booking is in-progress, cancellations may not be permitted.</li>
-              </ul>
+          }
+          confirmText="Yes, Cancel"
+          cancelText="No, Keep Booking"
+          type="danger"
+        />
+
+        <MobileConfirmModal
+          isOpen={showCancelConfirm && !showRefundForm && isMobileViewport}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            console.log('[CAVEMAN] Customer confirmed cancellation via MobileConfirmModal, showing refund form.');
+            setShowCancelConfirm(false);
+            setRefundReason('');
+            setRefundError('');
+            setShowRefundForm(true);
+          }}
+          title="Cancel Booking?"
+          message={
+            <div className="space-y-3 text-left mt-1">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to cancel this booking? A cancellation request will be submitted for review.
+              </p>
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                <p className="font-extrabold uppercase tracking-wider text-[10px] text-slate-400">Cancellation Policy</p>
+                <ul className="list-disc pl-4 space-y-1 font-medium">
+                  <li>Cancellations made 24h before schedule are eligible for full refund.</li>
+                  <li>Cancellations within 24h may incur a vendor processing fee.</li>
+                  <li>Once a technician is en route, cancellations may not be permitted.</li>
+                </ul>
+              </div>
             </div>
-            <div className="flex gap-3 justify-end">
-              <Button variant="ghost" onClick={() => setShowCancelConfirm(false)}>No, Keep Booking</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  console.log('[CAVEMAN] Customer confirmed cancellation, showing refund form.');
-                  setShowCancelConfirm(false);
-                  setRefundReason('');
-                  setRefundError('');
-                  setShowRefundForm(true);
-                }}
-              >
-                Yes, Proceed
-              </Button>
-            </div>
-          </div>
-        )}
+          }
+          confirmText="Yes, Proceed to Cancel"
+          cancelText="No, Keep Booking"
+          type="warning"
+        />
 
         {/* Customer Refund Request Form */}
         {showRefundForm && (
@@ -2038,50 +2063,62 @@ function MyBookingsTab() {
         icon={<History />}
       />
 
-      <DataTable
-        columns={[
-          {
-            key: 'id',
-            label: 'Booking ID',
-            sortable: true,
-            render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span>
-          },
-          { key: 'service_type', label: 'Service', sortable: true },
-          { key: 'scheduled_date', label: 'Date', sortable: true },
-          { key: 'scheduled_time', label: 'Time' },
-          {
-            key: 'status', label: 'Status', render: (item: any) => {
-              const statusLower = item.status?.toLowerCase() || '';
-              const isCompleted = statusLower === 'completed' || statusLower === 'confirmed';
-              const isPending = statusLower === 'pending' || statusLower === 'in_progress';
-              return <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isCompleted ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' : isPending ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>{item.status?.replace('_', ' ')}</span>;
-            }
-          },
-          {
-            key: 'actions',
-            label: 'Actions',
-            render: (item: any) => (
-              <Button
-                size="sm"
-                className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 shadow-sm transition-colors flex items-center gap-1.5"
-                onClick={(e: any) => {
-                  e.stopPropagation();
-                  console.log('[CAVEMAN] Customer viewing booking details for:', item.id);
-                  setSelectedBooking(item);
-                }}
-                icon={<Eye className="w-4 h-4" />}
-              >
-                View Details
-              </Button>
-            )
-          },
-        ]}
-        data={bookings}
-        loading={loading}
-        searchPlaceholder="Search bookings..."
-        emptyTitle="No bookings yet"
-        emptyDescription="Book a service to see your bookings here."
-      />
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <DataTable
+          columns={[
+            {
+              key: 'id',
+              label: 'Booking ID',
+              sortable: true,
+              render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span>
+            },
+            { key: 'service_type', label: 'Service', sortable: true },
+            { key: 'scheduled_date', label: 'Date', sortable: true },
+            { key: 'scheduled_time', label: 'Time' },
+            {
+              key: 'status', label: 'Status', render: (item: any) => {
+                const statusLower = item.status?.toLowerCase() || '';
+                const isCompleted = statusLower === 'completed' || statusLower === 'confirmed';
+                const isPending = statusLower === 'pending' || statusLower === 'in_progress';
+                return <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isCompleted ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' : isPending ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>{item.status?.replace('_', ' ')}</span>;
+              }
+            },
+            {
+              key: 'actions',
+              label: 'Actions',
+              render: (item: any) => (
+                <Button
+                  size="sm"
+                  className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 shadow-sm transition-colors flex items-center gap-1.5"
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    console.log('[CAVEMAN] Customer viewing booking details for:', item.id);
+                    setSelectedBooking(item);
+                  }}
+                  icon={<Eye className="w-4 h-4" />}
+                >
+                  View Details
+                </Button>
+              )
+            },
+          ]}
+          data={bookings}
+          loading={loading}
+          searchPlaceholder="Search bookings..."
+          emptyTitle="No bookings yet"
+          emptyDescription="Book a service to see your bookings here."
+        />
+      </div>
+
+      {/* Mobile Card Feed View */}
+      <div className="block lg:hidden">
+        <MobileBookingCardList
+          bookings={bookings}
+          loading={loading}
+          onSelectBooking={(item) => setSelectedBooking(item)}
+        />
+      </div>
     </div>
   );
 }
@@ -3067,6 +3104,7 @@ function RefundsTab() {
 
   const filteredRefunds = refunds.filter(r => {
     if (filter === 'all') return true;
+    if (filter === 'Processed') return r.status?.toLowerCase() === 'processed' || r.status?.toLowerCase() === 'completed';
     return r.status?.toLowerCase() === filter.toLowerCase();
   });
 
@@ -3077,7 +3115,7 @@ function RefundsTab() {
         subtitle="Track the status of your cancellations and automatic GCash refund transactions."
         icon={<RefreshCcw />}
         action={
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 self-stretch sm:self-auto">
+          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 self-stretch sm:self-auto overflow-x-auto whitespace-nowrap gap-1">
             {(['all', 'Processed', 'pending', 'rejected'] as const).map((status) => (
               <button
                 key={status}
@@ -3087,7 +3125,7 @@ function RefundsTab() {
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
               >
-                {status === 'all' ? 'All Transactions' : status === 'Processed' ? 'Completed' : status}
+                {status === 'all' ? 'All' : status === 'Processed' ? 'Completed' : status}
               </button>
             ))}
           </div>
@@ -3120,9 +3158,13 @@ function RefundsTab() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRefunds.map((r) => {
-            const isProcessed = r.status?.toLowerCase() === 'processed';
+            const isProcessed = r.status?.toLowerCase() === 'processed' || r.status?.toLowerCase() === 'completed';
             const isPending = r.status?.toLowerCase() === 'pending';
             const isRejected = r.status?.toLowerCase() === 'rejected';
+            const rawAmount = Number(r.refund_amount !== undefined && r.refund_amount !== null ? r.refund_amount : (r.total_price !== undefined ? r.total_price : (r.booking_amount !== undefined ? r.booking_amount : (r.price !== undefined ? r.price : 0))));
+            const amountFormatted = rawAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const methodLabel = r.refund_method || r.payment_method || 'GCash';
+            const refNo = r.reference_number || r.payment_reference || r.gcash_reference || r.id?.toString().slice(0, 8) || '—';
 
             // Format date helper
             let dateStr = '—';
@@ -3164,11 +3206,13 @@ function RefundsTab() {
                 <div className="space-y-4">
                   {/* Status Badge */}
                   <div className="flex justify-between items-center">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isProcessed
-                      ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md border ${isProcessed
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800/50'
                       : isPending
-                        ? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50'
-                        : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                        ? 'bg-amber-50 text-amber-600 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800/50'
+                        : isRejected
+                          ? 'bg-rose-50 text-rose-600 border-rose-200/80 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-800/50'
+                          : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                       }`}>
                       {isProcessed ? 'Completed' : r.status || 'Pending'}
                     </span>
@@ -3178,8 +3222,8 @@ function RefundsTab() {
                   {/* Refund Amount */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Refund Amount</p>
-                    <h3 className="text-2xl font-black text-slate-955 dark:text-white mt-0.5">
-                      ₱{Number(r.refund_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <h3 className={`text-2xl font-black mt-0.5 ${isProcessed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-955 dark:text-white'}`}>
+                      {isProcessed ? '+' : ''}₱{amountFormatted}
                     </h3>
                   </div>
 
@@ -3188,21 +3232,23 @@ function RefundsTab() {
                     <div>
                       <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Refund Method</p>
                       <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
-                        {r.refund_method || r.payment_method || 'GCash'}
+                        {methodLabel}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">GCash Ref No.</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{methodLabel} Ref No.</p>
                       <p className="text-xs font-mono font-bold text-slate-850 dark:text-slate-200 truncate mt-0.5">
-                        {r.reference_number || r.payment_reference || '—'}
+                        {refNo}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between text-slate-700 dark:text-slate-300 transition-colors duration-300">
-                  <span className="text-xs font-semibold">View Transaction Details</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <div className="mt-5 px-5 py-3.5 -mx-5 -mb-5 bg-slate-50/80 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-slate-700 dark:text-slate-300 transition-colors duration-200 group-hover:bg-slate-100 dark:group-hover:bg-slate-800">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <span>📄</span> View Receipt Details
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-brand-green group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             );
@@ -4226,7 +4272,10 @@ function CustomerMessages() {
       if (messagesEndRef.current) {
         const isChannelChange = prevChannel.current !== activeChannel;
         const isInitialLoad = prevMessagesLength.current === 0 || messages.length === 0 || isChannelChange;
-        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
+        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth', block: 'nearest' });
+        if (window.innerWidth < 768) {
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }
         prevMessagesLength.current = messages.length;
         prevChannel.current = activeChannel;
       }
@@ -4239,6 +4288,13 @@ function CustomerMessages() {
       setActiveChannel('vendor');
     }
   }, [showPersonnelTab, activeChannel, selectedBooking]);
+
+  useEffect(() => {
+    setInputText('');
+    if (window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [activeChannel, selectedThread?.id]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !user || !selectedThread) return;
@@ -4253,16 +4309,18 @@ function CustomerMessages() {
   };
 
   return (
-    <div className="space-y-4 h-[calc(100vh-112px)] flex flex-col">
-      <AdminPageHeader
-        title="Messages"
-        subtitle="Coordinate directly with your service providers and technicians."
-        icon={<MessageSquare />}
-      />
+    <div className={`h-[calc(100vh-135px)] md:h-[calc(100vh-112px)] flex flex-col ${selectedThread ? 'space-y-0 md:space-y-4' : 'space-y-4'}`}>
+      <div className={selectedThread ? 'hidden md:block shrink-0' : 'block shrink-0'}>
+        <AdminPageHeader
+          title="Messages"
+          subtitle="Coordinate directly with your service providers and technicians."
+          icon={<MessageSquare />}
+        />
+      </div>
 
       <div className="flex-1 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden flex min-h-0">
         {/* Left Pane (30%) */}
-        <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/20">
+        <div className={`w-full md:w-1/3 border-r border-slate-200 dark:border-slate-800 flex-col bg-slate-50/50 dark:bg-slate-900/20 ${selectedThread ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
             <h3 className="font-black text-slate-800 dark:text-white">Active Bookings</h3>
           </div>
@@ -4273,9 +4331,10 @@ function CustomerMessages() {
               <div className="text-center py-4 text-sm text-slate-500">No active conversations.</div>
             ) : (
               threads.map(t => (
-                <div key={t.id} onClick={() => { setSelectedThread(t); setActiveChannel('vendor'); }} className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-white dark:bg-slate-800 border-brand-navy shadow-md ring-1 ring-brand-navy/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
-                  <div className="flex justify-between items-start mb-2">
+                <div key={t.id} onClick={() => { setSelectedThread(t); setActiveChannel('vendor'); if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'instant' }); }} className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedThread?.id === t.id ? 'bg-white dark:bg-slate-800 border-brand-navy shadow-md ring-1 ring-brand-navy/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                  <div className="flex justify-between items-center mb-2">
                     <span className="text-[10px] font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{t.booking_id}</span>
+                    <span className="text-[11px] font-bold text-brand-green md:hidden flex items-center gap-1">Open Chat ❯</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -4297,49 +4356,56 @@ function CustomerMessages() {
         </div>
 
         {/* Right Pane (70%) */}
-        <div className="w-2/3 flex flex-col bg-slate-50 dark:bg-slate-950 relative">
+        <div className={`w-full md:w-2/3 flex-col bg-slate-50 dark:bg-slate-950 relative ${selectedThread ? 'flex' : 'hidden md:flex'}`}>
           {selectedThread ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center z-10 shadow-sm relative">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
-                    {activeChannel === 'vendor' ? (
-                      selectedThread.vendor_avatar ? (
-                        <img src={selectedThread.vendor_avatar} alt="Vendor" className="w-full h-full object-cover bg-white" />
+              <div className="p-3.5 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row justify-between md:items-center gap-3 md:gap-0 z-10 shadow-sm relative">
+                <div className="flex items-center gap-2.5 md:gap-3 min-w-0 w-full md:w-auto justify-between md:justify-start">
+                  <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
+                    <button
+                      onClick={() => { setSelectedThread(null); if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'instant' }); }}
+                      className="p-2 -ml-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex md:hidden items-center justify-center shrink-0"
+                      title="Back to Conversations"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-brand-navy flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
+                      {activeChannel === 'vendor' ? (
+                        selectedThread.vendor_avatar ? (
+                          <img src={selectedThread.vendor_avatar} alt="Vendor" className="w-full h-full object-cover bg-white" />
+                        ) : (
+                          (selectedThread.vendor_name || 'Vendor').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+                        )
                       ) : (
-                        (selectedThread.vendor_name || 'Vendor').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
-                      )
-                    ) : (
-                      selectedThread.technician_avatar ? (
-                        <img src={selectedThread.technician_avatar} alt="Personnel" className="w-full h-full object-cover" />
+                        selectedThread.technician_avatar ? (
+                          <img src={selectedThread.technician_avatar} alt="Personnel" className="w-full h-full object-cover" />
+                        ) : (
+                          (selectedThread.personnel_name || 'Assigned Personnel').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
+                        )
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-800 dark:text-white truncate text-sm sm:text-base">
+                        {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
+                      </h3>
+                      {activeChannel === 'vendor' ? (
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Online
+                        </p>
                       ) : (
-                        (selectedThread.personnel_name || 'Assigned Personnel').split(' ').map((n: string) => n[0]).join('').substring(0, 2)
-                      )
-                    )}
+                        <p className="text-[11px] font-bold flex items-center gap-1 mt-0.5">
+                          {selectedBooking?.status === 'assigned' && <span className="text-slate-500">🟡 Personnel Assigned</span>}
+                          {selectedBooking?.status === 'dispatched' && <span className="text-emerald-600 dark:text-emerald-400">🟢 On the way (ETA: 15 mins)</span>}
+                          {selectedBooking?.status === 'in-transit' && <span className="text-orange-600 dark:text-orange-400">📍 Arriving soon</span>}
+                          {selectedBooking?.status === 'in_progress' && <span className="text-blue-600 dark:text-blue-400">🔵 Working on-site</span>}
+                          {selectedBooking?.status === 'completed' && <span className="text-slate-500">✅ Job Completed</span>}
+                          {!['assigned', 'dispatched', 'in-transit', 'in_progress', 'completed'].includes(selectedBooking?.status) && <span className="text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Online</span>}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 dark:text-white">
-                      {activeChannel === 'vendor' ? (selectedThread.vendor_name || 'Vendor') : (selectedThread.personnel_name || 'Assigned Personnel')}
-                    </h3>
-                    {activeChannel === 'vendor' ? (
-                      <p className="text-xs text-slate-500 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Online
-                      </p>
-                    ) : (
-                      <p className="text-[11px] font-bold flex items-center gap-1 mt-0.5">
-                        {selectedBooking?.status === 'assigned' && <span className="text-slate-500">🟡 Personnel Assigned</span>}
-                        {selectedBooking?.status === 'dispatched' && <span className="text-emerald-600 dark:text-emerald-400">🟢 On the way (ETA: 15 mins)</span>}
-                        {selectedBooking?.status === 'in-transit' && <span className="text-orange-600 dark:text-orange-400">📍 Arriving soon</span>}
-                        {selectedBooking?.status === 'in_progress' && <span className="text-blue-600 dark:text-blue-400">🔵 Working on-site</span>}
-                        {selectedBooking?.status === 'completed' && <span className="text-slate-500">✅ Job Completed</span>}
-                        {!['assigned', 'dispatched', 'in-transit', 'in_progress', 'completed'].includes(selectedBooking?.status) && <span className="text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Online</span>}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
                   {activeChannel === 'personnel' && (
                     <button
                       onClick={() => {
@@ -4350,7 +4416,7 @@ function CustomerMessages() {
                           type: 'info'
                         });
                       }}
-                      className="p-2 rounded-xl bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-white transition-colors border border-brand-green/20"
+                      className="w-9 h-9 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm transition-all flex md:hidden items-center justify-center shrink-0 ml-2"
                       title="Call Personnel"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4358,10 +4424,30 @@ function CustomerMessages() {
                       </svg>
                     </button>
                   )}
-                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                </div>
+                <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-0 border-slate-100 dark:border-slate-800/60">
+                  {activeChannel === 'personnel' && (
                     <button
-                      onClick={() => setActiveChannel('vendor')}
-                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      onClick={() => {
+                        confirm({
+                          title: `Call ${selectedThread?.personnel_name || 'Personnel'}`,
+                          message: `Are you sure you want to call ${selectedThread?.personnel_name}? Standard carrier rates may apply.`,
+                          confirmText: 'Call Now',
+                          type: 'info'
+                        });
+                      }}
+                      className="p-2 rounded-xl bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-white transition-colors border border-brand-green/20 hidden md:flex"
+                      title="Call Personnel"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                      </svg>
+                    </button>
+                  )}
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 w-full md:w-auto justify-center">
+                    <button
+                      onClick={() => { setActiveChannel('vendor'); setInputText(''); if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'instant' }); }}
+                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all w-1/2 md:w-auto text-center ${
                         activeChannel === 'vendor' 
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
                           : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -4371,8 +4457,8 @@ function CustomerMessages() {
                     </button>
                     {showPersonnelTab && (
                       <button
-                        onClick={() => setActiveChannel('personnel')}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        onClick={() => { setActiveChannel('personnel'); setInputText(''); if (window.innerWidth < 768) window.scrollTo({ top: 0, behavior: 'instant' }); }}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all w-1/2 md:w-auto text-center ${
                           activeChannel === 'personnel' 
                             ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
