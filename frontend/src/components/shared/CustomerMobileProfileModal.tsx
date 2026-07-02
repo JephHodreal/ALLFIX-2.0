@@ -301,7 +301,7 @@ export function CustomerMobileProfileModal({
         message="Are you sure you want to end your session? You will need to log in again to manage your bookings."
         confirmText="Yes, Log Out"
         cancelText="Cancel"
-        type="danger"
+        type="logout"
       />
     </>
   );

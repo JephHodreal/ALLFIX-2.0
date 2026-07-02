@@ -2420,49 +2420,73 @@ function ProfileTab() {
     }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await api.put(`/api/customers/${profile?.id}`, formData);
-      showAlert({ title: 'Notice', message: "Profile updated successfully!", type: 'info', hideCancel: true });
-      setIsEditingProfile(false);
-      await refreshProfile();
-    } catch (err) {
-      console.error("Failed to update profile", err);
-      showAlert({ title: 'Notice', message: "Failed to update profile", type: 'info', hideCancel: true });
-    }
+    showAlert({
+      title: 'Save Profile Changes?',
+      message: 'Are you sure you want to update your general profile information?',
+      type: 'info',
+      confirmText: 'Yes, Save Changes',
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/customers/${profile?.id}`, formData);
+          showAlert({ title: 'Notice', message: "Profile updated successfully!", type: 'info', hideCancel: true });
+          setIsEditingProfile(false);
+          await refreshProfile();
+        } catch (err) {
+          console.error("Failed to update profile", err);
+          showAlert({ title: 'Notice', message: "Failed to update profile", type: 'info', hideCancel: true });
+        }
+      }
+    });
   };
 
-  const handleSaveEmail = async (e: React.FormEvent) => {
+  const handleSaveEmail = (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
-    try {
-      await updateEmail(auth.currentUser, emailData);
-      await api.put(`/api/customers/${profile?.id}`, { email: emailData });
-      showAlert({ title: 'Notice', message: "Email updated successfully!", type: 'info', hideCancel: true });
-      setIsEditingEmail(false);
-      await refreshProfile();
-    } catch (err: any) {
-      console.error("Failed to update email", err);
-      showAlert({ title: 'Error', message: err.message || "Failed to update email. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Update Email Address?',
+      message: `Are you sure you want to change your email address to ${emailData}?`,
+      type: 'info',
+      confirmText: 'Yes, Update Email',
+      onConfirm: async () => {
+        try {
+          await updateEmail(auth.currentUser!, emailData);
+          await api.put(`/api/customers/${profile?.id}`, { email: emailData });
+          showAlert({ title: 'Notice', message: "Email updated successfully!", type: 'info', hideCancel: true });
+          setIsEditingEmail(false);
+          await refreshProfile();
+        } catch (err: any) {
+          console.error("Failed to update email", err);
+          showAlert({ title: 'Error', message: err.message || "Failed to update email. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
-  const handleSavePassword = async (e: React.FormEvent) => {
+  const handleSavePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       showAlert({ title: 'Notice', message: "Passwords do not match!", type: 'info', hideCancel: true });
       return;
     }
-    try {
-      await changePassword(passwordData.newPassword);
-      showAlert({ title: 'Notice', message: "Password updated successfully!", type: 'info', hideCancel: true });
-      setIsEditingPassword(false);
-      setPasswordData({ newPassword: '', confirmPassword: '' });
-    } catch (err: any) {
-      console.error("Failed to update password", err);
-      showAlert({ title: 'Error', message: err.message || "Failed to update password. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Update Password?',
+      message: 'Are you sure you want to update your account password?',
+      type: 'info',
+      confirmText: 'Yes, Update Password',
+      onConfirm: async () => {
+        try {
+          await changePassword(passwordData.newPassword);
+          showAlert({ title: 'Notice', message: "Password updated successfully!", type: 'info', hideCancel: true });
+          setIsEditingPassword(false);
+          setPasswordData({ newPassword: '', confirmPassword: '' });
+        } catch (err: any) {
+          console.error("Failed to update password", err);
+          showAlert({ title: 'Error', message: err.message || "Failed to update password. You may need to log out and log back in to verify your identity.", type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2505,49 +2529,63 @@ function ProfileTab() {
     });
   };
 
-  const handleSaveAddress = async (e: React.FormEvent) => {
+  const handleSaveAddress = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.id) return;
-
-    try {
-      if (editingAddress) {
-        const id = editingAddress.id || editingAddress.uid;
-        await api.put(`/api/addresses/${id}`, {
-          ...addressData,
-          user_id: profile.id
-        });
-        if (addressData.is_default && !editingAddress.is_default) {
-          await api.put(`/api/addresses/${id}/set-default`, {});
-          refreshProfile();
-        }
-      } else {
-        if (addresses.length >= 3) {
-           showAlert({ title: 'Notice', message: "Maximum of 3 addresses allowed.", type: 'info', hideCancel: true });
-           return;
-        }
-        await api.post(`/api/addresses`, {
-          ...addressData,
-          user_id: profile.id
-        });
-        refreshProfile();
-      }
-      setIsAddressModalOpen(false);
-      fetchAddresses();
-    } catch (err: any) {
-      showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to save address", type: 'danger', hideCancel: true });
+    if (!editingAddress && addresses.length >= 3) {
+      showAlert({ title: 'Notice', message: "Maximum of 3 addresses allowed.", type: 'info', hideCancel: true });
+      return;
     }
+    showAlert({
+      title: editingAddress ? 'Update Saved Address?' : 'Save New Address?',
+      message: editingAddress ? 'Are you sure you want to save changes to this address?' : 'Are you sure you want to add this new address to your profile?',
+      type: 'info',
+      confirmText: editingAddress ? 'Yes, Update Address' : 'Yes, Save Address',
+      onConfirm: async () => {
+        try {
+          if (editingAddress) {
+            const id = editingAddress.id || editingAddress.uid;
+            await api.put(`/api/addresses/${id}`, {
+              ...addressData,
+              user_id: profile.id
+            });
+            if (addressData.is_default && !editingAddress.is_default) {
+              await api.put(`/api/addresses/${id}/set-default`, {});
+              refreshProfile();
+            }
+          } else {
+            await api.post(`/api/addresses`, {
+              ...addressData,
+              user_id: profile.id
+            });
+            refreshProfile();
+          }
+          setIsAddressModalOpen(false);
+          fetchAddresses();
+        } catch (err: any) {
+          showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to save address", type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
-  const handleDeleteAddress = async (id: string | undefined) => {
+  const handleDeleteAddress = (id: string | undefined) => {
     if (!id) return;
-    if (!window.confirm("Delete this address?")) return;
-    try {
-      await api.delete(`/api/addresses/${id}`);
-      fetchAddresses();
-      refreshProfile();
-    } catch (err: any) {
-      showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to delete address", type: 'danger', hideCancel: true });
-    }
+    showAlert({
+      title: 'Delete Address?',
+      message: 'Are you sure you want to remove this saved address from your profile?',
+      confirmText: 'Yes, Delete',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/addresses/${id}`);
+          fetchAddresses();
+          refreshProfile();
+        } catch (err: any) {
+          showAlert({ title: 'Error', message: err.response?.data?.message || "Failed to delete address", type: 'danger', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleSetDefaultAddress = async (id: string | undefined) => {

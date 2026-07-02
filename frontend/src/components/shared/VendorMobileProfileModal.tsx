@@ -308,7 +308,7 @@ export function VendorMobileProfileModal({
         message="Are you sure you want to end your vendor session? You will need to log in again to manage your service requests."
         confirmText="Yes, Log Out"
         cancelText="Cancel"
-        type="danger"
+        type="logout"
       />
     </>
   );
