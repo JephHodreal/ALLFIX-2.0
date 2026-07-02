@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Sun, Moon, Ticket, LogOut, ShieldAlert, LifeBuoy } from 'lucide-react';
+import { X, User, Bell, Sun, Moon, Ticket, LogOut, ShieldAlert, LifeBuoy, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../services/firebaseService';
 import api from '../../services/apiService';
@@ -86,7 +86,7 @@ export function CustomerMobileProfileModal({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar [&::-webkit-scrollbar]:hidden relative">
               {/* Profile Header Card (Aurora Concierge Membership Identity) */}
               <div
                 className="relative overflow-hidden flex items-center justify-between p-5 rounded-3xl bg-gradient-to-br from-[#071529] via-[#0d2644] to-[#0A3A5E] dark:from-[#050b14] dark:via-[#091a30] dark:to-[#082640] text-white shadow-xl shadow-brand-navy/20 dark:shadow-black/50 border border-white/15 cursor-pointer active:scale-95 transition-all group"
@@ -128,7 +128,7 @@ export function CustomerMobileProfileModal({
                   {/* Notifications Row */}
                   <button
                     onClick={() => handleNav('/customer/notifications')}
-                    className={`w-full flex items-center justify-between p-4 transition-all duration-200 active:bg-blue-50/50 dark:active:bg-blue-950/30 cursor-pointer ${
+                    className={`w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 active:bg-blue-50/50 dark:active:bg-blue-950/30 cursor-pointer group ${
                       unreadNotificationsCount > 0
                         ? 'bg-gradient-to-r from-white via-blue-50/30 to-blue-50/60 dark:from-slate-900 dark:via-blue-950/20 dark:to-blue-950/30'
                         : 'bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/40'
@@ -151,25 +151,28 @@ export function CustomerMobileProfileModal({
                         </span>
                       </div>
                     </div>
-                    {unreadNotificationsCount > 0 ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-black text-xs shadow-md shadow-red-500/30 border border-white/20">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {unreadNotificationsCount > 0 ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-black text-xs shadow-md shadow-red-500/30 border border-white/20">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                          </span>
+                          <span>{unreadNotificationsCount} New</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                          Up to date
                         </span>
-                        <span>{unreadNotificationsCount} New</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                        Up to date
-                      </span>
-                    )}
+                      )}
+                      <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </button>
 
                   {/* My Vouchers Row */}
                   <button
                     onClick={() => handleNav('/customer/vouchers')}
-                    className="w-full flex items-center justify-between p-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer"
+                    className="w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer group"
                   >
                     <div className="flex items-center gap-3.5">
                       <div className="w-11 h-11 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 dark:text-amber-400">
@@ -180,15 +183,18 @@ export function CustomerMobileProfileModal({
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage coupons & discounts</span>
                       </div>
                     </div>
-                    {activeVouchersCount > 0 ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 font-black text-xs shadow-xs">
-                        <span>{activeVouchersCount} Available</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                        0 Available
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {activeVouchersCount > 0 ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 font-black text-xs shadow-xs">
+                          <span>{activeVouchersCount} Available</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                          0 Available
+                        </span>
+                      )}
+                      <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </button>
                 </div>
               </div>
@@ -200,7 +206,7 @@ export function CustomerMobileProfileModal({
                 </span>
                 <div className="rounded-3xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/80 overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80 shadow-xs">
                   {/* Dark Mode Row */}
-                  <div className="w-full flex items-center justify-between p-4">
+                  <div className="w-full flex items-center justify-between py-3.5 px-4">
                     <div className="flex items-center gap-3.5">
                       <div className="w-11 h-11 rounded-full bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300">
                         {isDark ? <Moon className="w-5 h-5 text-indigo-400" /> : <Sun className="w-5 h-5 text-amber-500" />}
@@ -217,7 +223,7 @@ export function CustomerMobileProfileModal({
                         e.stopPropagation();
                         toggleTheme();
                       }}
-                      className={`w-13 h-7 p-1 rounded-full transition-all duration-300 relative cursor-pointer ${
+                      className={`w-[52px] h-7 p-1 rounded-full transition-all duration-300 relative cursor-pointer ${
                         isDark ? 'bg-brand-green shadow-inner' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       aria-label="Toggle Dark Mode"
@@ -231,7 +237,7 @@ export function CustomerMobileProfileModal({
                   {/* Help & Support Row */}
                   <button
                     onClick={() => handleNav('/customer/support')}
-                    className="w-full flex items-center justify-between p-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer"
+                    className="w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer group"
                   >
                     <div className="flex items-center gap-3.5">
                       <div className="w-11 h-11 rounded-full bg-brand-navy/10 dark:bg-blue-900/20 flex items-center justify-center text-brand-navy dark:text-blue-400">
@@ -242,7 +248,7 @@ export function CustomerMobileProfileModal({
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">24/7 customer assistance</span>
                       </div>
                     </div>
-                    <span className="text-slate-400 dark:text-slate-500 font-bold text-sm">→</span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -250,12 +256,12 @@ export function CustomerMobileProfileModal({
             </div>
 
             {/* Sheet Footer: Logout Button & App Version */}
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 pb-safe space-y-4">
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 pb-safe space-y-3 shrink-0">
               <button
                 onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 font-black text-sm active:scale-95 transition-all border border-red-200/60 dark:border-red-900/40 shadow-xs hover:bg-red-100/80 dark:hover:bg-red-900/40 cursor-pointer"
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 font-black text-sm active:scale-95 transition-all border border-red-200/60 dark:border-red-900/40 shadow-xs hover:bg-red-100/80 dark:hover:bg-red-900/40 cursor-pointer"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
                 <span>Log Out of AllFix</span>
               </button>
 

@@ -19,6 +19,7 @@ import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 import { LayoutDashboard } from 'lucide-react';
+import { MobileBottomNav } from '../components/shared/MobileBottomNav';
 
 /**
  * Filters the vendor's profile services list against active database services.
@@ -4876,11 +4877,13 @@ export default function VendorDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
-      <Sidebar role="vendor" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className={`transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'}`}>
+    <div className="min-h-screen bg-surface-light dark:bg-surface-dark pb-[80px] lg:pb-0">
+      <div className="hidden lg:block">
+        <Sidebar role="vendor" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      </div>
+      <div className={`transition-all duration-300 ${collapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}>
         <Header onMenuToggle={() => setMobileOpen(true)} />
-        <main className="p-3 lg:p-4">
+        <main className="p-3 lg:p-4 pb-24 lg:pb-4">
           <Routes>
             <Route index element={<VendorHome />} />
             <Route path="profile" element={<VendorProfile />} />
@@ -4894,6 +4897,7 @@ export default function VendorDashboard() {
           </Routes>
         </main>
       </div>
+      <MobileBottomNav role="vendor" />
     </div>
   );
 }

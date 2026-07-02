@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, History, RefreshCcw, MessageSquare } from 'lucide-react';
+import { Home, History, RefreshCcw, MessageSquare, LayoutDashboard, ClipboardList, CalendarDays } from 'lucide-react';
 
 interface MobileBottomNavProps {
   role: 'customer' | 'vendor' | 'personnel' | 'admin';
@@ -9,11 +9,16 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ role }: MobileBottomNavProps) {
   const location = useLocation();
 
-  if (role !== 'customer') {
-    return null; // For now, only customer role is supported
+  if (role !== 'customer' && role !== 'vendor') {
+    return null; // For now, only customer and vendor roles are supported
   }
 
-  const navItems = [
+  const navItems = role === 'vendor' ? [
+    { label: 'Overview', path: '/vendor', icon: <LayoutDashboard className="w-[22px] h-[22px]" />, end: true },
+    { label: 'Bookings', path: '/vendor/bookings', icon: <ClipboardList className="w-[22px] h-[22px]" />, end: false },
+    { label: 'Schedule', path: '/vendor/schedule', icon: <CalendarDays className="w-[22px] h-[22px]" />, end: false },
+    { label: 'Messages', path: '/vendor/messages', icon: <MessageSquare className="w-[22px] h-[22px]" />, end: false },
+  ] : [
     { label: 'Home', path: '/customer', icon: <Home className="w-[22px] h-[22px]" />, end: true },
     { label: 'Bookings', path: '/customer/bookings', icon: <History className="w-[22px] h-[22px]" />, end: false },
     { label: 'Refunds', path: '/customer/refunds', icon: <RefreshCcw className="w-[22px] h-[22px]" />, end: false },
