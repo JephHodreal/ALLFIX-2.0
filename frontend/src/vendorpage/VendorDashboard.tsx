@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, AlertTriangle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info, ShieldCheck } from 'lucide-react';
+import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, AlertTriangle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info, ShieldCheck, Search, MapPin } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -250,6 +250,7 @@ function VendorBookings() {
   const [showAssignPersonnelModal, setShowAssignPersonnelModal] = useState(false);
   const [personnelToAssign, setPersonnelToAssign] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [bookingSearch, setBookingSearch] = useState('');
   const [searchPersonnel, setSearchPersonnel] = useState('');
   const [assignError, setAssignError] = useState('');
   const { confirm: showAlert, ConfirmComponent } = useConfirm();
@@ -1202,6 +1203,18 @@ function VendorBookings() {
     return b.status === activeTab;
   });
 
+  const mobileDisplayBookings = filteredBookings.filter((b: any) => {
+    if (!bookingSearch.trim()) return true;
+    const q = bookingSearch.toLowerCase();
+    return (
+      (b.id && b.id.toLowerCase().includes(q)) ||
+      (b.customer_name && b.customer_name.toLowerCase().includes(q)) ||
+      (b.service_type && b.service_type.toLowerCase().includes(q)) ||
+      (b.address && b.address.toLowerCase().includes(q)) ||
+      (b.service_address && b.service_address.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -1210,52 +1223,205 @@ function VendorBookings() {
         icon={<ClipboardList />}
       />
 
-      {/* Status Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto custom-scrollbar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
-              ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Desktop View: Keep exact original tabs and DataTable untouched */}
+      <div className="hidden md:block space-y-6">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto custom-scrollbar">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
+                ? 'border-brand-navy dark:border-brand-green text-brand-navy dark:text-brand-green'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <DataTable
+          columns={[
+            { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
+            { key: 'customer', label: 'Customer Name', render: (item: any) => <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.customer_name || '—'}</span> },
+            { key: 'service_type', label: 'Service', sortable: true },
+            { key: 'schedule', label: 'Time/Schedule', render: (item: any) => <div className="text-xs whitespace-nowrap"><div className="font-medium text-slate-700 dark:text-slate-300">{item.scheduled_date}</div><div className="text-slate-500 font-bold">{item.scheduled_time}</div></div> },
+            { key: 'location', label: 'Location', render: (item: any) => <span className="truncate max-w-[150px] block" title={item.address || item.service_address || '—'}>{item.address || item.service_address || '—'}</span> },
+            { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
+            {
+              key: 'actions',
+              label: 'Actions',
+              render: (item: any) => (
+                <Button
+                  size="sm"
+                  className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    setSelectedBooking(item);
+                  }}
+                  icon={<Eye className="w-4 h-4" />}
+                >
+                  View Details
+                </Button>
+              )
+            },
+          ]}
+          data={filteredBookings}
+          loading={loading}
+          searchPlaceholder="Search bookings..."
+        />
       </div>
 
-      <DataTable
-        columns={[
-          { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
-          { key: 'customer', label: 'Customer Name', render: (item: any) => <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.customer_name || '—'}</span> },
-          { key: 'service_type', label: 'Service', sortable: true },
-          { key: 'schedule', label: 'Time/Schedule', render: (item: any) => <div className="text-xs whitespace-nowrap"><div className="font-medium text-slate-700 dark:text-slate-300">{item.scheduled_date}</div><div className="text-slate-500 font-bold">{item.scheduled_time}</div></div> },
-          { key: 'location', label: 'Location', render: (item: any) => <span className="truncate max-w-[150px] block" title={item.address || item.service_address || '—'}>{item.address || item.service_address || '—'}</span> },
-          { key: 'status', label: 'Status', render: (item: any) => statusBadge(item.status) },
-          {
-            key: 'actions',
-            label: 'Actions',
-            render: (item: any) => (
-              <Button
-                size="sm"
-                className="bg-brand-navy hover:bg-[#0a2d5c] text-white flex items-center gap-1.5"
-                onClick={(e: any) => {
-                  e.stopPropagation();
-                  setSelectedBooking(item);
-                }}
-                icon={<Eye className="w-4 h-4" />}
-              >
-                View Details
-              </Button>
-            )
-          },
-        ]}
-        data={filteredBookings}
-        loading={loading}
-        searchPlaceholder="Search bookings..."
-      />
+      {/* Mobile View: Fintech Service Ticket Concierge Feed */}
+      <div className="block md:hidden space-y-4 pb-28 sm:pb-8">
+        {/* Sticky Search & Unified Segmented Track */}
+        <div className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#090D16]/95 py-2 space-y-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={bookingSearch}
+              onChange={(e) => setBookingSearch(e.target.value)}
+              placeholder="Search booking ID, customer, service..."
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-navy/20 dark:focus:ring-brand-green/20 shadow-xs transition-all"
+            />
+            {bookingSearch && (
+              <button onClick={() => setBookingSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex bg-slate-100/80 dark:bg-slate-900/80 p-1 rounded-2xl gap-1 overflow-x-auto no-scrollbar border border-slate-200/50 dark:border-slate-800">
+            {tabs.map(tab => {
+              const count = tab.id === 'all' ? bookings.length : bookings.filter((b: any) => b.status === tab.id).length;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                    isActive
+                      ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200'
+                      : 'bg-slate-200/60 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Marketplace Booking Cards Feed */}
+        {loading ? (
+          <div className="space-y-3.5">
+            {Array(3).fill(0).map((_, i) => (
+              <div key={i} className="h-44 bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl animate-pulse" />
+            ))}
+          </div>
+        ) : mobileDisplayBookings.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-8 border border-slate-200/70 dark:border-slate-800 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-slate-700 dark:text-slate-300">No bookings found</div>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto">We couldn't find any bookings matching your active search or tab filter.</p>
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            {mobileDisplayBookings.map((item: any) => {
+              const amount = item.total_price || (item.price && item.quantity ? item.price * item.quantity : item.price) || 0;
+              const formattedPrice = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(amount);
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedBooking(item)}
+                  className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-3 group"
+                >
+                  {/* Zone 1: Header (Booking ID + Status Pill) */}
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <span className="font-mono text-xs sm:text-sm font-bold text-brand-navy dark:text-blue-400 bg-brand-navy/5 dark:bg-blue-500/10 px-2.5 py-1 rounded-lg border border-brand-navy/10 dark:border-blue-500/20">
+                      {formatBookingId(item.id)}
+                    </span>
+                    <div className="scale-90 origin-right">
+                      {statusBadge(item.status)}
+                    </div>
+                  </div>
+
+                  {/* Zone 2: Details (Customer, Service & Schedule) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                        <User className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="truncate">{item.customer_name || 'Anonymous Customer'}</span>
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                        {formattedPrice}
+                      </div>
+                    </div>
+
+                    <div className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 truncate pl-5">
+                      {item.service_type || 'Service'}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] sm:text-xs bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-150/60 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                        <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="font-semibold truncate">{item.scheduled_date || 'No date'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="font-semibold truncate">{item.scheduled_time || 'No time'}</span>
+                      </div>
+                    </div>
+
+                    {(item.address || item.service_address) && (
+                      <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 pl-1 pt-0.5">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                        <span className="truncate">{item.address || item.service_address}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dashed Receipt Divider */}
+                  <div className="border-t border-dashed border-slate-200 dark:border-slate-800 my-2" />
+
+                  {/* Zone 3: Action Footer Bar */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{item.payment_method || 'Cash on Delivery'}</span>
+                      {item.payment_status === 'paid' && (
+                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md text-[10px] font-bold">Paid</span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-brand-navy dark:bg-brand-green text-white dark:text-slate-950 font-bold px-3.5 py-1.5 rounded-xl shadow-xs text-xs flex items-center gap-1.5 hover:opacity-90 transition-all shrink-0"
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        setSelectedBooking(item);
+                      }}
+                      icon={<Eye className="w-3.5 h-3.5" />}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <ConfirmComponent />
     </div>
   );
