@@ -197,7 +197,7 @@ export function LogoutButton({ showText = true }: { showText?: boolean }) {
       title: 'Sign Out',
       message: 'Are you sure you want to sign out of your account?',
       confirmText: 'Sign Out',
-      type: 'warning',
+      type: 'danger',
       onConfirm: async () => {
         try {
           await logoutUser();

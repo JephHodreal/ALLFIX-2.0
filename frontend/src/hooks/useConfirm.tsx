@@ -4,12 +4,13 @@ import { MobileConfirmModal } from '../components/shared/MobileConfirmModal';
 
 interface ConfirmOptions {
   title: string;
-  message: string;
+  message: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info' | 'success';
   hideCancel?: boolean;
-  onConfirm?: () => void;
+  icon?: React.ReactNode;
+  onConfirm?: () => void | Promise<void>;
 }
 
 export function useConfirm() {
@@ -57,6 +58,7 @@ export function useConfirm() {
           cancelText={modalState.options.cancelText}
           type={modalState.options.type}
           hideCancel={modalState.options.hideCancel}
+          icon={modalState.options.icon}
         />
       );
     }
@@ -71,6 +73,7 @@ export function useConfirm() {
         cancelText={modalState.options.cancelText}
         type={modalState.options.type}
         hideCancel={modalState.options.hideCancel}
+        icon={modalState.options.icon}
       />
     );
   };

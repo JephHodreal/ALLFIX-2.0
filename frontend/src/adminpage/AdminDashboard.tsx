@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { Routes, Route, useNavigate, useParams, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag, ShieldCheck, LifeBuoy, CheckCircle } from 'lucide-react';
+import { Users, Building2, ClipboardList, CreditCard, TrendingUp, Edit, Trash2, X, Check, Plus, Mail, User, Lock, Eye, EyeOff, AlertCircle, AlertTriangle, Phone, MapPin, ArrowRight, ArrowRightLeft, CheckCircle2, Sparkles, Star, Wrench, ArrowLeft, CalendarDays, Clock, Receipt, Search, Filter, Calendar, DollarSign, FileText, Download, Wallet, LayoutDashboard, MessageSquare, UserCog, Ticket, Tag, ShieldCheck, LifeBuoy, CheckCircle } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
@@ -1949,12 +1949,13 @@ function BookingsTab() {
                 {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
                   <Button
                     variant="outline"
-                    className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none"
+                    className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none flex items-center justify-center gap-2"
                     onClick={() => {
                       setShowCancelConfirm(true);
                     }}
                   >
-                    Cancel
+                    <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                    <span>Cancel Booking</span>
                   </Button>
                 )}
                 {!selectedBooking.payment_confirmed && selectedBooking.status !== 'cancelled' && (
@@ -2054,7 +2055,7 @@ function BookingsTab() {
           message="Are you sure you want to cancel this booking?"
           confirmText="Yes, Cancel"
           cancelText="No, Keep Booking"
-          type="danger"
+          type="warning"
         />
 
         {/* Confirm Payment Dialog */}

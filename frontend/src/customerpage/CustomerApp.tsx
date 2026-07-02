@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { NotificationsTab } from '../components/shared/NotificationsTab';
-import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check, History, MessageSquare, HelpCircle } from 'lucide-react';
+import { ClipboardList, Wrench, Calendar, Search, Star, Plus, Minus, Trash2, Edit, ShoppingBag, ArrowRight, AlertCircle, AlertTriangle, CheckCircle2, Clock, MapPin, CreditCard, ArrowLeft, User, ShieldAlert, Eye, X, Ticket, RefreshCcw, Receipt, Bell, PlusCircle, ShoppingCart, Check, History, MessageSquare, HelpCircle } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -1743,7 +1743,7 @@ function MyBookingsTab() {
                     setShowCancelConfirm(true);
                   }}
                 >
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 group-hover:scale-110 transition-transform" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500 group-hover:scale-110 transition-transform" />
                   <span>Cancel Booking</span>
                 </button>
               </div>
@@ -1928,7 +1928,7 @@ function MyBookingsTab() {
           }
           confirmText="Yes, Cancel"
           cancelText="No, Keep Booking"
-          type="danger"
+          type="warning"
         />
 
         <MobileConfirmModal
@@ -1957,7 +1957,7 @@ function MyBookingsTab() {
               </div>
             </div>
           }
-          confirmText="Yes, Proceed to Cancel"
+          confirmText="Yes, Cancel"
           cancelText="No, Keep Booking"
           type="warning"
         />

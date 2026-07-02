@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info } from 'lucide-react';
+import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, AlertTriangle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -708,12 +708,13 @@ function VendorBookings() {
             {selectedBooking.status === 'confirmed' && (
               <Button
                 variant="outline"
-                className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none"
+                className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none flex items-center justify-center gap-2"
                 onClick={() => {
                   setShowCancelConfirm(true);
                 }}
               >
-                Cancel
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>Cancel Booking</span>
               </Button>
             )}
             {selectedBooking.status === 'confirmed' && (
@@ -991,7 +992,7 @@ function VendorBookings() {
           message="Are you sure you want to cancel this booking? This will open the cancellation reason form."
           confirmText="Yes, Cancel"
           cancelText="No, Keep Booking"
-          type="danger"
+          type="warning"
         />
 
         <ConfirmModal
