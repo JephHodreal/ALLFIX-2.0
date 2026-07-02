@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, AlertTriangle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info } from 'lucide-react';
+import { Building2, FileText, ClipboardList, TrendingUp, CalendarDays, UserCog, Edit, Trash2, Users, X, Mail, User, Lock, Eye, EyeOff, Check, Plus, AlertCircle, AlertTriangle, Phone, Wrench, ArrowRight, ArrowLeft, CreditCard, UserCheck, Clock, ChevronDown, MessageSquare, HelpCircle, Info, ShieldCheck } from 'lucide-react';
 import { formatBookingId } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
+import { AreaChart } from '../components/shared/AreaChart';
 import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 import { LayoutDashboard } from 'lucide-react';
 import { MobileBottomNav } from '../components/shared/MobileBottomNav';
@@ -73,6 +74,47 @@ function formatLocalYYYYMMDD(date: Date): string {
   return formatted;
 }
 
+interface OverviewStatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  colorTheme?: 'blue' | 'green' | 'purple' | 'amber';
+  trend?: string;
+}
+
+function OverviewStatCard({ title, value, icon, colorTheme = 'blue', trend }: OverviewStatCardProps) {
+  const bgColors = {
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  };
+
+  return (
+    <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between h-full group">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+          {title}
+        </span>
+        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 border ${bgColors[colorTheme]} group-hover:scale-105 transition-transform`}>
+          {icon}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+          {value}
+        </div>
+        {trend && (
+          <div className="text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+            <span>↑</span>
+            <span className="truncate">{trend}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VendorHome() {
   const { profile } = useAuth();
   const { isDark } = useTheme();
@@ -106,8 +148,17 @@ function VendorHome() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array(3).fill(0).map((_, i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
+      <div className="space-y-5 sm:space-y-6 animate-pulse pb-28 sm:pb-8">
+        <div className="h-20 bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl w-full sm:w-1/2" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          {Array(4).fill(0).map((_, i) => (
+            <div key={i} className="h-32 bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl" />
+          ))}
+        </div>
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="h-[280px] bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl" />
+          <div className="h-[280px] bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl" />
+        </div>
       </div>
     );
   }
@@ -122,38 +173,66 @@ function VendorHome() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 pb-28 sm:pb-8">
       <AdminPageHeader
         title="Overview"
         subtitle="Monitor your business performance and metrics."
         icon={<TrendingUp />}
       />
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Total Jobs" value={stats?.totalJobs ?? 0} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
-        <StatCard title="Total Income" value={formatCurrency(stats?.totalIncome ?? 0)} icon={<CreditCard className="w-5 h-5" />} color="green" />
-        <StatCard title="Personnels" value={personnelCount} icon={<Users className="w-5 h-5" />} color="navy" />
+      {/* 2x2 Command Center Grid on Mobile / 4-Column on Desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <OverviewStatCard 
+          title="Total Jobs" 
+          value={stats?.totalJobs ?? 0} 
+          icon={<ClipboardList className="w-4 h-4 sm:w-5 sm:h-5" />} 
+          colorTheme="blue" 
+        />
+        <OverviewStatCard 
+          title="Total Income" 
+          value={formatCurrency(stats?.totalIncome ?? 0)} 
+          icon={<CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />} 
+          colorTheme="green" 
+        />
+        <OverviewStatCard 
+          title="Personnels" 
+          value={personnelCount} 
+          icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} 
+          colorTheme="purple" 
+        />
+        <OverviewStatCard 
+          title="Completion Rate" 
+          value={`${stats?.completionRate ?? 100}%`} 
+          icon={<ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />} 
+          colorTheme="amber"
+          trend="Performance"
+        />
       </div>
 
-      {/* Graphs */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Total Income Trend</h3>
-          <LineChart
+      {/* Area Graphs with Gradient Fades and Smooth Bezier Curves */}
+      <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/80 shadow-xs flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white tracking-tight">Total Income Trend</h3>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20">Last 8 Weeks</span>
+          </div>
+          <AreaChart
             data={stats?.incomeTrend ?? []}
             xKey="week"
-            lines={[{ dataKey: 'income', color: '#20b759', name: 'Income (₱)' }]}
+            lines={[{ dataKey: 'income', color: '#10b981', name: 'Income (₱)' }]}
           />
-        </Card>
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Completion Rate Trend</h3>
-          <LineChart
+        </div>
+        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/80 shadow-xs flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white tracking-tight">Completion Rate Trend</h3>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-full border border-blue-500/20">Performance</span>
+          </div>
+          <AreaChart
             data={stats?.completionTrend ?? []}
             xKey="week"
-            lines={[{ dataKey: 'rate', color: isDark ? '#60a5fa' : '#041e41', name: 'Completion Rate (%)' }]}
+            lines={[{ dataKey: 'rate', color: isDark ? '#60a5fa' : '#3b82f6', name: 'Completion Rate (%)' }]}
           />
-        </Card>
+        </div>
       </div>
     </div>
   );
