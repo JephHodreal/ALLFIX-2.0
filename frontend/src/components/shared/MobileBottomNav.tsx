@@ -39,6 +39,9 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
               key={item.path}
               to={item.path}
               end={item.end}
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: 'instant' });
+              }}
               className={({ isActive }) => {
                 const forcedActive = isActive || isHomeOnBook;
                 return `flex flex-col items-center justify-center py-2 px-3 min-w-[70px] transition-all duration-200 relative ${
