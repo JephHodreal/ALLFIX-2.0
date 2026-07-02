@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Info, LogOut, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, LogOut, X, Loader2, Trash2, XCircle } from 'lucide-react';
 
 export interface MobileConfirmModalProps {
   isOpen: boolean;
@@ -11,7 +11,7 @@ export interface MobileConfirmModalProps {
   message: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
-  type?: 'danger' | 'warning' | 'info' | 'success';
+  type?: 'danger' | 'warning' | 'info' | 'success' | 'delete' | 'logout' | 'error';
   hideCancel?: boolean;
   icon?: React.ReactNode;
 }
@@ -47,8 +47,14 @@ export function MobileConfirmModal({
   const getIcon = () => {
     if (icon) return icon;
     switch (type) {
-      case 'danger':
+      case 'error':
+        return <XCircle className="w-6 h-6 text-white" />;
+      case 'delete':
+        return <Trash2 className="w-6 h-6 text-white" />;
+      case 'logout':
         return <LogOut className="w-6 h-6 text-white" />;
+      case 'danger':
+        return <AlertTriangle className="w-6 h-6 text-white" />;
       case 'warning':
         return <AlertTriangle className="w-6 h-6 text-white" />;
       case 'success':
@@ -61,6 +67,10 @@ export function MobileConfirmModal({
 
   const getBadgeStyle = () => {
     switch (type) {
+      case 'error':
+        return 'bg-gradient-to-br from-orange-600 to-orange-700 shadow-md';
+      case 'delete':
+      case 'logout':
       case 'danger':
         return 'bg-gradient-to-br from-red-600 to-rose-700 shadow-md';
       case 'warning':
@@ -75,6 +85,10 @@ export function MobileConfirmModal({
 
   const getConfirmButtonStyle = () => {
     switch (type) {
+      case 'error':
+        return 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white shadow-md border border-orange-500/30';
+      case 'delete':
+      case 'logout':
       case 'danger':
         return 'bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white shadow-md border border-red-500/30';
       case 'warning':
@@ -157,7 +171,7 @@ export function MobileConfirmModal({
                 )}
               </motion.button>
 
-              {!hideCancel && (
+              {!hideCancel && cancelText && cancelText.trim() !== '' && (
                 <motion.button
                   whileTap={{ scale: 0.96 }}
                   onClick={!loading ? onClose : undefined}

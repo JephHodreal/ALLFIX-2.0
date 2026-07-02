@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, History, RefreshCcw, MessageSquare, LayoutDashboard, ClipboardList, CalendarDays } from 'lucide-react';
+import { Home, History, RefreshCcw, MessageSquare, LayoutDashboard, ClipboardList, CalendarDays, TrendingUp } from 'lucide-react';
 
 interface MobileBottomNavProps {
   role: 'customer' | 'vendor' | 'personnel' | 'admin';
@@ -14,7 +14,7 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
   }
 
   const navItems = role === 'vendor' ? [
-    { label: 'Overview', path: '/vendor', icon: <LayoutDashboard className="w-[22px] h-[22px]" />, end: true },
+    { label: 'Overview', path: '/vendor', icon: <TrendingUp className="w-[22px] h-[22px]" />, end: true },
     { label: 'Bookings', path: '/vendor/bookings', icon: <ClipboardList className="w-[22px] h-[22px]" />, end: false },
     { label: 'Schedule', path: '/vendor/schedule', icon: <CalendarDays className="w-[22px] h-[22px]" />, end: false },
     { label: 'Messages', path: '/vendor/messages', icon: <MessageSquare className="w-[22px] h-[22px]" />, end: false },

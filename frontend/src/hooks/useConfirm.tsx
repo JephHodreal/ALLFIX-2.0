@@ -7,7 +7,7 @@ interface ConfirmOptions {
   message: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
-  type?: 'danger' | 'warning' | 'info' | 'success';
+  type?: 'danger' | 'warning' | 'info' | 'success' | 'delete' | 'logout' | 'error';
   hideCancel?: boolean;
   icon?: React.ReactNode;
   onConfirm?: () => void | Promise<void>;
@@ -34,9 +34,16 @@ export function useConfirm() {
   }, []);
 
   const confirm = useCallback((options: ConfirmOptions) => {
+    let finalType = options.type;
+    if (options.title === 'Error' || (options.type === 'danger' && options.hideCancel)) {
+      finalType = 'error';
+    }
     setModalState({
       isOpen: true,
-      options,
+      options: {
+        ...options,
+        type: finalType,
+      },
     });
   }, []);
 

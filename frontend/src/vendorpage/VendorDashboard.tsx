@@ -1275,7 +1275,7 @@ function VendorBookings() {
       {/* Mobile View: Fintech Service Ticket Concierge Feed */}
       <div className="block md:hidden space-y-4 pb-28 sm:pb-8">
         {/* Sticky Search & Unified Segmented Track */}
-        <div className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#090D16]/95 py-2 space-y-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <div className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#090D16]/95 py-2 space-y-2.5">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -1445,13 +1445,15 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
   const [selectedDates, setSelectedDates] = useState<number[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
+  const [showConfirmBulkDelete, setShowConfirmBulkDelete] = useState(false);
 
   const [showConfirmAddSlot, setShowConfirmAddSlot] = useState(false);
 
   const [showEditSlotModal, setShowEditSlotModal] = useState(false);
+  const [showConfirmEditCapacity, setShowConfirmEditCapacity] = useState(false);
   const [editSlot, setEditSlot] = useState<any>(null);
 
-  const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean, title: string, message: string, type: 'info' | 'warning' | 'danger' | 'success' }>({
+  const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean, title: string, message: string, type: 'info' | 'warning' | 'danger' | 'success' | 'delete' | 'logout' | 'error' }>({
     isOpen: false, title: '', message: '', type: 'info'
   });
 
@@ -1634,6 +1636,28 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
     }
   };
 
+  const executeBulkDelete = async () => {
+    try {
+      const dateStrings = selectedDates.map(day => formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)));
+      const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
+      if (slotsToDelete.length === 0) {
+        setAlertConfig({ isOpen: true, title: 'Error', message: 'No slots found on selected dates.', type: 'warning' });
+        setShowConfirmBulkDelete(false);
+        return;
+      }
+      for (const slot of slotsToDelete) {
+        await api.delete(`/api/slots/${slot.id}`);
+      }
+      await fetchSlotsAndBookings();
+      setSelectedDates([]);
+      setIsSelectionMode(false);
+      setShowConfirmBulkDelete(false);
+    } catch (err) {
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete slots', type: 'danger' });
+      setShowConfirmBulkDelete(false);
+    }
+  };
+
   const handleSaveEditSlot = async () => {
     if (!editSlot) return;
     try {
@@ -1654,9 +1678,12 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       });
 
       await fetchSlotsAndBookings();
+      setShowConfirmEditCapacity(false);
       setShowEditSlotModal(false);
       setEditSlot(null);
+      setAlertConfig({ isOpen: true, title: 'Success', message: 'Slot capacity updated successfully.', type: 'success' });
     } catch (err) {
+      setShowConfirmEditCapacity(false);
       setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to update slot. Please try again.', type: 'danger' });
     }
   };
@@ -1680,7 +1707,9 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         subtitle="Manage your time slots and working hours."
         icon={<CalendarDays />}
       />
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+
+      {/* Desktop View: Keep exact original 3-column layout untouched */}
+      <div className="hidden md:grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 space-y-6">
           {/* Calendar Card */}
           <Card className="overflow-hidden border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
@@ -1731,27 +1760,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         Add
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!confirm(`Are you sure you want to delete all slots for the ${selectedDates.length} selected days?`)) return;
-                          try {
-                            const dateStrings = selectedDates.map(day => formatLocalYYYYMMDD(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)));
-                            const slotsToDelete = slots.filter((s: any) => s.slot_date && dateStrings.includes(s.slot_date));
-
-                            if (slotsToDelete.length === 0) {
-                              setAlertConfig({ isOpen: true, title: 'Error', message: 'No slots found on the selected dates.', type: 'warning' });
-                              return;
-                            }
-
-                            for (const slot of slotsToDelete) {
-                              await api.delete(`/api/slots/${slot.id}`);
-                            }
-                            await fetchSlotsAndBookings();
-                            setSelectedDates([]);
-                            setIsSelectionMode(false);
-                          } catch (err) {
-                            setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete some or all slots', type: 'danger' });
-                          }
-                        }}
+                        onClick={() => setShowConfirmBulkDelete(true)}
                         className="px-3 py-1.5 rounded-lg text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-sm transition-all whitespace-nowrap"
                       >
                         Delete
@@ -1842,7 +1851,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                         : isSelectionMode && selectedDates.includes(day)
                           ? 'bg-brand-navy border-brand-navy text-white shadow-md shadow-brand-navy/20 scale-[0.98]'
                           : isSelected
-                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 shadow-md ring-2 ring-blue-400/20'
+                            ? 'bg-brand-navy dark:bg-blue-600 border-brand-navy dark:border-blue-600 text-white shadow-md shadow-brand-navy/30 scale-[0.98]'
                             : hasSlots
                               ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green border-2 shadow-sm hover:bg-brand-green/20'
                               : isToday
@@ -1855,37 +1864,20 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                             ? 'text-blue-600 dark:text-blue-400'
                             : disabled
                               ? 'text-slate-400 dark:text-slate-600'
-                              : (isSelectionMode && selectedDates.includes(day))
+                              : (isSelectionMode && selectedDates.includes(day)) || isSelected
                                 ? 'text-white'
                                 : 'text-slate-800 dark:text-white'
                           }`}>
                           {day}
                         </span>
-                        {isToday && !disabled && !hasSlots && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse mt-1.5 mr-1" />
+                        {hasSlots && !disabled && (
+                          <span className={`w-2 h-2 rounded-full ${(isSelectionMode && selectedDates.includes(day)) || isSelected ? 'bg-white' : 'bg-brand-green animate-pulse'
+                            }`} />
                         )}
                       </div>
-
-                      {hasSlots && (
-                        <div className="mt-auto flex flex-col gap-0.5 overflow-hidden">
-                          <div className={`text-[10px] font-black rounded-md px-1 py-0.5 mb-0.5 inline-block w-fit max-w-full truncate ${disabled
-                              ? 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                              : 'bg-brand-green/20 dark:bg-brand-green/30 text-brand-green dark:text-brand-green'
-                            }`}>
-                            {totalAvailable} avail
-                          </div>
-                          {dateSlots.slice(0, 2).map((s, idx) => (
-                            <div key={idx} className={`text-[9px] font-bold rounded px-1.5 py-0.5 truncate ${disabled ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-400' : 'bg-brand-green/10 dark:bg-brand-green/20 text-brand-green/90'
-                              }`} title={`${s.time_from} - ${s.time_to}`}>
-                              {s.time_from} - {s.time_to}
-                            </div>
-                          ))}
-                          {dateSlots.length > 2 && (
-                            <div className={`text-[9px] font-bold px-1 ${disabled ? 'text-slate-400' : 'text-brand-green/80'
-                              }`}>
-                              +{dateSlots.length - 2} more
-                            </div>
-                          )}
+                      {hasSlots && !disabled && (
+                        <div className={`text-[10px] font-black rounded px-1.5 py-0.5 w-fit ${(isSelectionMode && selectedDates.includes(day)) || isSelected ? 'bg-white/20 text-white' : 'text-brand-green dark:text-brand-green bg-brand-green/10 dark:bg-brand-green/20'}`}>
+                          {totalAvailable} {totalAvailable === 1 ? 'slot' : 'slots'}
                         </div>
                       )}
                     </motion.div>
@@ -1894,19 +1886,20 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
               </div>
             </div>
           </Card>
-
         </div>
+
+        {/* Sidebar slots list */}
         <div className="space-y-6">
           {/* Active slots grouped by service/sub-service */}
           <Card className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm rounded-2xl">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active Slots List</h3>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Your currently configured booking availabilities</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active Time Windows</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Your established work shift hours and appointment limits</p>
                 </div>
-                <span className="text-xs bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green px-2.5 py-1 rounded-full font-bold">
-                  {activeSlotsForSelectedDate.length} Active Slot{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
+                <span className="text-xs bg-brand-navy/10 dark:bg-brand-green/20 text-brand-navy dark:text-brand-green px-3 py-1 rounded-full font-bold whitespace-nowrap shrink-0">
+                  {activeSlotsForSelectedDate.length} Active Window{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
@@ -1921,17 +1914,9 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                     <CalendarDays className="w-8 h-8" />
                   </div>
                   <div className="text-center">
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No slots for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[250px]">You haven't created any slots for this date yet.</p>
+                    <p className="text-base font-bold text-slate-700 dark:text-slate-300">No active windows</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[220px]">Select a date and click "+ Create Slot" to add working hours.</p>
                   </div>
-                  {selectedDate && selectedDate >= today && (
-                    <Button
-                      onClick={() => { setShowModal(true); setTimeError(''); }}
-                      className="mt-2 bg-brand-green hover:bg-[#005e3f] text-white font-bold shadow-sm"
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Create Slot
-                    </Button>
-                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 max-h-[700px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
@@ -1944,7 +1929,6 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                           <div className="w-2.5 h-6 rounded bg-brand-green" />
                           <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">{svc.service}</h4>
                         </div>
-
                         <div className="space-y-4">
                           {svc.sub_services.map((sub: any) => {
                             const subSlots = serviceSlots.filter(s => s.sub_service === sub);
@@ -1952,7 +1936,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                             return (
                               <div key={sub} className="space-y-2">
                                 <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1">{sub}</h5>
-                                <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-1 gap-2.5">
                                   {subSlots.map((s, i) => {
                                     const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
                                     const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
@@ -1962,60 +1946,67 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                                     const percentBooked = safeTotal > 0 ? (booked / safeTotal) * 100 : 0;
 
                                     return (
-                                      <div key={i} className="p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 group">
-                                        <div className="flex justify-between items-start gap-4">
-                                          <div className="space-y-1">
-                                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover:text-brand-green transition-colors">{s.slot_date}</span>
-                                            {s.time_from && s.time_to && (
-                                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                <span>{s.time_from} - {s.time_to}</span>
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <span className={`text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1.5 shrink-0 ${booked >= safeTotal
-                                                ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
-                                                : booked > 0
-                                                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800/40'
-                                                  : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
-                                              }`}>
-                                              {booked >= safeTotal ? 'Fully Booked' : 'Active'} • {booked}/{safeTotal} Booked
-                                            </span>
-                                            <div className="flex items-center">
-                                              <button
-                                                onClick={() => {
-                                                  setEditSlot({ ...s });
-                                                  setShowEditSlotModal(true);
-                                                }}
-                                                className="p-1.5 text-slate-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"
-                                                title="Edit capacity"
-                                              >
-                                                <Edit className="w-4 h-4" />
-                                              </button>
-                                              <button
-                                                onClick={() => handleDeleteSlot(s.id)}
-                                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
-                                                title="Delete slot"
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </button>
+                                      <div key={i} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col justify-between hover:shadow-lg hover:border-brand-green/50 transition-all duration-300 group">
+                                        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                                          <div className="flex items-center gap-2.5">
+                                            <div className="w-9 h-9 rounded-xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green font-bold shrink-0">
+                                              <CalendarDays className="w-4.5 h-4.5" />
                                             </div>
+                                            <div>
+                                              <span className="text-sm font-extrabold text-slate-900 dark:text-white block">{s.slot_date}</span>
+                                              {s.time_from && s.time_to && (
+                                                <div className="flex items-center gap-1.5 text-xs text-brand-green font-bold mt-0.5">
+                                                  <Clock className="w-3.5 h-3.5" />
+                                                  <span>{s.time_from} - {s.time_to}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                            <button
+                                              onClick={() => {
+                                                setEditSlot(s);
+                                                setShowEditSlotModal(true);
+                                              }}
+                                              className="p-2 rounded-xl text-slate-400 hover:text-brand-green dark:hover:text-white hover:bg-brand-green/10 dark:hover:bg-slate-800 transition-all"
+                                              title="Edit Slot"
+                                            >
+                                              <Edit className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteSlot(s.id)}
+                                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
+                                              title="Delete Slot"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
                                           </div>
                                         </div>
 
-                                        {/* Sleek thin progress bar to represent booked slots visually */}
-                                        <div className="mt-3 space-y-1">
-                                          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div
-                                              className={`h-full rounded-full transition-all duration-500 ${percentBooked >= 100
-                                                ? 'bg-rose-500'
-                                                : percentBooked >= 50
-                                                  ? 'bg-amber-500'
-                                                  : 'bg-emerald-500'
-                                                }`}
-                                              style={{ width: `${percentBooked}%` }}
-                                            />
+                                        <div className="mt-3.5 flex items-center justify-between gap-3">
+                                          <span className={`text-xs px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1.5 shrink-0 ${booked >= safeTotal
+                                              ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/40 dark:border-rose-800/40'
+                                              : booked > 0
+                                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800/40'
+                                                : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40 dark:border-emerald-800/40'
+                                            }`}>
+                                            <span className={`w-2 h-2 rounded-full ${booked >= safeTotal ? 'bg-rose-500' : booked > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                                              }`} />
+                                            {booked}/{safeTotal} Appointments Booked
+                                          </span>
+
+                                          <div className="flex items-center gap-2 flex-1 max-w-[110px] ml-auto">
+                                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/50 dark:border-slate-800">
+                                              <div
+                                                className={`h-full rounded-full transition-all duration-500 ${percentBooked >= 100
+                                                  ? 'bg-rose-500'
+                                                  : percentBooked >= 50
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-emerald-500'
+                                                  }`}
+                                                style={{ width: `${percentBooked}%` }}
+                                              />
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
@@ -2034,6 +2025,280 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
             </div>
           </Card>
         </div>
+      </div>
+
+      {/* Mobile View: Fintech Service Ticket Schedule Concierge */}
+      <div className="block md:hidden space-y-6 pb-28 sm:pb-8">
+        {/* 1. Unified Calendar Instrument Card */}
+        <Card className="border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-xs rounded-3xl overflow-hidden p-4 sm:p-5">
+          {/* Top Row: Month Title & Arrows */}
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center text-brand-green font-bold shrink-0">
+                <CalendarDays className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">{monthName}</h2>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Service capacity instrument</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <button
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all"
+                title="Previous Month"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setCurrentMonth(new Date())}
+                className="px-2 py-1 rounded-lg text-[11px] font-black hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all"
+                title="Next Month"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Row: Action Command Bar */}
+          <div className="flex items-center justify-between gap-2 pt-3.5 pb-2">
+            <button
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (isSelectionMode) setSelectedDates([]);
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all h-9 flex items-center justify-center ${isSelectionMode
+                ? 'bg-brand-navy text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              {isSelectionMode ? 'Cancel Select' : 'Select Multiple'}
+            </button>
+
+            {isSelectionMode && selectedDates.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { setShowModal(true); setTimeError(''); }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-black bg-brand-green text-white hover:bg-[#005e3f] shadow-xs h-9 flex items-center justify-center"
+                >
+                  Add ({selectedDates.length})
+                </button>
+                <button
+                  onClick={() => setShowConfirmBulkDelete(true)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-black bg-rose-500 text-white hover:bg-rose-600 shadow-xs h-9 flex items-center justify-center"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : !isSelectionMode ? (
+              <button
+                onClick={() => { setShowModal(true); setTimeError(''); }}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-brand-green hover:bg-[#005e3f] text-white shadow-sm shadow-brand-green/20 h-9 flex items-center gap-1.5 ml-auto transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Slot
+              </button>
+            ) : null}
+          </div>
+
+          {/* Weekday Headers */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 my-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, index) => {
+              const isWeekend = index === 0 || index === 6;
+              return (
+                <div
+                  key={d}
+                  className={`text-center text-[10px] font-black uppercase tracking-wider py-1.5 rounded-lg ${isWeekend
+                    ? 'text-slate-400 dark:text-slate-500 bg-slate-50/40 dark:bg-slate-900/20'
+                    : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50'
+                  }`}
+                >
+                  {d}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* High-Density Calendar Grid Matrix */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {days.map((day, i) => {
+              if (!day) {
+                return <div key={`empty-mob-${i}`} className="aspect-square bg-transparent" />;
+              }
+              const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+              const disabled = isDateDisabled(day);
+              const isToday = dateObj.toDateString() === today.toDateString();
+              const dateSlots = getSlotsForDate(day);
+              const hasSlots = dateSlots.length > 0;
+              const isSelected = selectedDate && dateObj.getTime() === selectedDate.getTime() && !isSelectionMode;
+              const isMultiSelected = isSelectionMode && selectedDates.includes(day);
+
+              return (
+                <div
+                  key={`mob-day-${day}`}
+                  onClick={() => {
+                    if (disabled) return;
+                    if (isSelectionMode) {
+                      setSelectedDates(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+                    } else {
+                      setSelectedDate(dateObj);
+                      setTimeError('');
+                    }
+                  }}
+                  className={`aspect-square p-1 sm:p-1.5 rounded-xl sm:rounded-2xl flex flex-col justify-between items-center relative select-none cursor-pointer transition-all border ${disabled
+                    ? 'bg-slate-100/50 dark:bg-slate-900/30 border-transparent opacity-40 cursor-not-allowed'
+                    : isMultiSelected
+                      ? 'bg-brand-navy border-brand-navy text-white shadow-xs scale-[0.97]'
+                      : isSelected
+                        ? 'bg-brand-navy dark:bg-blue-600 border-brand-navy dark:border-blue-600 text-white shadow-md shadow-brand-navy/30 scale-[0.98]'
+                        : hasSlots
+                          ? 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/60 font-bold'
+                          : isToday
+                            ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+                            : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/80 hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`text-xs sm:text-sm font-black mt-0.5 ${disabled
+                    ? 'text-slate-400 dark:text-slate-600'
+                    : isMultiSelected || isSelected
+                      ? 'text-white'
+                      : isToday
+                        ? 'text-blue-600 dark:text-blue-400 font-extrabold'
+                        : 'text-slate-800 dark:text-slate-100'
+                  }`}>
+                    {day}
+                  </span>
+                  {hasSlots && !disabled && (
+                    <div className={`w-1.5 h-1.5 rounded-full mb-1 ${isMultiSelected || isSelected ? 'bg-white' : 'bg-emerald-500 shadow-xs shadow-emerald-500'}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* 2. Logical Bridge ("Your Availability" Sticky Header) */}
+        <div className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#090D16]/95 py-2.5 flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-5 rounded-full bg-brand-green" />
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">Your Availability</h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Service slot management</p>
+            </div>
+          </div>
+          <span className="text-xs bg-brand-green/10 dark:bg-brand-green/20 text-brand-green font-black px-3 py-1 rounded-full border border-brand-green/20">
+            {selectedDate ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'All'} • {activeSlotsForSelectedDate.length} Time Window{activeSlotsForSelectedDate.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* 3. Service Ticket Active Slots Feed */}
+        {loading ? (
+          <div className="space-y-3.5">
+            {Array(2).fill(0).map((_, i) => (
+              <div key={i} className="h-36 bg-slate-200/70 dark:bg-slate-800/60 rounded-3xl animate-pulse" />
+            ))}
+          </div>
+        ) : activeSlotsForSelectedDate.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-8 border border-slate-200/70 dark:border-slate-800 text-center space-y-3.5 shadow-xs">
+            <div className="w-14 h-14 rounded-full bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center mx-auto text-brand-green">
+              <CalendarDays className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white">No service slots for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[240px] mx-auto">You haven't configured your working hours on this date yet.</p>
+            </div>
+            {selectedDate && selectedDate >= today && (
+              <Button
+                onClick={() => { setShowModal(true); setTimeError(''); }}
+                className="bg-brand-green hover:bg-[#005e3f] text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs inline-flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Create Slot for {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            {activeSlotsForSelectedDate.map((s: any, idx: number) => {
+              const avail = s.available_slots !== undefined && s.available_slots !== null ? s.available_slots : s.total_slots;
+              const total = s.total_slots !== undefined && s.total_slots !== null ? s.total_slots : 0;
+              const safeAvail = Math.max(0, avail !== undefined && avail !== null ? avail : 0);
+              const safeTotal = Math.max(0, total);
+              const booked = safeTotal - safeAvail;
+              const isFull = booked >= safeTotal && safeTotal > 0;
+
+              return (
+                <div
+                  key={`mob-slot-${s.id || idx}`}
+                  className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-3 group"
+                >
+                  {/* Zone 1: Header (Service Name + Edit Control) */}
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-2 h-5 rounded-full bg-brand-green shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">{s.service_type || 'Service'}</div>
+                        {s.sub_service && (
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">{s.sub_service}</div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditSlot(s);
+                        setShowEditSlotModal(true);
+                      }}
+                      className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all shrink-0"
+                      title="Edit Slot"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Zone 2: Readable Hero Date & Time (Zero Hyphen-Wrapping!) */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-150/60 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      <CalendarDays className="w-4 h-4 text-brand-green shrink-0" />
+                      <span>{s.slot_date}</span>
+                    </div>
+                    {s.time_from && s.time_to && (
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap bg-white dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200/50 dark:border-slate-800">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{s.time_from} - {s.time_to}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dashed Receipt Divider */}
+                  <div className="border-t border-dashed border-slate-200 dark:border-slate-800 my-2" />
+
+                  {/* Zone 3: Vibrant Status & Capacity Pill */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <span className={`text-xs px-3 py-1.5 rounded-xl font-black flex items-center gap-1.5 ${isFull
+                      ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/50'
+                      : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${isFull ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'}`} />
+                      <span>{isFull ? 'Full' : 'Active'} • {booked}/{safeTotal} Appointments Booked</span>
+                    </span>
+
+                    <button
+                      onClick={() => handleDeleteSlot(s.id)}
+                      className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
+                      title="Delete Slot"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Add slot modal */}
@@ -2200,7 +2465,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Total Slots Capacity</label>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Max Appointments Capacity</label>
                       <input
                         type="number"
                         min="1"
@@ -2222,7 +2487,7 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
                     </Button>
                     <Button
                       className="flex-1 bg-brand-green hover:bg-[#005e3f] text-white font-bold"
-                      onClick={handleSaveEditSlot}
+                      onClick={() => setShowConfirmEditCapacity(true)}
                     >
                       Save Changes
                     </Button>
@@ -2243,8 +2508,19 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
         onConfirm={confirmDeleteSlot}
         title="Delete Slot"
         message="Are you sure you want to delete this slot? Any existing bookings for this slot will not be automatically cancelled."
-        type="danger"
+        type="delete"
         confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={showConfirmBulkDelete}
+        onClose={() => setShowConfirmBulkDelete(false)}
+        onConfirm={executeBulkDelete}
+        title="Delete Multiple Slots"
+        message={`Are you sure you want to delete all slots for the ${selectedDates.length} selected days? Any existing bookings will not be automatically cancelled.`}
+        type="delete"
+        confirmText="Delete All"
         cancelText="Cancel"
       />
 
@@ -2260,14 +2536,25 @@ function SlotCalendar({ dbServices }: { dbServices: any[] }) {
       />
 
       <ConfirmModal
+        isOpen={showConfirmEditCapacity}
+        onClose={() => setShowConfirmEditCapacity(false)}
+        onConfirm={handleSaveEditSlot}
+        title="Confirm Capacity Change"
+        message={`Are you sure you want to update the capacity for this slot (${editSlot?.slot_date} • ${editSlot?.time_from}-${editSlot?.time_to}) to ${editSlot?.total_slots || 1} simultaneous appointments?`}
+        type="success"
+        confirmText="Save Changes"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
         isOpen={alertConfig.isOpen}
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })}
         onConfirm={() => setAlertConfig({ ...alertConfig, isOpen: false })}
         title={alertConfig.title}
         message={alertConfig.message}
         confirmText="OK"
-        type={alertConfig.type}
-        cancelText=""
+        type={alertConfig.title === 'Error' || alertConfig.type === 'danger' ? 'error' : alertConfig.type}
+        hideCancel={true}
       />
     </div>
   );
@@ -2284,7 +2571,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
     isOpen: false,
     title: '',
     message: '',
-    type: 'info' as 'danger' | 'warning' | 'info' | 'success'
+    type: 'info' as 'danger' | 'warning' | 'info' | 'success' | 'delete' | 'logout' | 'error'
   });
   const [personnelToDelete, setPersonnelToDelete] = useState<string | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -2959,7 +3246,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         onConfirm={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
         title={alertConfig.title}
         message={alertConfig.message}
-        type={alertConfig.type}
+        type={alertConfig.title === 'Error' || alertConfig.type === 'danger' ? 'error' : alertConfig.type}
         confirmText="OK"
         hideCancel={true}
       />

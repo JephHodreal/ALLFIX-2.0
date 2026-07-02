@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Info, CheckCircle2, LogOut, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle2, LogOut, Loader2, Trash2, XCircle } from 'lucide-react';
+import { MobileConfirmModal } from './MobileConfirmModal';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface ConfirmModalProps {
   message: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
-  type?: 'danger' | 'warning' | 'info' | 'success';
+  type?: 'danger' | 'warning' | 'info' | 'success' | 'delete' | 'logout' | 'error';
   hideCancel?: boolean;
   icon?: React.ReactNode;
 }
@@ -29,6 +30,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   icon
 }) => {
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,6 +61,23 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   if (typeof document === 'undefined') return null;
 
+  if (isMobile) {
+    return (
+      <MobileConfirmModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        title={title}
+        message={message}
+        confirmText={confirmText}
+        cancelText={cancelText}
+        type={type as any}
+        hideCancel={hideCancel}
+        icon={icon}
+      />
+    );
+  }
+
   const handleConfirm = async () => {
     try {
       setLoading(true);
@@ -67,8 +93,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const getIcon = () => {
     if (icon) return icon;
     switch (type) {
-      case 'danger':
+      case 'error':
+        return <XCircle className="w-6 h-6 text-white" />;
+      case 'delete':
+        return <Trash2 className="w-6 h-6 text-white" />;
+      case 'logout':
         return <LogOut className="w-6 h-6 text-white" />;
+      case 'danger':
+        return <AlertTriangle className="w-6 h-6 text-white" />;
       case 'warning':
         return <AlertTriangle className="w-6 h-6 text-white" />;
       case 'success':
@@ -81,6 +113,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const getBadgeStyle = () => {
     switch (type) {
+      case 'error':
+        return 'bg-gradient-to-br from-orange-600 to-orange-700 shadow-md';
+      case 'delete':
+      case 'logout':
       case 'danger':
         return 'bg-gradient-to-br from-red-600 to-rose-700 shadow-md';
       case 'warning':
@@ -95,6 +131,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const getConfirmButtonStyle = () => {
     switch (type) {
+      case 'error':
+        return 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white shadow-md border border-orange-500/30';
+      case 'delete':
+      case 'logout':
       case 'danger':
         return 'bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white shadow-md border border-red-500/30';
       case 'warning':
@@ -142,7 +182,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 </div>
               </div>
               <div className="p-6 pt-0 flex justify-end gap-3">
-                {!hideCancel && (
+                {!hideCancel && cancelText && cancelText.trim() !== '' && (
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={!loading ? onClose : undefined}
