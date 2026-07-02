@@ -919,7 +919,7 @@ const LandingPage: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             overflow: 'hidden',
-            pt: { xs: 8, md: 0 },
+            pt: { xs: 4, md: 0 },
             bgcolor: '#10355f'
           }}
         >
@@ -984,20 +984,20 @@ const LandingPage: React.FC = () => {
               }}
             >
               {/* TEXT CONTENT (LEFT SIDE) */}
-              <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', pr: { md: 4, lg: 8 }, pt: { xs: 6, md: 10, lg: 12 }, pb: { xs: 5, md: 0 } }}>
+              <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', pr: { md: 4, lg: 8 }, pt: { xs: 0, md: 10, lg: 12 }, pb: { xs: 2, md: 0 } }}>
 
                 {/* Bold multi-colored brand accent line */}
-                <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
-                  <Box sx={{ width: 64, height: 8, bgcolor: '#017550', borderRadius: '8px' }} />
-                  <Box sx={{ width: 64, height: 8, bgcolor: '#fcbc26', borderRadius: '8px' }} />
-                  <Box sx={{ width: 64, height: 8, bgcolor: '#d8242b', borderRadius: '8px' }} />
+                <Box sx={{ display: 'flex', gap: { xs: 1, md: 1.5 }, mb: { xs: 2, md: 4 } }}>
+                  <Box sx={{ width: { xs: 48, md: 64 }, height: { xs: 6, md: 8 }, bgcolor: '#017550', borderRadius: '8px' }} />
+                  <Box sx={{ width: { xs: 48, md: 64 }, height: { xs: 6, md: 8 }, bgcolor: '#fcbc26', borderRadius: '8px' }} />
+                  <Box sx={{ width: { xs: 48, md: 64 }, height: { xs: 6, md: 8 }, bgcolor: '#d8242b', borderRadius: '8px' }} />
                 </Box>
                 <Typography
                   sx={{
-                    fontSize: { xs: '3rem', sm: '4rem', md: '4.2rem', lg: '5rem', xl: '5.5rem' },
+                    fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4.2rem', lg: '5rem', xl: '5.5rem' },
                     fontWeight: 800,
                     color: 'white',
-                    mb: 3,
+                    mb: { xs: 1.5, md: 3 },
                     lineHeight: 1.05,
                     letterSpacing: '-0.03em'
                   }}
@@ -1014,9 +1014,9 @@ const LandingPage: React.FC = () => {
 
                 <Typography
                   sx={{
-                    fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.25rem', lg: '1.35rem' },
+                    fontSize: { xs: '0.95rem', sm: '1.1rem', md: '1.25rem', lg: '1.35rem' },
                     color: 'rgba(255, 255, 255, 0.85)',
-                    mb: { xs: 4, md: 5 },
+                    mb: { xs: 1.5, md: 5 },
                     lineHeight: 1.6,
                     maxWidth: '580px',
                     fontWeight: 400
@@ -1035,12 +1035,12 @@ const LandingPage: React.FC = () => {
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
                     borderRadius: '16px',
-                    p: { xs: 3, sm: 4 },
+                    p: { xs: 2.5, sm: 4 },
                     width: '90%',
                     maxWidth: '380px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 2,
+                    gap: { xs: 1.5, md: 2 },
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     boxShadow: '0 24px 60px rgba(0, 0, 0, 0.4)',
                     ml: { lg: 6, xl: 8 },
@@ -1054,8 +1054,8 @@ const LandingPage: React.FC = () => {
                       bgcolor: '#10355f',
                       color: 'white',
                       fontWeight: 900,
-                      fontSize: '1rem',
-                      py: 2,
+                      fontSize: { xs: '0.9rem', md: '1rem' },
+                      py: { xs: 1.5, md: 2 },
                       borderRadius: '8px',
                       textTransform: 'none',
                       boxShadow: '0 8px 20px rgba(66, 95, 163, 0.3)',
@@ -1080,8 +1080,8 @@ const LandingPage: React.FC = () => {
                       border: '1px solid rgba(255, 255, 255, 0.6)',
                       borderRadius: '8px',
                       fontWeight: 700,
-                      fontSize: '1rem',
-                      py: 1.8,
+                      fontSize: { xs: '0.9rem', md: '1rem' },
+                      py: { xs: 1.3, md: 1.8 },
                       textTransform: 'none',
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -1099,7 +1099,7 @@ const LandingPage: React.FC = () => {
                       color: 'rgba(255, 255, 255, 0.8)',
                       textAlign: 'center',
                       mt: 1.5,
-                      fontSize: '0.95rem',
+                      fontSize: { xs: '0.85rem', md: '0.95rem' },
                       fontWeight: 500,
                     }}
                   >
