@@ -49,6 +49,7 @@ export function EditModal({ title, fields, initialData, onSave, onClose, childre
       await onSave(form);
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Save failed');
+    } finally {
       setSaving(false);
     }
   };

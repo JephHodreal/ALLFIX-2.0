@@ -386,18 +386,26 @@ function VendorBookings() {
     }
   };
 
-  const handleDeleteAddon = async (addonId: string) => {
-    try {
-      await api.delete(`/api/bookings/${selectedBooking.id}/addons/${addonId}`);
-      if (!profile?.id) return;
-      const r = await api.get(`/api/bookings/vendor/${profile.id}`);
-      setBookings(r.data || []);
-      const updatedBooking = (r.data || []).find((b: any) => b.id === selectedBooking.id);
-      if (updatedBooking) setSelectedBooking(updatedBooking);
-      showAlert({ title: 'Success', message: 'Add-on cancelled successfully.', type: 'success', hideCancel: true });
-    } catch (err: any) {
-      showAlert({ title: 'Error', message: err.response?.data?.message || 'Failed to cancel add-on.', type: 'danger', hideCancel: true });
-    }
+  const handleDeleteAddon = (addonId: string) => {
+    showAlert({
+      title: 'Cancel Request',
+      message: 'Are you sure you want to cancel this additional charge request?',
+      type: 'delete',
+      confirmText: 'Yes, Cancel Request',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/bookings/${selectedBooking.id}/addons/${addonId}`);
+          if (!profile?.id) return;
+          const r = await api.get(`/api/bookings/vendor/${profile.id}`);
+          setBookings(r.data || []);
+          const updatedBooking = (r.data || []).find((b: any) => b.id === selectedBooking.id);
+          if (updatedBooking) setSelectedBooking(updatedBooking);
+          showAlert({ title: 'Success', message: 'Add-on cancelled successfully.', type: 'success', hideCancel: true });
+        } catch (err: any) {
+          showAlert({ title: 'Error', message: err.response?.data?.message || 'Failed to cancel add-on.', type: 'error', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleCompleteBooking = async () => {
@@ -2575,6 +2583,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
   });
   const [personnelToDelete, setPersonnelToDelete] = useState<string | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
 
   useEffect(() => {
     if (editItem) {
@@ -2654,18 +2663,40 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
     else setLoading(false);
   }, [profile]);
 
-  const handleApprove = async (id: string) => {
-    try {
-      await api.post(`/api/personnel/${id}/approve`);
-      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'approved', temp_delete: 0 } : p));
-    } catch (e) { }
+  const handleApprove = (id: string) => {
+    showAlert({
+      title: 'Confirm Approval',
+      message: 'Are you sure you want to approve this personnel account?',
+      type: 'success',
+      confirmText: 'Yes, Approve',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/personnel/${id}/approve`);
+          setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'approved', temp_delete: 0 } : p));
+          showAlert({ title: 'Success', message: 'Personnel account approved.', type: 'success', hideCancel: true });
+        } catch (e) {
+          showAlert({ title: 'Error', message: 'Failed to approve personnel account.', type: 'error', hideCancel: true });
+        }
+      }
+    });
   };
 
-  const handleReject = async (id: string) => {
-    try {
-      await api.post(`/api/personnel/${id}/reject`);
-      setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'rejected', temp_delete: 0 } : p));
-    } catch (e) { }
+  const handleReject = (id: string) => {
+    showAlert({
+      title: 'Confirm Rejection',
+      message: 'Are you sure you want to reject this personnel account?',
+      type: 'warning',
+      confirmText: 'Yes, Reject',
+      onConfirm: async () => {
+        try {
+          await api.post(`/api/personnel/${id}/reject`);
+          setPersonnel(ps => ps.map(p => p.id === id ? { ...p, acc_approve: 'rejected', temp_delete: 0 } : p));
+          showAlert({ title: 'Success', message: 'Personnel account rejected.', type: 'success', hideCancel: true });
+        } catch (e) {
+          showAlert({ title: 'Error', message: 'Failed to reject personnel account.', type: 'error', hideCancel: true });
+        }
+      }
+    });
   };
 
   const handleDelete = (id: string) => {
@@ -2680,22 +2711,30 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
       setPersonnel(ps => ps.map(p => p.id === personnelToDelete ? { ...p, temp_delete: 1 } : p));
       setAlertConfig({ isOpen: true, title: 'Success', message: 'Personnel deleted successfully.', type: 'success' });
     } catch (e) {
-      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete personnel.', type: 'danger' });
+      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to delete personnel.', type: 'error' });
     } finally {
       setShowConfirmDelete(false);
       setPersonnelToDelete(null);
     }
   };
 
-  const handleEditSave = async (data: Record<string, any>) => {
-    try {
-      await api.put(`/api/personnel/${editItem.id}`, data);
-      setPersonnel(ps => ps.map(p => p.id === editItem.id ? { ...p, ...data } : p));
-      setEditItem(null);
-      setAlertConfig({ isOpen: true, title: 'Success', message: 'Personnel updated successfully.', type: 'success' });
-    } catch (e) {
-      setAlertConfig({ isOpen: true, title: 'Error', message: 'Failed to update personnel.', type: 'danger' });
-    }
+  const handleEditSave = (data: Record<string, any>) => {
+    showAlert({
+      title: 'Confirm Changes',
+      message: 'Are you sure you want to save changes to this personnel account?',
+      type: 'info',
+      confirmText: 'Save Changes',
+      onConfirm: async () => {
+        try {
+          await api.put(`/api/personnel/${editItem.id}`, data);
+          setPersonnel(ps => ps.map(p => p.id === editItem.id ? { ...p, ...data } : p));
+          setEditItem(null);
+          showAlert({ title: 'Success', message: 'Personnel updated successfully.', type: 'success', hideCancel: true });
+        } catch (e) {
+          showAlert({ title: 'Error', message: 'Failed to update personnel.', type: 'error', hideCancel: true });
+        }
+      }
+    });
   };
 
   const checkUsername = async (username: string) => {
@@ -3235,7 +3274,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         onConfirm={confirmDelete}
         title="Delete Personnel"
         message="Are you sure you want to delete this personnel account?"
-        type="danger"
+        type="delete"
         confirmText="Delete"
         cancelText="Cancel"
       />
@@ -3250,6 +3289,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
         confirmText="OK"
         hideCancel={true}
       />
+      <ConfirmComponent />
     </div>
   );
 }
@@ -5314,21 +5354,33 @@ function VendorSupport() {
   const [ticketForm, setTicketForm] = useState({ issueType: 'Dispute Payout', bookingId: '', message: '' });
   const { confirm: showAlert, ConfirmComponent } = useConfirm();
 
-  const handleSubmit = async () => {
-    try {
-      await api.post('/api/support', {
-        role: 'vendor',
-        issue_type: ticketForm.issueType,
-        booking_id: ticketForm.bookingId,
-        message: ticketForm.message,
-        priority: 'high'
-      });
-      showAlert({ title: 'Success', message: 'Support ticket submitted successfully. AllFix Admin will review this shortly.', type: 'success', hideCancel: true });
-      setShowTicketModal(false);
-      setTicketForm({ issueType: 'Dispute Payout', bookingId: '', message: '' });
-    } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to submit ticket', type: 'danger', hideCancel: true });
+  const handleSubmit = () => {
+    if (!ticketForm.message.trim()) {
+      showAlert({ title: 'Error', message: 'Please enter a message describing your issue.', type: 'error', hideCancel: true });
+      return;
     }
+    showAlert({
+      title: 'Confirm Submission',
+      message: `Are you sure you want to submit this support ticket (${ticketForm.issueType})?`,
+      type: 'info',
+      confirmText: 'Yes, Submit',
+      onConfirm: async () => {
+        try {
+          await api.post('/api/support', {
+            role: 'vendor',
+            issue_type: ticketForm.issueType,
+            booking_id: ticketForm.bookingId,
+            message: ticketForm.message,
+            priority: 'high'
+          });
+          showAlert({ title: 'Success', message: 'Support ticket submitted successfully. AllFix Admin will review this shortly.', type: 'success', hideCancel: true });
+          setShowTicketModal(false);
+          setTicketForm({ issueType: 'Dispute Payout', bookingId: '', message: '' });
+        } catch (err) {
+          showAlert({ title: 'Error', message: 'Failed to submit ticket', type: 'error', hideCancel: true });
+        }
+      }
+    });
   };
 
   return (
