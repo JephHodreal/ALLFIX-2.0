@@ -23,9 +23,24 @@ export function NotificationsTab() {
     }
   }, [location.state, navigate, location.pathname]);
 
+  const isPersonnel = profile?.role === 'personnel';
+
   const getCategory = (n: any) => {
     const t = (n.type || n.title || '').toLowerCase();
     const m = (n.message || '').toLowerCase();
+    // ── Personnel-specific categories ──
+    if (isPersonnel) {
+      if (t.includes('message') || m.includes('message')) return 'Message';
+      if (
+        t.includes('assignment') || t.includes('assigned') ||
+        t.includes('job') || t.includes('cancel') ||
+        t.includes('completed') || t.includes('add-on') ||
+        t.includes('add_on') || t.includes('verified') ||
+        t.includes('unassigned') || t.includes('charge')
+      ) return 'Assigned Job';
+      return 'Other';
+    }
+    // ── Generic categories for all other roles ──
     if (t.includes('voucher') || m.includes('voucher')) return 'Voucher';
     if (t.includes('payment') || m.includes('payment') || t.includes('refund')) return 'Payment';
     if (t.includes('message') || m.includes('message')) return 'Message';
@@ -231,14 +246,23 @@ export function NotificationsTab() {
       
       {notifications.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
-          {['All', 'Booking', 'Payment', 'Voucher', 'Message', 'Other'].map(cat => {
-            const dotColors: Record<string, string> = {
-              'Booking': 'bg-blue-500',
-              'Payment': 'bg-green-500',
-              'Voucher': 'bg-violet-500',
-              'Message': 'bg-orange-500',
-              'Other': 'bg-gray-600 dark:bg-gray-500'
-            };
+          {(isPersonnel
+            ? ['All', 'Assigned Job', 'Message', 'Other']
+            : ['All', 'Booking', 'Payment', 'Voucher', 'Message', 'Other']
+          ).map(cat => {
+            const dotColors: Record<string, string> = isPersonnel
+              ? {
+                  'Assigned Job': 'bg-brand-green',
+                  'Message':      'bg-orange-500',
+                  'Other':        'bg-gray-600 dark:bg-gray-500',
+                }
+              : {
+                  'Booking': 'bg-blue-500',
+                  'Payment': 'bg-green-500',
+                  'Voucher': 'bg-violet-500',
+                  'Message': 'bg-orange-500',
+                  'Other':   'bg-gray-600 dark:bg-gray-500',
+                };
             return (
               <button
                 key={cat}

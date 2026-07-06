@@ -13,6 +13,11 @@ interface UserProfile {
   last_name?: string;
   company_name?: string;
   phone?: string;
+  avatar_url?: string;
+  vendor_avatar?: string;
+  vendor_logo?: string;
+  vendor_name?: string;
+  vendor_id?: string;
   [key: string]: unknown;
 }
 

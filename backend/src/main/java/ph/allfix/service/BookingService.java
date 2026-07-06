@@ -85,13 +85,6 @@ public class BookingService {
         updates.put("status", "confirmed");
         updates.put("payment_confirmed", true);
         firestoreService.update("bookings", bookingId, updates);
-        try {
-            Map<String, Object> chatUpdates = new HashMap<>();
-            chatUpdates.put("status", "completed");
-            firestoreService.update("chat_threads", bookingId, chatUpdates);
-        } catch (Exception e) {
-            System.err.println("BookingService: Failed to update chat thread status: " + e.getMessage());
-        }
 
         // Deduct vendor slot
         handleSlotDecrementForBooking(bookingId);
@@ -261,14 +254,23 @@ public class BookingService {
         updates.put("vendor_earnings", vendorEarnings);
         
         firestoreService.update("bookings", bookingId, updates);
+        try {
+            Map<String, Object> chatUpdates = new HashMap<>();
+            chatUpdates.put("status", "completed");
+            firestoreService.update("chat_threads", bookingId, chatUpdates);
+        } catch (Exception e) {
+            System.err.println("BookingService: Failed to update chat thread status to completed: " + e.getMessage());
+        }
         System.out.println("BookingService.completeBooking: booking status set to completed, systemFee=" + systemFee + ", vendorEarnings=" + vendorEarnings);
 
         handleSlotDecrementForBooking(bookingId);
 
         String customerId = (String) booking.get("customer_id");
+        String personnelId = (String) booking.get("personnel_id");
         String serviceType = (String) booking.get("service_type");
         String details = "ID: " + bookingId + " - " + serviceType;
         if (customerId != null) notificationService.notify(customerId, "customer", "Booking Completed", "Your booking for \"" + details + "\" has been completed! Please leave a review.");
+        if (personnelId != null) notificationService.notify(personnelId, "personnel", "Job Completed", "Your assigned job \"" + details + "\" has been marked as completed. Great work!");
     }
 
     public void requestAddon(String bookingId, Map<String, Object> body) throws Exception {
@@ -404,6 +406,11 @@ public class BookingService {
             notificationService.notify(customerId, "customer", "Add-on Verified",
                 "Your payment of ₱" + addonAmount + " for '" + addonDesc + "' has been verified.");
         }
+        String personnelId = (String) booking.get("personnel_id");
+        if (personnelId != null) {
+            notificationService.notify(personnelId, "personnel", "Add-on Verified",
+                "The additional charge of ₱" + addonAmount + " for '" + addonDesc + "' has been verified. You may proceed.");
+        }
     }
 
     public void requestCancellation(String bookingId) throws Exception {
@@ -477,6 +484,12 @@ public class BookingService {
             if (vendorId != null) {
                 notificationService.notify(vendorId, "vendor", "Cancellation Denied",
                     "Admin has denied the customer's cancellation request for booking \"" + booking.get("service_type") + "\". Please proceed as scheduled.");
+            }
+            // Notify personnel if assigned
+            String personnelId = (String) booking.get("personnel_id");
+            if (personnelId != null) {
+                notificationService.notify(personnelId, "personnel", "Cancellation Denied",
+                    "The cancellation request for your assigned job \"" + booking.get("service_type") + "\" was denied. Please proceed as scheduled.");
             }
             return;
         }
@@ -660,6 +673,12 @@ public class BookingService {
             String vendorId = (String) booking.get("vendor_id");
             if (vendorId != null) {
                 notificationService.notify(vendorId, "vendor", "Booking Cancelled", "A booking for \"ID: " + bookingId + " - " + booking.get("service_type") + "\" has been cancelled with a refund issued.");
+            }
+            // Notify personnel if they were assigned to this booking
+            String personnelId = (String) booking.get("personnel_id");
+            if (personnelId != null) {
+                notificationService.notify(personnelId, "personnel", "Booking Cancelled",
+                    "Your assigned job \"ID: " + bookingId + " - " + booking.get("service_type") + "\" has been cancelled by the admin.");
             }
 
             // Trigger Email Notification

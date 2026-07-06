@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ClipboardList, MessageSquare, Building2, User, HelpCircle, Bug, X, AlertCircle } from 'lucide-react';
+import { ClipboardList, MessageSquare, Building2, User, HelpCircle, Bug, X, AlertCircle, LayoutDashboard, CheckCircle } from 'lucide-react';
+import { AdminPageHeader } from '../components/shared/AdminPageHeader';
 import { Button } from '../components/shared/Button';
 import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
@@ -15,6 +16,7 @@ import { useConfirm } from '../hooks/useConfirm';
 import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
 import { useChatMessages } from '../hooks/useChat';
+import { PersonnelMessages } from '@/personnelpage/PersonnelMessages';
 
 function PersonnelChatModal({ 
   isOpen, 
@@ -227,40 +229,69 @@ function PersonnelHome() {
   const activeJobs = bookings.filter(b => b?.status === 'in_progress').length;
   const completedJobs = bookings.filter(b => b?.status === 'completed').length;
 
+  // Truly upcoming: assigned or confirmed but not yet started
   const nextJob = (Array.isArray(bookings) ? [...bookings] : [])
-    .filter(b => b && ['assigned', 'dispatched', 'in-transit', 'in_progress'].includes(b.status))
+    .filter(b => b && ['assigned', 'confirmed'].includes(b.status))
     .sort((a, b) => {
-      const dateA = a?.date ? new Date(a.date).getTime() : Infinity;
-      const dateB = b?.date ? new Date(b.date).getTime() : Infinity;
+      const dateA = a?.scheduled_date ? new Date(a.scheduled_date).getTime() : Infinity;
+      const dateB = b?.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity;
       return dateA - dateB;
     })[0];
 
+  // Already started: dispatched, in-transit, or in_progress
+  const activeJob = (Array.isArray(bookings) ? [...bookings] : [])
+    .filter(b => b && ['dispatched', 'in-transit', 'in_progress'].includes(b.status))
+    .sort((a, b) => {
+      const dateA = a?.scheduled_date ? new Date(a.scheduled_date).getTime() : Infinity;
+      const dateB = b?.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity;
+      return dateA - dateB;
+    })[0];
+
+  const jobCardData = activeJob || nextJob;
+  const isOngoing = !!activeJob;
+
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        title="Dashboard"
+        subtitle="Your field overview, upcoming jobs, and performance trend."
+        icon={<LayoutDashboard />}
+      />
       <div className="grid grid-cols-2 gap-4">
         <StatCard title="Active Jobs" value={activeJobs} icon={<ClipboardList className="w-5 h-5" />} color="green" />
         <StatCard title="Completed Jobs" value={completedJobs} icon={<ClipboardList className="w-5 h-5" />} color="navy" />
       </div>
 
-      {nextJob && (
+      {jobCardData && (
         <Card className="bg-brand-navy border-none shadow-lg overflow-hidden relative p-5 sm:p-6">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] font-extrabold text-brand-green uppercase tracking-widest mb-1">Next Scheduled Job</p>
-              <h3 className="text-lg font-black text-white">{formatBookingId(nextJob.id)} - {nextJob.service_type || nextJob.service_category}</h3>
-              <p className="text-sm font-semibold text-slate-300 mt-1">
+              <p className={`text-[10px] font-extrabold uppercase tracking-widest mb-1 ${
+                isOngoing ? 'text-amber-400' : 'text-brand-green'
+              }`}>
+                {isOngoing ? '🟡 Active Job In Progress' : 'Next Scheduled Job'}
+              </p>
+              <h3 className="text-lg font-black text-white">
+                {formatBookingId(jobCardData.id)} — {jobCardData.service_type || jobCardData.service_category || '—'}
+              </h3>
+              <p className="text-sm font-semibold text-slate-300 mt-1 truncate max-w-sm">
                 {(() => {
-                  if (!nextJob.date) return 'TBD';
-                  const d = new Date(nextJob.date);
+                  if (!jobCardData.scheduled_date) return 'TBD';
+                  const d = new Date(jobCardData.scheduled_date);
                   return isNaN(d.getTime()) ? 'TBD' : d.toLocaleDateString();
-                })()} @ {nextJob.time || 'TBD'} • {nextJob.customer_address || nextJob.address || 'Location provided upon dispatch'}
+                })()} @ {jobCardData.scheduled_time || 'TBD'} • {jobCardData.service_address || jobCardData.customer_address || 'Location provided upon dispatch'}
               </p>
             </div>
-            <button 
-              onClick={() => navigate('/personnel/bookings')} 
-              className="bg-brand-green hover:bg-[#005e3f] text-white font-bold px-6 py-3 rounded-xl shadow-md transition-colors w-full sm:w-auto text-sm whitespace-nowrap active:scale-95 flex items-center justify-center gap-2"
+            <button
+              onClick={() => navigate('/personnel/bookings')}
+              className={`font-bold px-6 py-3 rounded-xl shadow-md transition-colors w-full sm:w-auto text-sm whitespace-nowrap active:scale-95 flex items-center justify-center gap-2 ${
+                isOngoing
+                  ? 'bg-amber-400 hover:bg-amber-500 text-slate-900'
+                  : 'bg-brand-green hover:bg-[#005e3f] text-white'
+              }`}
             >
-              <ClipboardList className="w-4 h-4" /> View Dispatch
+              <ClipboardList className="w-4 h-4" />
+              {isOngoing ? 'Continue Job' : 'View Dispatch'}
             </button>
           </div>
           <ClipboardList className="absolute -right-6 -bottom-6 w-32 h-32 text-white/5 rotate-12 pointer-events-none" />
@@ -648,14 +679,33 @@ function PersonnelBookings() {
                   Arrived
                 </button>
               )}
-              {selectedBooking.status === 'in_progress' && (
-                <button
-                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-green hover:bg-[#005e3f] text-white font-bold transition-all text-sm shadow-sm"
-                  onClick={() => setShowProofModal(true)}
-                >
-                  <ClipboardList className="w-4 h-4" /> Complete Job
-                </button>
-              )}
+              {selectedBooking.status === 'in_progress' && (() => {
+                const hasPendingAddons = selectedBooking.add_ons?.some((addon: any) => addon.status === 'pending_approval' || addon.status === 'pending_verification');
+                return (
+                  <button
+                    className={`flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold transition-all text-sm shadow-sm ${
+                      hasPendingAddons
+                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-300 dark:border-slate-700'
+                        : 'bg-brand-green hover:bg-[#005e3f] text-white'
+                    }`}
+                    onClick={() => {
+                      if (hasPendingAddons) {
+                        confirm({
+                          title: 'Pending Additional Charges',
+                          message: 'You have extra services or parts that are still pending customer approval or admin verification. Please wait for all charges to be confirmed before completing the job.',
+                          type: 'warning',
+                          hideCancel: true,
+                          confirmText: 'Understood'
+                        });
+                        return;
+                      }
+                      setShowProofModal(true);
+                    }}
+                  >
+                    <ClipboardList className="w-4 h-4" /> Complete Job
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -736,7 +786,13 @@ function PersonnelBookings() {
 
   // ── Default: bookings list with View Details button ──
   return (
-    <DataTable
+    <div className="space-y-0">
+      <AdminPageHeader
+        title="My Bookings"
+        subtitle="Your assigned jobs, dispatch details, and proof of work submissions."
+        icon={<ClipboardList />}
+      />
+      <DataTable
       columns={[
         { key: 'id', label: 'Booking ID', sortable: true, render: (item: any) => <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">{formatBookingId(item.id)}</span> },
         { key: 'service_type', label: 'Service', sortable: true },
@@ -782,6 +838,7 @@ function PersonnelBookings() {
       emptyTitle="No assigned bookings"
       searchPlaceholder="Search bookings..."
     />
+    </div>
   );
 }
 
@@ -899,13 +956,11 @@ function PersonnelProfile() {
 
   return (
     <div className="space-y-3 h-full flex flex-col">
-      {/* Missing AdminPageHeader import so I will just use standard DOM headers or recreate */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          <User className="w-6 h-6 text-brand-navy" /> My Profile
-        </h1>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage your identity, service specialties, and emergency contacts.</p>
-      </div>
+      <AdminPageHeader
+        title="My Profile"
+        subtitle="Manage your identity, service specialties, and emergency contacts."
+        icon={<User />}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch flex-1 pb-2">
         {/* ─── LEFT COLUMN ─── */}
@@ -1117,6 +1172,11 @@ function PersonnelSupport() {
   return (
     <div className="space-y-6">
       <ConfirmComponent />
+      <AdminPageHeader
+        title="Help &amp; Support"
+        subtitle="Report technical issues or contact your Vendor Manager for field concerns."
+        icon={<HelpCircle />}
+      />
       <Card className="p-8 text-center bg-brand-navy border-none shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col items-center">
           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
@@ -1175,6 +1235,7 @@ export default function PersonnelDashboard() {
           <Routes>
             <Route index element={<PersonnelHome />} />
             <Route path="bookings" element={<PersonnelBookings />} />
+            <Route path="messages" element={<PersonnelMessages />} />
             <Route path="profile" element={<PersonnelProfile />} />
             <Route path="notifications" element={<NotificationsTab />} />
             <Route path="support" element={<PersonnelSupport />} />
