@@ -127,6 +127,7 @@ const menuSections: Record<UserRole, SidebarSection[]> = {
       items: [
         { label: 'Dashboard', path: '/personnel', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
         { label: 'My Bookings', path: '/personnel/bookings', icon: <ClipboardList className="w-5 h-5" /> },
+        { label: 'Notifications', path: '/personnel/notifications', icon: <Bell className="w-5 h-5" /> },
         { label: 'Messages', path: '/personnel/messages', icon: <MessageSquare className="w-5 h-5" /> },
         { label: 'Profile', path: '/personnel/profile', icon: <User className="w-5 h-5" /> },
         { label: 'Get Help/Support', path: '/personnel/support', icon: <HelpCircle className="w-5 h-5" /> },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, History, RefreshCcw, MessageSquare, LayoutDashboard, ClipboardList, CalendarDays, TrendingUp, User, HelpCircle } from 'lucide-react';
+import { Home, History, RefreshCcw, MessageSquare, LayoutDashboard, ClipboardList, CalendarDays, TrendingUp, User, HelpCircle, Bell } from 'lucide-react';
 
 interface MobileBottomNavProps {
   role: 'customer' | 'vendor' | 'personnel' | 'admin';
@@ -20,10 +20,9 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
     { label: 'Messages', path: '/vendor/messages', icon: <MessageSquare className="w-[22px] h-[22px]" />, end: false },
   ] : role === 'personnel' ? [
     { label: 'Dashboard', path: '/personnel', icon: <LayoutDashboard className="w-[22px] h-[22px]" />, end: true },
-    { label: 'Bookings', path: '/personnel/bookings', icon: <ClipboardList className="w-[22px] h-[22px]" />, end: false },
+    { label: 'My Bookings', path: '/personnel/bookings', icon: <ClipboardList className="w-[22px] h-[22px]" />, end: false },
+    { label: 'Notifications', path: '/personnel/notifications', icon: <Bell className="w-[22px] h-[22px]" />, end: false },
     { label: 'Messages', path: '/personnel/messages', icon: <MessageSquare className="w-[22px] h-[22px]" />, end: false },
-    { label: 'Profile', path: '/personnel/profile', icon: <User className="w-[22px] h-[22px]" />, end: false },
-    { label: 'Support', path: '/personnel/support', icon: <HelpCircle className="w-[22px] h-[22px]" />, end: false },
   ] : [
     { label: 'Home', path: '/customer', icon: <Home className="w-[22px] h-[22px]" />, end: true },
     { label: 'Bookings', path: '/customer/bookings', icon: <History className="w-[22px] h-[22px]" />, end: false },

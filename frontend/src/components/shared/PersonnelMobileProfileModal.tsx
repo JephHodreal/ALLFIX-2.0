@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bell, Sun, Moon, ClipboardList, LogOut, LifeBuoy, ShieldCheck, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { X, User, Bell, Sun, Moon, ClipboardList, LogOut, LifeBuoy, ShieldCheck, ChevronRight, LayoutDashboard, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../services/firebaseService';
 import { MobileConfirmModal } from './MobileConfirmModal';
@@ -102,46 +102,12 @@ export function PersonnelMobileProfileModal({
 
             {/* Scrollable Navigation Body */}
             <div className="p-5 overflow-y-auto space-y-5 no-scrollbar [&::-webkit-scrollbar]:hidden flex-1 relative">
-              {/* Panel 1: Field Management */}
+              {/* Unified Account & Settings Panel */}
               <div className="space-y-2">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2">
-                  Field Management
+                  Account & Settings
                 </span>
                 <div className="rounded-3xl bg-slate-50/80 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden divide-y divide-slate-200/50 dark:divide-slate-800/60 shadow-xs">
-                  {/* Dashboard Row */}
-                  <button
-                    onClick={() => handleNav('/personnel')}
-                    className="w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                        <LayoutDashboard className="w-5 h-5" />
-                      </div>
-                      <div className="flex flex-col text-left min-w-0">
-                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">Dashboard Overview</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">View your active jobs & completion trend</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-
-                  {/* My Bookings Row */}
-                  <button
-                    onClick={() => handleNav('/personnel/bookings')}
-                    className="w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <ClipboardList className="w-5 h-5" />
-                      </div>
-                      <div className="flex flex-col text-left min-w-0">
-                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">My Bookings</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Assigned jobs, dispatch & proof of work</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-
                   {/* Profile Row */}
                   <button
                     onClick={() => handleNav('/personnel/profile')}
@@ -159,54 +125,6 @@ export function PersonnelMobileProfileModal({
                     <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform" />
                   </button>
 
-                  {/* Notifications Row */}
-                  <button
-                    onClick={() => handleNav('/personnel/notifications')}
-                    className="w-full flex items-center justify-between py-3.5 px-4 transition-all duration-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 active:bg-slate-100 dark:active:bg-slate-800 cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
-                        unreadNotificationsCount > 0
-                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/30 dark:shadow-blue-500/20'
-                          : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400'
-                      }`}>
-                        <Bell className={`w-5 h-5 ${unreadNotificationsCount > 0 ? 'animate-bounce' : ''}`} />
-                      </div>
-                      <div className="flex flex-col text-left min-w-0">
-                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">Notifications</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
-                          {unreadNotificationsCount > 0 
-                            ? `You have ${unreadNotificationsCount} unread alert${unreadNotificationsCount > 1 ? 's' : ''}`
-                            : 'View all updates & alerts'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      {unreadNotificationsCount > 0 ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-black text-xs shadow-md shadow-red-500/30 border border-white/20">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                          </span>
-                          <span>{unreadNotificationsCount} New</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
-                          Up to date
-                        </span>
-                      )}
-                      <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Panel 2: Preferences & Support */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2">
-                  Preferences & Support
-                </span>
-                <div className="rounded-3xl bg-slate-50/80 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden divide-y divide-slate-200/50 dark:divide-slate-800/60 shadow-xs">
                   {/* Dark Mode Row */}
                   <div className="w-full flex items-center justify-between py-3.5 px-4">
                     <div className="flex items-center gap-3.5 min-w-0">

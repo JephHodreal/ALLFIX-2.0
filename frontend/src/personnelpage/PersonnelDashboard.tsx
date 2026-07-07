@@ -17,6 +17,7 @@ import api from '../services/apiService';
 import { LineChart } from '../components/shared/LineChart';
 import { useChatMessages } from '../hooks/useChat';
 import { PersonnelMessages } from '@/personnelpage/PersonnelMessages';
+import { MobileBottomNav } from '../components/shared/MobileBottomNav';
 
 function PersonnelChatModal({ 
   isOpen, 
@@ -1231,7 +1232,7 @@ export default function PersonnelDashboard() {
       <Sidebar role="personnel" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className={`transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'}`}>
         <Header onMenuToggle={() => setMobileOpen(true)} />
-        <main className="p-4 md:p-6">
+        <main className="p-4 md:p-6 pb-24 lg:pb-6">
           <Routes>
             <Route index element={<PersonnelHome />} />
             <Route path="bookings" element={<PersonnelBookings />} />
@@ -1242,6 +1243,7 @@ export default function PersonnelDashboard() {
           </Routes>
         </main>
       </div>
+      <MobileBottomNav role="personnel" />
     </div>
   );
 }
