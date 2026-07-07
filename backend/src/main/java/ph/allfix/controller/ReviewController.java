@@ -25,7 +25,7 @@ public class ReviewController {
                 Map<String, Object> r1 = new HashMap<>();
                 r1.put("customer_name", "Maria Santos");
                 r1.put("rating", 5);
-                r1.put("feedback", "Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!");
+                r1.put("feedback", "Napakaayos ng trabaho! The CoolFix specialist arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!");
                 r1.put("service_type", "CoolFix – AC Cleaning");
                 r1.put("vendor_name", "CoolFix Partners");
                 r1.put("featured", true);
@@ -45,7 +45,7 @@ public class ReviewController {
                 Map<String, Object> r3 = new HashMap<>();
                 r3.put("customer_name", "Anna Reyes");
                 r3.put("rating", 4);
-                r3.put("feedback", "TechFix set up our entire CCTV and network infrastructure in one day. The technician was knowledgeable, courteous, and double-checked everything before leaving. Will book again!");
+                r3.put("feedback", "TechFix set up our entire CCTV and network infrastructure in one day. The specialist was knowledgeable, courteous, and double-checked everything before leaving. Will book again!");
                 r3.put("service_type", "TechFix – IT Support");
                 r3.put("vendor_name", "TechFix Experts");
                 r3.put("featured", true);

@@ -476,7 +476,7 @@ public class BookingService {
             String customerId = (String) booking.get("customer_id");
             if (customerId != null) {
                 notificationService.notify(customerId, "customer", "Cancellation Denied",
-                    "Your cancellation request for \"" + booking.get("service_type") + "\" was denied. The technician is en route.");
+                    "Your cancellation request for \"" + booking.get("service_type") + "\" was denied. The specialist is en route.");
             }
 
             // Notify vendor

@@ -356,7 +356,7 @@ export function NotificationsTab() {
                        if (role === 'personnel') {
                           navigate(`/${role}/bookings`, { state: { bookingId } });
                        } else {
-                          const openChannel = title.includes('personnel') || message.includes('personnel') || message.includes('technician') ? 'personnel' : 'vendor';
+                          const openChannel = title.includes('personnel') || message.includes('personnel') || message.includes('technician') || title.includes('specialist') || message.includes('specialist') ? 'personnel' : 'vendor';
                           navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
                        }
                        return;

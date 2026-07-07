@@ -178,6 +178,30 @@ public class AddressController {
                 updateData.put("barangay", barangay);
             }
             
+            Object unitHouseNo = address.get("unit_house_no");
+            if (unitHouseNo != null) {
+                updateData.put("unit_house_no", unitHouseNo);
+            }
+
+            Object street = address.get("street");
+            Object addressLine = address.get("address_line");
+            if (street != null) {
+                updateData.put("street", street);
+            } else if (addressLine != null) {
+                String addrStr = addressLine.toString().trim();
+                if (unitHouseNo != null) {
+                    String uStr = unitHouseNo.toString().trim();
+                    if (!uStr.isEmpty()) {
+                        if (addrStr.toLowerCase().startsWith(uStr.toLowerCase() + " ")) {
+                            addrStr = addrStr.substring(uStr.length() + 1).trim();
+                        } else if (addrStr.toLowerCase().startsWith(uStr.toLowerCase() + ", ")) {
+                            addrStr = addrStr.substring(uStr.length() + 2).trim();
+                        }
+                    }
+                }
+                updateData.put("street", addrStr);
+            }
+            
             if (!updateData.isEmpty()) {
                 firestoreService.update("customers", customerId, updateData);
             }

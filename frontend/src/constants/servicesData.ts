@@ -259,7 +259,7 @@ export const servicesData: ServiceBrand[] = [
     icon: MemoryIcon,
     brand: 'TechFix',
     tagline: 'IT & Gadget Support',
-    description: 'IT and technical support category managing hardware repairs and software installations. Coordinates certified tech technicians.',
+    description: 'IT and technical support category managing hardware repairs and software installations. Coordinates certified tech specialists.',
     image: '/images/techfix.jpg',
     accent: '#2E5BA8',
     accentDark: '#10355f',

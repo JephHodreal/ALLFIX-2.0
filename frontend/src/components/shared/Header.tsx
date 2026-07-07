@@ -230,8 +230,8 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
                                       if (role === 'personnel') {
                                           navigate(`/${role}/bookings`, { state: { bookingId } });
                                       } else {
-                                          // if it mentions personnel/technician, go to personnel channel. Otherwise vendor.
-                                          const openChannel = (messageLower.includes('personnel') || messageLower.includes('technician')) ? 'personnel' : 'vendor';
+                                          // if it mentions personnel/technician/specialist, go to personnel channel. Otherwise vendor.
+                                          const openChannel = (messageLower.includes('personnel') || messageLower.includes('technician') || messageLower.includes('specialist')) ? 'personnel' : 'vendor';
                                           navigate(`/${role}/messages`, { state: { bookingId: bookingId === 'HQ Chat' ? undefined : bookingId, openChannel } });
                                       }
                                   } else {

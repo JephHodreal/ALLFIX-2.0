@@ -83,7 +83,7 @@ export function VendorMobileProfileModal({
                       {profile?.company_name || profile?.business_name || `${profile?.first_name || 'Vendor'} ${profile?.last_name || ''}`}
                     </h2>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       Verified Vendor
                     </span>
                   </div>
@@ -153,7 +153,7 @@ export function VendorMobileProfileModal({
                       </div>
                       <div className="flex flex-col text-left min-w-0">
                         <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">Personnels</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Manage technicians & staff members</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Manage specialists & staff members</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform" />

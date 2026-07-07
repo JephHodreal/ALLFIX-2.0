@@ -89,7 +89,7 @@ export function CustomerMobileProfileModal({
             <div className="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar [&::-webkit-scrollbar]:hidden relative">
               {/* Profile Header Card (Aurora Concierge Membership Identity) */}
               <div
-                className="relative overflow-hidden flex items-center justify-between p-5 rounded-3xl bg-gradient-to-br from-[#071529] via-[#0d2644] to-[#0A3A5E] dark:from-[#050b14] dark:via-[#091a30] dark:to-[#082640] text-white shadow-xl shadow-brand-navy/20 dark:shadow-black/50 border border-white/15 cursor-pointer active:scale-95 transition-all group"
+                className="relative overflow-hidden flex items-center justify-between p-5 rounded-3xl bg-gradient-to-br from-[#071529] via-[#0d2644] to-[#0A3A5E] dark:from-[#050b14] dark:via-[#091a30] dark:to-[#082640] text-white shadow-sm border border-white/15 cursor-pointer active:scale-95 transition-all group"
                 onClick={() => handleNav('/customer/profile')}
               >
                 {/* Decorative ambient glass shape */}

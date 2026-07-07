@@ -8,7 +8,8 @@ import { formatBookingId } from '../utils/formatters';
 import { Sidebar } from '../components/shared/Sidebar';
 import { Header } from '../components/shared/Header';
 import { MobileBottomNav } from '../components/shared/MobileBottomNav';
-import { FloatingCartWidget } from './FloatingCartWidget';
+import { FloatingBookingWidget } from './FloatingBookingWidget';
+import { BookingServiceForm, ServiceReviewTab, CheckoutWizardModal, BookingReceiptView, AddonPaymentModal, ServiceSelectionItem } from '../components/booking';
 import { MobileServiceCarousel } from './MobileServiceCarousel';
 import { MobileBookingCardList } from './MobileBookingCardList';
 import { MobileConfirmModal } from '../components/shared/MobileConfirmModal';
@@ -1177,8 +1178,8 @@ function BookingFormTab({ cart, setCart, onCheckout }: BookingFormTabProps) {
                             >
                               <div className="flex justify-between items-start gap-2">
                                 <div className="flex items-center gap-3">
-                                  {v.avatar_url ? (
-                                    <img src={v.avatar_url} alt="Vendor Logo" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-slate-200 dark:border-slate-700 bg-white" />
+                                  {(v.avatar_url || v.logo_url || v.profile_image || v.photo_url || v.avatar || v.vendor_avatar || v.vendor_logo) ? (
+                                    <img src={v.avatar_url || v.logo_url || v.profile_image || v.photo_url || v.avatar || v.vendor_avatar || v.vendor_logo} alt="Vendor Logo" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-slate-200 dark:border-slate-700 bg-white" />
                                   ) : (
                                     <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700">
                                       <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
@@ -1465,7 +1466,7 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
           <textarea
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            placeholder="Write your review about the technician, work quality, or overall service..."
+            placeholder="Write your review about the specialist, work quality, or overall service..."
             rows={4}
             className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy resize-none placeholder:text-slate-400"
           />
@@ -1482,7 +1483,7 @@ function ReviewSection({ booking, profile, onReviewSubmitted }: { booking: any; 
           <Button
             type="submit"
             variant="success"
-            className="bg-brand-green hover:bg-emerald-600 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg shadow-brand-green/20"
+            className="bg-brand-green hover:bg-[#005e3f] text-white font-bold px-8 py-3 rounded-xl shadow-sm transition-colors"
             loading={submitting}
             disabled={!feedback.trim()}
           >
@@ -1724,7 +1725,7 @@ function MyBookingsTab() {
                 )}
                 {selectedBooking.personnel_id && (
                   <div className="flex justify-between items-center pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/60 px-1">
-                    <span className="text-slate-400 font-medium">Assigned Technician</span>
+                    <span className="text-slate-400 font-medium">Assigned Specialist</span>
                     <span className="font-bold text-brand-green flex items-center gap-1 text-xs">
                       <CheckCircle2 className="w-3.5 h-3.5" /> {selectedBooking.personnel_name || 'Assigned'}
                     </span>
@@ -1858,48 +1859,19 @@ function MyBookingsTab() {
         )}
 
         {/* Addon Payment Modal */}
-        {showAddonPaymentModal && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4">
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Pay Additional Charge</h3>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
-                  <select
-                    value={addonPaymentMethod}
-                    onChange={(e) => setAddonPaymentMethod(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-navy"
-                  >
-                    <option value="">Select method...</option>
-                    <option value="GCash">GCash</option>
-                    <option value="Maya">Maya</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reference Number</label>
-                  <input
-                    type="text"
-                    value={addonReferenceNumber}
-                    onChange={(e) => setAddonReferenceNumber(e.target.value)}
-                    placeholder="Enter reference number"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-navy"
-                  />
-                </div>
-              </div>
-              <div className="flex border-t border-slate-100 dark:border-slate-800">
-                <button onClick={() => setShowAddonPaymentModal(null)} className="flex-1 px-4 py-4 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50">Cancel</button>
-                <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
-                <button
-                  onClick={() => handlePayAddon(showAddonPaymentModal as string)}
-                  disabled={addonPaymentSubmitting || !addonPaymentMethod || !addonReferenceNumber.trim()}
-                  className="flex-1 px-4 py-4 text-sm font-bold text-brand-navy dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {addonPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <AddonPaymentModal
+          addonId={showAddonPaymentModal}
+          bookingId={selectedBooking?.id || ''}
+          onClose={() => setShowAddonPaymentModal(null)}
+          onSuccess={() => {
+            fetchBookings();
+            if (!profile?.id) return;
+            api.get(`/api/bookings/customer/${profile.id}`).then(r => {
+              const updatedBooking = (r.data || []).find((b: any) => b.id === selectedBooking?.id);
+              if (updatedBooking) setSelectedBooking(updatedBooking);
+            });
+          }}
+        />
 
         {/* Cancel Confirmation Dialog - Default layout for Desktop */}
         <ConfirmModal
@@ -1921,7 +1893,7 @@ function MyBookingsTab() {
                 <ul className="list-disc pl-3.5 space-y-0.5 font-medium">
                   <li>Full refund if cancelled 24h+ before schedule.</li>
                   <li>Cancellations within 24h may incur a processing fee.</li>
-                  <li>No cancellation once a technician is en route.</li>
+                  <li>No cancellation once a specialist is en route.</li>
                 </ul>
               </div>
             </div>
@@ -1952,7 +1924,7 @@ function MyBookingsTab() {
                 <ul className="list-disc pl-4 space-y-1 font-medium">
                   <li>Cancellations made 24h before schedule are eligible for full refund.</li>
                   <li>Cancellations within 24h may incur a vendor processing fee.</li>
-                  <li>Once a technician is en route, cancellations may not be permitted.</li>
+                  <li>Once a specialist is en route, cancellations may not be permitted.</li>
                 </ul>
               </div>
             </div>
@@ -2392,12 +2364,51 @@ function ProfileTab() {
     if (profile?.id) {
       try {
         const res = await api.get(`/api/addresses/customer/${profile.id}`);
-        setAddresses(res.data || []);
+        let fetched = res.data || [];
+        if (fetched.length === 0 && profile && ((profile as any).city || (profile as any).barangay || (profile as any).street || (profile as any).unit_house_no)) {
+          const uNo = ((profile as any).unit_house_no || '').toString().trim();
+          let stName = ((profile as any).street || '').toString().trim();
+          if (uNo && stName.toLowerCase().startsWith(uNo.toLowerCase() + ' ')) {
+            stName = stName.substring(uNo.length + 1).trim();
+          } else if (uNo && stName.toLowerCase().startsWith(uNo.toLowerCase() + ', ')) {
+            stName = stName.substring(uNo.length + 2).trim();
+          }
+          const defaultProfileAddr: any = {
+            id: 'profile-default-addr',
+            label: 'Home (Default)',
+            address_line: stName || uNo || 'Saved Address',
+            street: stName,
+            unit_house_no: uNo,
+            barangay: (profile as any).barangay || '',
+            city: (profile as any).city || '',
+            is_default: true,
+            user_id: profile.id
+          };
+          try {
+            const createRes = await api.post('/api/addresses', {
+              label: 'Home (Default)',
+              address_line: stName || uNo || 'Saved Address',
+              street: stName,
+              unit_house_no: uNo,
+              barangay: (profile as any).barangay || '',
+              city: (profile as any).city || '',
+              is_default: true,
+              user_id: profile.id
+            });
+            if (createRes.data && createRes.data.id) {
+              defaultProfileAddr.id = createRes.data.id;
+            }
+          } catch (e) {
+            console.error("Failed to auto-sync profile address to address book", e);
+          }
+          fetched = [defaultProfileAddr];
+        }
+        setAddresses(fetched);
       } catch (err) {
         console.error("Failed to fetch addresses", err);
       }
     }
-  }, [profile?.id]);
+  }, [profile]);
 
   React.useEffect(() => {
     syncData();
@@ -2554,10 +2565,13 @@ function ProfileTab() {
               refreshProfile();
             }
           } else {
-            await api.post(`/api/addresses`, {
+            const createRes = await api.post(`/api/addresses`, {
               ...addressData,
               user_id: profile.id
             });
+            if (addressData.is_default && createRes.data && createRes.data.id) {
+              await api.put(`/api/addresses/${createRes.data.id}/set-default`, {}).catch(() => {});
+            }
             refreshProfile();
           }
           setIsAddressModalOpen(false);
@@ -2853,7 +2867,13 @@ function ProfileTab() {
                             )}
                           </div>
                           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                            {addr.address_line}<br />
+                            {(() => {
+                              const u = (addr.unit_house_no || '').toString().trim();
+                              let s = (addr.street || addr.address_line || '').toString().trim();
+                              if (u && s.toLowerCase().startsWith(u.toLowerCase() + ' ')) s = s.substring(u.length + 1).trim();
+                              else if (u && s.toLowerCase().startsWith(u.toLowerCase() + ', ')) s = s.substring(u.length + 2).trim();
+                              return u ? `${u} ${s}` : s;
+                            })()}<br />
                             {addr.barangay && `${addr.barangay}, `}{addr.city}
                           </p>
                         </div>
@@ -4233,7 +4253,7 @@ function CheckoutModal({ isOpen, onClose, cart, onSuccess }: CheckoutModalProps)
                   type="button"
                   onClick={handleFinalizeBooking}
                   disabled={loading}
-                  className="flex-1 py-2.5 sm:py-3 text-xs sm:text-sm font-extrabold rounded-2xl bg-brand-navy hover:bg-[#0a2d5c] text-white shadow-lg shadow-brand-navy/20 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  className="flex-1 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl bg-brand-navy hover:bg-[#0a2d5c] text-white shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : 'Proceed'}
                 </button>
@@ -4351,7 +4371,7 @@ function CustomerMessages() {
       <div className={selectedThread ? 'hidden md:block shrink-0' : 'block shrink-0'}>
         <AdminPageHeader
           title="Messages"
-          subtitle="Coordinate directly with your service providers and technicians."
+          subtitle="Coordinate directly with your service providers and specialists."
           icon={<MessageSquare />}
         />
       </div>
@@ -4669,7 +4689,7 @@ function CustomerMessages() {
                 <MessageSquare className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-black text-slate-800 dark:text-slate-200">Your Conversations</h3>
-              <p className="text-sm text-slate-500 mt-2 max-w-sm">Select an active booking on the left to securely chat with vendors or assigned technicians.</p>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Select an active booking on the left to securely chat with vendors or assigned specialists.</p>
             </div>
           )}
         </div>
@@ -4683,7 +4703,7 @@ function CustomerMessages() {
 function CustomerSupport() {
   const { confirm: showAlert, ConfirmComponent } = useConfirm();
   const [showTicketModal, setShowTicketModal] = useState(false);
-  const [ticketForm, setTicketForm] = useState({ issueType: 'Late Technician', bookingId: '', message: '' });
+  const [ticketForm, setTicketForm] = useState({ issueType: 'Late Specialist', bookingId: '', message: '' });
 
   const handleSubmit = async () => {
     try {
@@ -4696,7 +4716,7 @@ function CustomerSupport() {
       });
       showAlert({ title: 'Success', message: 'Support ticket submitted successfully. Our team will review this shortly.', type: 'success', hideCancel: true });
       setShowTicketModal(false);
-      setTicketForm({ issueType: 'Late Technician', bookingId: '', message: '' });
+      setTicketForm({ issueType: 'Late Specialist', bookingId: '', message: '' });
     } catch (err) {
       showAlert({ title: 'Error', message: 'Failed to submit ticket', type: 'danger', hideCancel: true });
     }
@@ -4704,7 +4724,7 @@ function CustomerSupport() {
 
   const faqs = [
     { q: 'How do I cancel a booking?', a: 'Go to your Bookings tab, select the booking, and click Cancel. Penalties may apply if cancelled late.' },
-    { q: 'When is the technician arriving?', a: 'Once Dispatched, you can message the technician directly via the Messages tab.' },
+    { q: 'When is the specialist arriving?', a: 'Once Dispatched, you can message the specialist directly via the Messages tab.' },
     { q: 'How do refunds work?', a: 'Refunds are automatically processed to your AllFix wallet or original payment method upon approved cancellation.' }
   ];
 
@@ -4746,7 +4766,7 @@ function CustomerSupport() {
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Issue Type</label>
                 <select value={ticketForm.issueType} onChange={e => setTicketForm({...ticketForm, issueType: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm">
-                  <option value="Late Technician">Late Technician</option>
+                  <option value="Late Specialist">Late Specialist</option>
                   <option value="Poor Service Quality">Poor Service Quality</option>
                   <option value="Billing/Refund Issue">Billing/Refund Issue</option>
                   <option value="Other">Other</option>
@@ -4777,29 +4797,27 @@ function CustomerSupport() {
 export default function CustomerApp() {
   const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [cart, setCart] = useState<any[]>(() => {
+  const navigate = useNavigate();
+
+  const [selectedService, setSelectedService] = useState<ServiceSelectionItem | null>(() => {
     try {
-      const saved = localStorage.getItem('booking_cart');
-      return saved ? JSON.parse(saved) : [];
+      const saved = localStorage.getItem('allfix_selected_service_booking');
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return [];
+      return null;
     }
   });
 
   useEffect(() => {
-    localStorage.setItem('booking_cart', JSON.stringify(cart));
-  }, [cart]);
+    if (selectedService) {
+      localStorage.setItem('allfix_selected_service_booking', JSON.stringify(selectedService));
+    } else {
+      localStorage.removeItem('allfix_selected_service_booking');
+    }
+  }, [selectedService]);
 
-  // Checkout modal states
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-  const [checkoutCart, setCheckoutCart] = useState<any[]>([]);
-  const [onCheckoutSuccess, setOnCheckoutSuccess] = useState<((bookings: any[]) => void) | null>(null);
-
-  const triggerCheckout = (items: any[], onSuccess: (bookings: any[]) => void) => {
-    setCheckoutCart(items);
-    setOnCheckoutSuccess(() => onSuccess);
-    setCheckoutModalOpen(true);
-  };
+  const [successBookings, setSuccessBookings] = useState<any[] | null>(null);
 
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark pb-[80px] lg:pb-0">
@@ -4811,9 +4829,40 @@ export default function CustomerApp() {
         <main className="p-4 lg:p-6 pb-24 lg:pb-6">
           <Routes>
             <Route index element={<CustomerHome />} />
-            <Route path="book" element={<BookingFormTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
+            <Route path="book" element={
+              <BookingServiceForm
+                selectedService={selectedService}
+                onSelectService={(svc, proceed) => {
+                  setSelectedService(svc);
+                  if (proceed) navigate('/customer/review');
+                }}
+              />
+            } />
+            <Route path="review" element={
+              successBookings ? (
+                <BookingReceiptView
+                  successBookings={successBookings}
+                  onBookAnother={() => {
+                    setSuccessBookings(null);
+                    setSelectedService(null);
+                    navigate('/customer/book');
+                  }}
+                  onViewBookings={() => {
+                    setSuccessBookings(null);
+                    setSelectedService(null);
+                    navigate('/customer/bookings');
+                  }}
+                />
+              ) : (
+                <ServiceReviewTab
+                  selectedService={selectedService}
+                  onClearSelection={() => setSelectedService(null)}
+                  onProceedToCheckout={() => setCheckoutModalOpen(true)}
+                />
+              )
+            } />
+            <Route path="cart" element={<Navigate to="/customer/review" replace />} />
             <Route path="bookings" element={<MyBookingsTab />} />
-            <Route path="cart" element={<CartTab cart={cart} setCart={setCart} onCheckout={triggerCheckout} />} />
             <Route path="vouchers" element={<VouchersTab />} />
             <Route path="refunds" element={<RefundsTab />} />
             <Route path="notifications" element={<NotificationsTab />} />
@@ -4824,17 +4873,20 @@ export default function CustomerApp() {
         </main>
       </div>
 
-      <FloatingCartWidget cartCount={cart.length} />
+      <FloatingBookingWidget
+        hasSelectedService={Boolean(selectedService)}
+        selectedServiceName={selectedService?.subServiceName}
+        cartCount={selectedService ? 1 : 0}
+      />
       <MobileBottomNav role="customer" />
 
-      <CheckoutModal
+      <CheckoutWizardModal
         isOpen={checkoutModalOpen}
         onClose={() => setCheckoutModalOpen(false)}
-        cart={checkoutCart}
+        selectedService={selectedService}
         onSuccess={(bookings) => {
-          if (onCheckoutSuccess) {
-            onCheckoutSuccess(bookings);
-          }
+          setSuccessBookings(bookings);
+          setSelectedService(null);
         }}
       />
     </div>

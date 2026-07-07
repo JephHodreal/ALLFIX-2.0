@@ -395,7 +395,7 @@ const VendorApplication: React.FC = () => {
                 <Box
                     component="img"
                     src="https://plus.unsplash.com/premium_photo-1722686486500-9f54228769de?q=80&w=1160&auto=format&fit=crop"
-                    alt="technician tools"
+                    alt="specialist tools"
                     sx={{
                         position: 'absolute',
                         top: 0,

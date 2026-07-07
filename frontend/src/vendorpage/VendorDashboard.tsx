@@ -786,7 +786,7 @@ function VendorBookings() {
               <a href={selectedBooking.proof_of_work_url} target="_blank" rel="noreferrer" className="block w-full max-w-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-slate-100 dark:bg-slate-900 min-h-[100px] flex items-center justify-center">
                 <img src={selectedBooking.proof_of_work_url} alt="Proof of Work" className="w-full h-auto object-cover max-h-64" />
               </a>
-              <p className="text-xs text-slate-500 mt-3 font-medium">The technician uploaded this photo to verify the job completion.</p>
+              <p className="text-xs text-slate-500 mt-3 font-medium">The specialist uploaded this photo to verify the job completion.</p>
             </div>
           </Card>
         )}
@@ -2860,7 +2860,7 @@ function VendorPersonnel({ dbServices }: { dbServices: any[] }) {
     <div className="space-y-6">
       <AdminPageHeader
         title="Personnel"
-        subtitle="Manage your service technicians and staff."
+        subtitle="Manage your service specialists and staff."
         icon={<UserCheck />}
       />
 
@@ -4705,9 +4705,9 @@ function VendorMessages() {
                                 <div className="w-full rounded-2xl px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white shadow-sm">
                                   <div className="text-[10px] font-bold text-emerald-300 mb-1 flex items-center justify-center gap-1.5 bg-slate-900/60 dark:bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30 w-fit mx-auto">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    <span>🛠️ Tech Assigned: {(() => {
+                                    <span>✨ Specialist Assigned: {(() => {
                                       const tech = personnels.find((p: any) => p.id === msg.sender_id) || personnels.find((p: any) => p.id === activeBooking?.personnel_id) || personnels.find((p: any) => p.id === selectedThread?.technician_id);
-                                      return tech ? `${tech.first_name} ${tech.last_name}` : selectedThread?.personnel_name || 'Technician';
+                                      return tech ? `${tech.first_name} ${tech.last_name}` : selectedThread?.personnel_name || 'Specialist';
                                     })()}</span>
                                   </div>
                                   <p className="text-sm text-center">{msg.text}</p>

@@ -1735,7 +1735,7 @@ function BookingsTab() {
             <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-rose-900 dark:text-rose-300 font-bold text-sm uppercase tracking-wide">URGENT: Customer Requested Cancellation</h4>
-              <p className="text-rose-700 dark:text-rose-400 text-sm mt-1">Technician <span className="font-bold">{selectedBooking.personnel_name || 'Assigned'}</span> is currently dispatched. Please contact the vendor or technician to check if they have left for the job yet.</p>
+              <p className="text-rose-700 dark:text-rose-400 text-sm mt-1">Specialist <span className="font-bold">{selectedBooking.personnel_name || 'Assigned'}</span> is currently dispatched. Please contact the vendor or specialist to check if they have left for the job yet.</p>
             </div>
           </div>
         )}
@@ -1987,7 +1987,7 @@ function BookingsTab() {
           message={
             <div className="space-y-4 text-left">
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                The technician is already en route. Enter the Late Cancellation Fee (₱) to be deducted from the customer's refund and retained.
+                The specialist is already en route. Enter the Late Cancellation Fee (₱) to be deducted from the customer's refund and retained.
               </p>
               <div>
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">Late Cancellation Fee (₱)</label>

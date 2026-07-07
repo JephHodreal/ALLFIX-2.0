@@ -46,7 +46,7 @@ public class MessageController {
                 if (booking != null) {
                     String status = (String) booking.get("status");
                     if (status == null || (!status.equalsIgnoreCase("assigned") && !status.equalsIgnoreCase("in_progress") && !status.equalsIgnoreCase("dispatched") && !status.equalsIgnoreCase("in-transit"))) {
-                        return ResponseEntity.status(403).body(Map.of("message", "Booking is not in active dispatch. Messaging technician is locked."));
+                        return ResponseEntity.status(403).body(Map.of("message", "Booking is not in active dispatch. Messaging specialist is locked."));
                     }
                 }
             }
@@ -103,7 +103,7 @@ public class MessageController {
                 String collectionName = "";
                 if ("customer".equalsIgnoreCase(senderRole)) collectionName = "customers";
                 else if ("vendor".equalsIgnoreCase(senderRole)) collectionName = "vendors";
-                else if ("technician".equalsIgnoreCase(senderRole)) collectionName = "personnel";
+                else if ("technician".equalsIgnoreCase(senderRole) || "specialist".equalsIgnoreCase(senderRole)) collectionName = "personnel";
 
                 if (!collectionName.isEmpty()) {
                     Map<String, Object> senderUser = firestoreService.getById(collectionName, senderId);
@@ -165,12 +165,12 @@ public class MessageController {
                     Map<String, Object> vendor = vendorId != null ? firestoreService.getById("vendors", vendorId) : null;
                     if (vendor != null && vendor.get("company_name") != null) senderName = (String) vendor.get("company_name");
                     else senderName = "Vendor";
-                } else if ("technician".equalsIgnoreCase(senderRole) || "personnel".equalsIgnoreCase(senderRole)) {
+                } else if ("technician".equalsIgnoreCase(senderRole) || "personnel".equalsIgnoreCase(senderRole) || "specialist".equalsIgnoreCase(senderRole)) {
                     Map<String, Object> personnel = technicianId != null ? firestoreService.getById("personnel", technicianId) : null;
                     if (personnel != null && personnel.get("first_name") != null) {
                         senderName = (String) personnel.get("first_name");
                         if (personnel.get("last_name") != null) senderName += " " + personnel.get("last_name");
-                        senderName += " (Technician)";
+                        senderName += " (Specialist)";
                     } else senderName = "Assigned Personnel";
                 }
 
@@ -186,7 +186,7 @@ public class MessageController {
                     title = "New Message from Vendor";
                     if (customerId != null && !isLogistics) notificationService.notifyMessage(customerId, "customer", title, displayId, senderName, actualMsg);
                     if (technicianId != null && isLogistics) notificationService.notifyMessage(technicianId, "personnel", title, displayId, senderName, actualMsg);
-                } else if ("technician".equalsIgnoreCase(senderRole)) {
+                } else if ("technician".equalsIgnoreCase(senderRole) || "personnel".equalsIgnoreCase(senderRole) || "specialist".equalsIgnoreCase(senderRole)) {
                     title = "New Message from Personnel";
                     if (vendorId != null && threadId.startsWith("hq_")) {
                         notificationService.notifyMessage(vendorId, "vendor", title, displayId, senderName, actualMsg);

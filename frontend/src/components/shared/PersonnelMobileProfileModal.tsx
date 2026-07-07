@@ -66,7 +66,7 @@ export function PersonnelMobileProfileModal({
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-green via-emerald-800 to-brand-navy p-0.5 shadow-md shrink-0 relative group">
                   <div className="w-full h-full rounded-[14px] bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center">
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Technician Avatar" className="w-full h-full object-cover" />
+                      <img src={profile.avatar_url} alt="Specialist Avatar" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl font-black text-brand-green dark:text-white uppercase">
                         {profile?.first_name?.[0] || profile?.last_name?.[0] || 'T'}
@@ -80,11 +80,11 @@ export function PersonnelMobileProfileModal({
                 <div className="min-w-0 flex flex-col justify-center">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate tracking-tight">
-                      {`${profile?.first_name || 'Field'} ${profile?.last_name || 'Technician'}`}
+                      {`${profile?.first_name || 'Field'} ${profile?.last_name || 'Specialist'}`}
                     </h2>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Verified Technician
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Verified Specialist
                     </span>
                   </div>
                   <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 truncate mt-0.5">
@@ -152,7 +152,7 @@ export function PersonnelMobileProfileModal({
                         <User className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col text-left min-w-0">
-                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">Technician Profile</span>
+                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">Specialist Profile</span>
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Identity, specialties & emergency contact</span>
                       </div>
                     </div>
@@ -275,7 +275,7 @@ export function PersonnelMobileProfileModal({
 
               <div className="text-center space-y-1 pt-0.5">
                 <p className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wide">
-                  AllFix Technician Portal v2.0 • Field Operations
+                  AllFix Specialist Portal v2.0 • Field Operations
                 </p>
                 <p className="text-[10px] font-semibold text-slate-400/80 dark:text-slate-500">
                   © {new Date().getFullYear()} AllFix Platform • All Rights Reserved
@@ -305,7 +305,7 @@ export function PersonnelMobileProfileModal({
           }
         }}
         title="Log Out of AllFix?"
-        message="Are you sure you want to end your technician session? You will need to log in again to receive and manage field assignments."
+        message="Are you sure you want to end your specialist session? You will need to log in again to receive and manage field assignments."
         confirmText="Yes, Log Out"
         cancelText="Cancel"
         type="logout"

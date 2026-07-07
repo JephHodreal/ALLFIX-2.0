@@ -97,8 +97,8 @@ const testimonials: Testimonial[] = [
     highlightText: '#23406e',
     avatarBg: '#eaf2fc',
     avatarText: '#23406e',
-    text: '"Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!"',
-    mini: 'Napakaayos ng trabaho! The CoolFix technician arrived exactly on time, wore PPE...'
+    text: '"Napakaayos ng trabaho! The CoolFix specialist arrived exactly on time, wore PPE, and cleaned our 3 aircon units thoroughly. The apartment feels so much cooler now. Highly recommend!"',
+    mini: 'Napakaayos ng trabaho! The CoolFix specialist arrived exactly on time, wore PPE...'
   },
   {
     initials: 'RC',
@@ -121,8 +121,8 @@ const testimonials: Testimonial[] = [
     highlightText: '#6c3fcf',
     avatarBg: '#e1d5fa',
     avatarText: '#6c3fcf',
-    text: '"TechFix set up our entire CCTV and network infrastructure in one day. The technician was knowledgeable and courteous. Will book again!"',
-    mini: 'TechFix set up our entire CCTV and network infrastructure in one day. The technicia...'
+    text: '"TechFix set up our entire CCTV and network infrastructure in one day. The specialist was knowledgeable and courteous. Will book again!"',
+    mini: 'TechFix set up our entire CCTV and network infrastructure in one day. The specialist...'
   },
   {
     initials: 'MG',
