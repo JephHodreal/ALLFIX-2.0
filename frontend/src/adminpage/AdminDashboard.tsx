@@ -1946,7 +1946,7 @@ function BookingsTab() {
               </div>
             ) : (
               <>
-                {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
+                {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && selectedBooking.status !== 'job_done' && (
                   <Button
                     variant="outline"
                     className="flex-1 py-3 text-sm font-semibold rounded-xl border-2 !border-rose-500 !text-rose-600 !bg-transparent hover:!bg-rose-50 dark:hover:!bg-rose-950/30 min-w-[120px] transition-colors shadow-none flex items-center justify-center gap-2"
@@ -1957,6 +1957,12 @@ function BookingsTab() {
                     <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                     <span>Cancel Booking</span>
                   </Button>
+                )}
+                {selectedBooking.status === 'job_done' && (
+                  <div className="flex-1 text-center py-3 px-4 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 rounded-xl font-bold text-sm border border-blue-200 dark:border-blue-800 flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>Job Completed by Specialist — Awaiting Customer Verification</span>
+                  </div>
                 )}
                 {!selectedBooking.payment_confirmed && selectedBooking.status !== 'cancelled' && (
                   <Button

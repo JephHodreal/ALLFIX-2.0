@@ -1509,6 +1509,8 @@ function MyBookingsTab() {
   const [refundReason, setRefundReason] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState('');
+  const [showConfirmCompletionModal, setShowConfirmCompletionModal] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ show: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' | 'warning' } | null>(null);
 
   const [isMobileViewport, setIsMobileViewport] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   useEffect(() => {
@@ -1641,7 +1643,7 @@ function MyBookingsTab() {
 
   // ── Booking Details View ──
   if (selectedBooking) {
-    const isCancellable = selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && !selectedBooking.cancellation_requested;
+    const isCancellable = selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && selectedBooking.status !== 'job_done' && !selectedBooking.cancellation_requested;
     const hasRefundInfo = selectedBooking.refund_reference_number || selectedBooking.refund_method || selectedBooking.cancelled_by;
     const qty = selectedBooking.quantity || 1;
     const totalPayment = Number(selectedBooking.total_price !== undefined ? selectedBooking.total_price : (selectedBooking.price !== undefined ? selectedBooking.price * qty : 0));
@@ -1846,6 +1848,51 @@ function MyBookingsTab() {
           </Card>
         </div>
 
+        {/* Customer Verification Card when Job is Marked Done */}
+        {selectedBooking.status === 'job_done' && (
+          <Card className="p-6 space-y-4 bg-gradient-to-br from-emerald-50 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/10 border-2 border-emerald-400/80 dark:border-emerald-700/60 rounded-2xl shadow-md">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20 mt-0.5">
+                <CheckCircle2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  Job Completed by Specialist!
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                  Specialist <span className="font-bold text-slate-900 dark:text-white">{selectedBooking.personnel_name || 'Assigned Specialist'}</span> has finished the work and submitted completion proof. Please verify the job quality and confirm completion below.
+                </p>
+              </div>
+            </div>
+
+            {selectedBooking.proof_image_url && (
+              <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 mb-2">
+                  Proof of Work Photo
+                </p>
+                <a href={selectedBooking.proof_image_url} target="_blank" rel="noopener noreferrer" className="block w-full max-w-sm rounded-xl overflow-hidden border border-emerald-300 dark:border-emerald-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
+                  <img src={selectedBooking.proof_image_url} alt="Proof of Work" className="w-full h-auto object-cover max-h-60" />
+                </a>
+                {selectedBooking.proof_note && (
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 italic bg-white/60 dark:bg-slate-900/40 p-2.5 rounded-xl border border-emerald-200/40 dark:border-emerald-800/30">
+                    "{selectedBooking.proof_note}"
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                className="w-full sm:w-auto px-6 py-3.5 bg-brand-green hover:bg-[#005e3f] text-white font-extrabold text-sm rounded-xl shadow-lg shadow-brand-green/20 hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => setShowConfirmCompletionModal(true)}
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>Verify & Confirm Job Done</span>
+              </button>
+            </div>
+          </Card>
+        )}
+
         {/* Completed Rating and Review section */}
         {selectedBooking.status === 'completed' && (
           <ReviewSection
@@ -2021,6 +2068,56 @@ function MyBookingsTab() {
               </Button>
             </div>
           </Card>
+        )}
+
+        {/* Confirm Completion Dialog for Customer */}
+        <ConfirmModal
+          isOpen={showConfirmCompletionModal}
+          onClose={() => setShowConfirmCompletionModal(false)}
+          onConfirm={async () => {
+            setShowConfirmCompletionModal(false);
+            try {
+              setLoading(true);
+              await api.patch(`/api/bookings/${selectedBooking.id}/complete`);
+              const updated = await api.get(`/api/bookings/${selectedBooking.id}`);
+              setSelectedBooking(updated.data);
+              setBookings(prev => prev.map(b => b.id === selectedBooking.id ? updated.data : b));
+              setAlertConfig({
+                show: true,
+                title: 'Job Verified!',
+                message: 'Thank you for confirming! You can now rate and review your experience below.',
+                type: 'success'
+              });
+            } catch (err: any) {
+              setAlertConfig({
+                show: true,
+                title: 'Error',
+                message: err.response?.data?.message || 'Failed to confirm job completion.',
+                type: 'danger'
+              });
+            } finally {
+              setLoading(false);
+            }
+          }}
+          title="Confirm Job Completion"
+          message="Are you sure you want to verify and confirm that this job has been satisfactorily completed by the specialist?"
+          confirmText="Yes, Confirm Completion"
+          cancelText="Not Yet"
+          type="info"
+        />
+
+        {/* Alert Modal */}
+        {alertConfig && (
+          <ConfirmModal
+            isOpen={alertConfig.show}
+            onClose={() => setAlertConfig(null)}
+            onConfirm={() => setAlertConfig(null)}
+            title={alertConfig.title}
+            message={alertConfig.message}
+            type={alertConfig.type}
+            hideCancel={true}
+            confirmText="Okay"
+          />
         )}
       </div>
     );
@@ -4800,6 +4897,7 @@ export default function CustomerApp() {
   const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const { confirm: showAlert, ConfirmComponent } = useConfirm();
 
   const [selectedService, setSelectedService] = useState<ServiceSelectionItem | null>(() => {
     try {
@@ -4887,10 +4985,19 @@ export default function CustomerApp() {
         onClose={() => setCheckoutModalOpen(false)}
         selectedService={selectedService}
         onSuccess={(bookings) => {
+          setCheckoutModalOpen(false);
           setSuccessBookings(bookings);
           setSelectedService(null);
+          showAlert({
+            title: 'Payment & Booking Confirmed!',
+            message: 'The payment was already sent and your booking is currently on pending status while waiting for admin verification.',
+            type: 'success',
+            confirmText: 'OK, View Details',
+            hideCancel: true
+          });
         }}
       />
+      <ConfirmComponent />
     </div>
   );
 }

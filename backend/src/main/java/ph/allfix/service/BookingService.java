@@ -273,6 +273,45 @@ public class BookingService {
         if (personnelId != null) notificationService.notify(personnelId, "personnel", "Job Completed", "Your assigned job \"" + details + "\" has been marked as completed. Great work!");
     }
 
+    public void updateBooking(String bookingId, Map<String, Object> updates) throws Exception {
+        System.out.println("BookingService.updateBooking: bookingId=" + bookingId + ", updates=" + updates);
+        Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
+        if (booking == null) throw new RuntimeException("Booking not found: " + bookingId);
+
+        if ("completed".equals(updates.get("status"))) {
+            completeBooking(bookingId);
+            updates.remove("status");
+            if (!updates.isEmpty()) {
+                firestoreService.update("bookings", bookingId, updates);
+            }
+            return;
+        }
+
+        firestoreService.update("bookings", bookingId, updates);
+        if (updates.containsKey("status")) {
+            try {
+                Map<String, Object> chatUpdates = new HashMap<>();
+                chatUpdates.put("status", updates.get("status"));
+                firestoreService.update("chat_threads", bookingId, chatUpdates);
+            } catch (Exception e) {
+                System.err.println("BookingService: Failed to update chat thread status: " + e.getMessage());
+            }
+
+            String status = (String) updates.get("status");
+            String customerId = (String) booking.get("customer_id");
+            String vendorId = (String) booking.get("vendor_id");
+            String serviceType = (String) booking.get("service_type");
+            if ("job_done".equals(status)) {
+                if (customerId != null) {
+                    notificationService.notify(customerId, "customer", "Job Completed by Specialist", "Your specialist has marked job #" + bookingId + " (" + serviceType + ") as completed. Please review and confirm completion.");
+                }
+                if (vendorId != null) {
+                    notificationService.notify(vendorId, "vendor", "Job Completed by Specialist", "Specialist has marked job #" + bookingId + " (" + serviceType + ") as completed. Proof of work submitted.");
+                }
+            }
+        }
+    }
+
     public void requestAddon(String bookingId, Map<String, Object> body) throws Exception {
         Map<String, Object> booking = firestoreService.getById("bookings", bookingId);
         if (booking == null) throw new RuntimeException("Booking not found");
