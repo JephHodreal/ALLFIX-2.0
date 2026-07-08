@@ -27,20 +27,38 @@ export const Footer: React.FC = () => {
   useEffect(() => {
     api.get('/api/services')
       .then(res => {
-        const backendServices = res.data;
-        const merged: any[] = [];
+        const backendServices = res.data || [];
+        const mergedMap = new Map<string, any>();
 
+        // First put static frontend services into map
+        servicesData.forEach((fs) => {
+          const key = fs.id.toLowerCase().replace(/\s+/g, '');
+          mergedMap.set(key, {
+            id: fs.id,
+            brand: fs.brand,
+            tagline: fs.tagline,
+            description: fs.description,
+            image: fs.image,
+            accent: fs.accent,
+            accentDark: fs.accentDark,
+            headerBg: fs.headerBg,
+            headerBgLight: fs.headerBgLight,
+            pillText: fs.pillText,
+          });
+        });
+
+        // Then process backend services and overwrite/merge
         backendServices.forEach((bs: any) => {
-          const id = bs.id || bs.name.toLowerCase().replace(/\s+/g, '');
+          const key = (bs.name || bs.brand || bs.id || '').toString().toLowerCase().replace(/\s+/g, '');
           const frontendMatch = servicesData.find(
-            s => s.id.toLowerCase() === id.toLowerCase() || s.brand.toLowerCase() === bs.name.toLowerCase()
+            s => s.id.toLowerCase().replace(/\s+/g, '') === key || s.brand.toLowerCase().replace(/\s+/g, '') === key
           );
           
-          merged.push({
-            id,
-            brand: bs.name,
+          mergedMap.set(key, {
+            id: key,
+            brand: bs.name || frontendMatch?.brand || key,
             tagline: bs.tagline || frontendMatch?.tagline || 'Specialized Services',
-            description: bs.description,
+            description: bs.description || frontendMatch?.description || '',
             image: bs.imageUrl || bs.image || frontendMatch?.image || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
             accent: frontendMatch?.accent || '#2E5BA8',
             accentDark: frontendMatch?.accentDark || '#10355f',
@@ -50,24 +68,7 @@ export const Footer: React.FC = () => {
           });
         });
 
-        // Add remaining frontend services
-        servicesData.forEach((fs) => {
-          if (!merged.find(m => m.id.toLowerCase() === fs.id.toLowerCase())) {
-            merged.push({
-              id: fs.id,
-              brand: fs.brand,
-              tagline: fs.tagline,
-              description: fs.description,
-              image: fs.image,
-              accent: fs.accent,
-              accentDark: fs.accentDark,
-              headerBg: fs.headerBg,
-              headerBgLight: fs.headerBgLight,
-              pillText: fs.pillText,
-            });
-          }
-        });
-
+        const merged = Array.from(mergedMap.values());
         setServices(merged);
         console.log("[CAVEMAN] Footer dynamic services successfully fetched and synchronized with DB:", merged.map(m => m.brand));
       })
