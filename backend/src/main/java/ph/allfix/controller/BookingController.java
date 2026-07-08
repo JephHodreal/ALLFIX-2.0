@@ -61,6 +61,26 @@ public class BookingController {
         return booking != null ? ResponseEntity.ok(booking) : ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateBooking(@PathVariable String id, @RequestBody Map<String, Object> updates) {
+        try {
+            bookingService.updateBooking(id, updates);
+            return ResponseEntity.ok(Map.of("message", "Booking updated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> patchBooking(@PathVariable String id, @RequestBody Map<String, Object> updates) {
+        try {
+            bookingService.updateBooking(id, updates);
+            return ResponseEntity.ok(Map.of("message", "Booking updated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PatchMapping("/{id}/confirm-payment")
     public ResponseEntity<?> confirmPayment(@PathVariable String id) throws Exception {
         bookingService.confirmPayment(id);

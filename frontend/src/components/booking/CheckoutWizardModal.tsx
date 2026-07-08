@@ -346,12 +346,6 @@ export const CheckoutWizardModal: React.FC<CheckoutWizardModalProps> = ({
 
   return (
     <>
-      <BookingCancelPrompt
-        open={showCancelPrompt}
-        onClose={() => setShowCancelPrompt(false)}
-        onConfirm={handleFinalizeBooking}
-      />
-
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0 }}
@@ -939,6 +933,12 @@ export const CheckoutWizardModal: React.FC<CheckoutWizardModalProps> = ({
 
         </motion.div>
       </div>
+
+      <BookingCancelPrompt
+        open={showCancelPrompt}
+        onClose={() => setShowCancelPrompt(false)}
+        onConfirm={handleFinalizeBooking}
+      />
     </>
   );
 };
