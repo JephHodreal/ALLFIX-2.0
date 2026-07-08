@@ -2314,6 +2314,8 @@ interface CustomerAddress {
   address_line: string;
   city: string;
   barangay: string;
+  unit_house_no?: string;
+  street?: string;
   is_default: boolean;
 }
 
